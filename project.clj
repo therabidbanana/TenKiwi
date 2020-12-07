@@ -117,16 +117,19 @@
              {:dependencies [[figwheel "0.5.18"]
                              [figwheel-sidecar "0.5.18"]
                              [cider/piggieback "0.5.2"]
-                             [cider/cider-nrepl "0.25.5"]
                              [nrepl/nrepl "0.8.2"]
                              [lein-doo "0.1.11"]
                              [reloaded.repl "0.2.4"]]
 
               :plugins [[lein-figwheel "0.5.18"]
-                        [lein-doo "0.1.11"]]
+                        [lein-doo "0.1.11"]
+                        [cider/cider-nrepl "0.25.5"]]
 
               :source-paths ["dev"]
-              :repl-options {:nrepl-middleware [cider.piggieback/wrap-cljs-repl]}}
+              :repl-options {:nrepl-middleware [cider.piggieback/wrap-cljs-repl
+                                                cider.nrepl/wrap-format
+                                                cider.nrepl/wrap-apropos
+                                                ]}}
 
              :uberjar
              {:source-paths ^:replace ["src/clj" "src/cljc"]

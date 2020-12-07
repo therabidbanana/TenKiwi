@@ -1,5 +1,6 @@
 (ns walking-deck.system
   (:require [com.stuartsierra.component :as component]
+            [walking-deck.socket-events :refer [chsk]]
             [walking-deck.components.ui :refer [new-ui-component]]))
 
 (declare system)

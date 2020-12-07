@@ -16,7 +16,8 @@
                  [com.stuartsierra/component "0.3.2"]
                  [org.danielsz/system "0.4.1"]
                  [org.clojure/tools.namespace "0.2.11"]
-                 [http-kit "2.3.0"]
+                 [com.taoensso/sente "1.16.0"]
+                 [http-kit "2.5.0"]
                  [compojure "1.6.1"]
                  [re-frame "0.10.6"]
                  [lambdaisland/garden-watcher "0.3.3"]]
@@ -40,7 +41,8 @@
   ;; nREPL by default starts in the :main namespace, we want to start in `user`
   ;; because that's where our development helper functions like (go) and
   ;; (browser-repl) live.
-  :repl-options {:init-ns user}
+  :repl-options {:init-ns user
+                 :timeout 300000}
 
   :cljsbuild {:builds
               [{:id "app"
@@ -103,8 +105,9 @@
   :profiles {:dev
              {:dependencies [[figwheel "0.5.18"]
                              [figwheel-sidecar "0.5.18"]
-                             [cider/piggieback "0.4.0"]
-                             [cider/cider-nrepl "0.18.0"]
+                             [cider/piggieback "0.5.2"]
+                             [cider/cider-nrepl "0.25.5"]
+                             [nrepl/nrepl "0.8.2"]
                              [lein-doo "0.1.11"]
                              [reloaded.repl "0.2.4"]]
 

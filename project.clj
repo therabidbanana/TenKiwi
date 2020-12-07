@@ -16,11 +16,15 @@
                  [com.stuartsierra/component "0.3.2"]
                  [org.danielsz/system "0.4.1"]
                  [org.clojure/tools.namespace "0.2.11"]
-                 [com.taoensso/sente "1.16.0"]
                  [http-kit "2.5.0"]
                  [compojure "1.6.1"]
                  [re-frame "0.10.6"]
-                 [lambdaisland/garden-watcher "0.3.3"]]
+                 [lambdaisland/garden-watcher "0.3.3"]
+
+
+                 [com.taoensso/sente "1.16.0"]
+                 [devcards "0.2.5"]
+                 ]
 
   :plugins [[lein-cljsbuild "1.1.7"]
             [lein-environ "1.1.0"]]
@@ -55,7 +59,14 @@
                            :output-to "dev-target/public/js/compiled/walking_deck.js"
                            :output-dir "dev-target/public/js/compiled/out"
                            :source-map-timestamp true}}
-
+               {:id           "devcards"
+                :source-paths ["src"]
+                :figwheel     { :devcards true } ;; <- note this
+                :compiler     {:main                 "walking-deck.devcards"
+                               :asset-path           "js/devcards_out/out"
+                               :output-to            "dev-target/public/js/devcards_out/walking_deck_devcards.js"
+                               :output-dir           "dev-target/public/js/devcards_out/out"
+                               :source-map-timestamp true}}
                {:id "test"
                 :source-paths ["src/cljs" "test/cljs" "src/cljc" "test/cljc"]
                 :compiler {:output-to "dev-target/public/js/compiled/testable.js"

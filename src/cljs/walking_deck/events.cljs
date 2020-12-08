@@ -6,3 +6,8 @@
  :initialize-db
  (fn  [_ _]
    db/default-db))
+
+(re-frame/reg-event-db
+ :set-user-name
+ (fn [db [_ val]]
+   (assoc-in db [:user :user-name] val)))

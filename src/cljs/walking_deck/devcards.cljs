@@ -14,10 +14,15 @@
   #_{:inspect-data true} ;; <-- 3
   )
 
-(def user-state (atom {:user-name "foobar"}))
+(def user-state (reagent/atom {:user-name "foobar"}))
 
-(defcard-rg login-panel
-  [views/-login-panel user-state] ;; <-- 1
+(defmulti dispatch (fn [[event & args]] event))
+
+(defmethod dispatch :set-user-name [[_ name]]
+  (swap! user-state #(assoc % :user-name name)))
+
+(defcard-rg join-panel
+  [views/-join-panel user-state dispatch] ;; <-- 1
   user-state ;; <-- 2
   {:inspect-data true} ;; <-- 3
   )

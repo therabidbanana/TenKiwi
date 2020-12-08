@@ -1,19 +1,28 @@
 (ns walking-deck.views
   (:require [re-frame.core :as re-frame]))
 
-(defn -login-panel [user]
+(defn -join-panel [user dispatch]
   (let [val #(-> % .-target .-value)]
     [:div {:class "form"}
      [:form
-      [:input {:name      "name"
-               :value     (-> user deref :user-name)
-               :on-change (fn [e] (swap! user #(assoc % :user-name (val e))))}]
-      [:input {:name "room"}]]]))
+      [:div.fieldset
+       [:label
+        "Name"
+        [:br]
+        [:input {:name      "name"
+                 :value     (-> user deref :user-name)
+                 :on-change #(dispatch [:set-user-name (val %)])}]]]
+      [:div.fieldset
+       [:label
+        "Room"
+        [:br]
+        [:input {:name "room"}]]]
+      [:button "Join"]]]))
 
-(defn login-panel []
+(defn join-panel []
   (let [user-atom   (re-frame/subscribe [:user])
         new-allowed true]
-    [-login-panel user-atom]))
+    [-join-panel user-atom re-frame/dispatch]))
 
 (defn -main-panel [name]
   (let []
@@ -22,5 +31,5 @@
 (defn main-panel []
   (let [name (re-frame/subscribe [:name])]
     [:div {}
-     [login-panel]
+     [join-panel]
      [-main-panel @name]]))

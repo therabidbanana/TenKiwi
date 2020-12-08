@@ -1,4 +1,5 @@
 (ns walking-deck.db)
 
 (def default-db
-  {:name "re-frame"})
+  {:name "re-frame"
+   :user {:user-name "bob"}})

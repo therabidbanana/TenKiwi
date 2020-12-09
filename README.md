@@ -1,6 +1,21 @@
 # walking-deck
 
 
+## Next Steps
+
+* Work on multiple clients joining a "lobby", with names showing
+* Work on boot from lobby
+* Work on refresh client => return to lobby
+* Manual leave
+
+^ If we can get all of that working an synchronized over multiple clients, then
+framwork in place for:
+
+* All players state ready
+* Start game
+* Show card to player
+* Show everyone else whose turn
+
 ## Development
 
 Open a terminal and type `lein repl` to start a Clojure REPL
@@ -14,7 +29,7 @@ In the REPL, type
 ```
 
 The call to `(go)` starts the Figwheel server at port 3449, which takes care of
-live reloading ClojureScript code and CSS, and the app server at port 10555 
+live reloading ClojureScript code and CSS, and the app server at port 10555
 which forwards requests to the http-handler you define.
 
 Running `(cljs-repl)` starts the Figwheel ClojureScript REPL. Evaluating

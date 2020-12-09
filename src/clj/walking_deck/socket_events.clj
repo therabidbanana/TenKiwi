@@ -37,11 +37,12 @@
 
 (defmethod -event-msg-handler :chsk/uidport-open
   [{:keys [gamemaster]} {:as ev-msg :keys [event]}]
-  (let [[_ uid] event]
+  (let [[_ uid]         event
+        player-location (-> gamemaster :players deref (get uid))]
     (if (= uid :taoensso.sente/nil-uid)
       (println "Warning - unassigned user id!")
-      (swap! (:players gamemaster) assoc uid :home))
-    (println "hiya")))
+      (if (nil? player-location)
+        (swap! (:players gamemaster) assoc uid :home)))))
 
 (defmethod -event-msg-handler :room/join-room!
   [{:keys [gamemaster]} {:as ev-msg :keys [event uid]}]
@@ -50,7 +51,7 @@
         rooms        (:rooms gamemaster)
         current-room (@rooms room-code)]
     (if (= uid :taoensso.sente/nil-uid)
-      (println "Warning - unassigned user id!")
+      (println "Warning - unassigned user id! Ignoring join :room/join-room!")
       (do (if current-room
             (swap! rooms update-in [room-code :players] conj user-name)
             (swap! rooms assoc-in [room-code] {:room-code room-code :players [user-name]}))

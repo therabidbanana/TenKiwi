@@ -5,6 +5,7 @@
 
 (declare system)
 
+;; TODO: CHSK should probably live in here (prevent CSRF failures on figwheel?)
 (defn new-system []
   (component/system-map
    :app-root (new-ui-component)))

@@ -30,9 +30,32 @@
       (?reply-fn {:umatched-event-as-echoed-from-from-server event}))))
 
 (defmethod -event-msg-handler :chsk/ws-ping
-  [{:keys []} {:as ev-msg :keys []}]
-  (let []
+  [{:keys [gamemaster]} {:as ev-msg :keys [uid]}]
+  (let [player-location (-> gamemaster :players deref (get uid))]
+    (println "Player expected at " (or player-location :unknown))
     #_(println "hiya")))
+
+(defmethod -event-msg-handler :chsk/uidport-open
+  [{:keys [gamemaster]} {:as ev-msg :keys [event]}]
+  (let [[_ uid] event]
+    (if (= uid :taoensso.sente/nil-uid)
+      (println "Warning - unassigned user id!")
+      (swap! (:players gamemaster) assoc uid :home))
+    (println "hiya")))
+
+(defmethod -event-msg-handler :room/join-room!
+  [{:keys [gamemaster]} {:as ev-msg :keys [event uid]}]
+  (let [[_ {:keys [user-name room-code]}] event
+
+        rooms        (:rooms gamemaster)
+        current-room (@rooms room-code)]
+    (if (= uid :taoensso.sente/nil-uid)
+      (println "Warning - unassigned user id!")
+      (do (if current-room
+            (swap! rooms update-in [room-code :players] conj user-name)
+            (swap! rooms assoc-in [room-code] {:room-code room-code :players [user-name]}))
+          (swap! (:players gamemaster) assoc uid room-code)))
+    (println "Rooms now -> " @rooms)))
 
 (defmethod -event-msg-handler :example/toggle-broadcast
   [{:keys [broadcast-enabled?_]} {:as ev-msg :keys [?reply-fn]}]

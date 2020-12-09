@@ -1,5 +1,5 @@
 (ns walking-deck.core
-  (:require [reagent.core :as reagent]
+  (:require [reagent.dom :as reagent.dom]
             [re-frame.core :as re-frame]
             [walking-deck.events]
             [walking-deck.subs]
@@ -15,7 +15,7 @@
 
 (defn mount-root []
   (re-frame/clear-subscription-cache!)
-  (reagent/render [views/main-panel]
+  (reagent.dom/render [views/main-panel]
                   (.getElementById js/document "app")))
 
 (defn render []

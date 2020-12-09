@@ -11,3 +11,8 @@
  :user
  (fn [db]
    (:user db)))
+
+(re-frame/reg-sub
+ :join
+ (fn [db]
+   (:join db)))

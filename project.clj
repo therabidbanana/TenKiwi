@@ -18,7 +18,9 @@
                  [org.clojure/tools.namespace "0.2.11"]
                  [http-kit "2.5.0"]
                  [compojure "1.6.1"]
-                 [re-frame "0.10.6"]
+                 [cljsjs/react "16.13.1-0"]
+                 [cljsjs/react-dom "16.13.1-0"]
+                 [re-frame "1.1.2"]
                  [lambdaisland/garden-watcher "0.3.3"]
 
 

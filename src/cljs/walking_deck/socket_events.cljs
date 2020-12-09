@@ -1,17 +1,11 @@
 (ns walking-deck.socket-events
   (:require [com.stuartsierra.component :as component]
             [taoensso.sente  :as sente  :refer (cb-success?)]
-            [goog.string         :as gstr]
-            [walking-deck.components.ui :refer [new-ui-component]]) )
+            [goog.string         :as gstr]) )
 
-(def output-el (.getElementById js/document "output"))
 (defn ->output! [fmt & args]
   (let [msg (apply gstr/format fmt args)]
-    (aset output-el "value" (str "• " (.-value output-el) "\n" msg))
-    (aset output-el "scrollTop" (.-scrollHeight output-el))))
-
-
-(->output! "ClojureScript appears to have loaded correctly.")
+    (println msg)))
 
 ;;;; Define our Sente channel socket (chsk) client
 (def ?csrf-token

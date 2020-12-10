@@ -10,6 +10,7 @@ operates on single group instead of having to constantly dig in to all groups
 
 * Work on refresh client => return to lobby (persistent user ids)
 * Manual leave
+* Only host can actually boot
 
 ^ If we can get all of that working an synchronized over multiple clients, then
 framwork in place for:

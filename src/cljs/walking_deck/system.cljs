@@ -12,13 +12,22 @@
   (when-let [el (.getElementById js/document "sente-csrf-token")]
     (.getAttribute el "data-csrf-token")))
 
+(defn ?client-id []
+  (let [client-id (js->clj (.getItem js/localStorage "device-id"))
+        client-id (or client-id (random-uuid))
+        as-str    (clj->js client-id)]
+    (do
+      (.setItem js/localStorage "device-id" as-str)
+      client-id)))
+
 ;; TODO: CHSK should probably live in here (prevent CSRF failures on figwheel?)
 (defn new-system []
   (component/system-map
    :sente-handler {:handler event-msg-handler}
    :sente (component/using
-           (new-channel-socket-client "/chsk" ?csrf-token {:type :auto
-                                                           :packer :edn})
+           (new-channel-socket-client "/chsk" ?csrf-token {:type      :auto
+                                                           :packer    :edn
+                                                           :client-id (?client-id)})
            [:sente-handler])
    :app-root (new-ui-component)))
 

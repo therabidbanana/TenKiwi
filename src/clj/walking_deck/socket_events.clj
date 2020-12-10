@@ -16,6 +16,7 @@
   "Wraps `-event-msg-handler` with logging, error catching, etc."
   [component]
   (fn [ev-msg]
+    (println "Incoming event is : " (:id ev-msg) (:?data ev-msg))
     (-event-msg-handler component ev-msg)                             ; Handle event-msgs on a single thread
     ;; (future (-event-msg-handler component ev-msg)) ; Handle event-msgs on a thread pool
     ))
@@ -35,7 +36,7 @@
     (println "Player expected at " (or player-location :unknown))
     #_(println "hiya")))
 
-(defmethod -event-msg-handler :chsk/uidport-open
+#_(defmethod -event-msg-handler :chsk/uidport-open
   [{:keys [gamemaster]} {:as ev-msg :keys [event send-fn]}]
   (let [[_ uid]         event
         rooms           (:rooms gamemaster)

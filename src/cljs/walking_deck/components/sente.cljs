@@ -5,7 +5,7 @@
 (defrecord ChannelSocketClient [path csrf-token options]
   component/Lifecycle
   (start [component]
-    (let [handler (get-in component [:sente-handler :handler] handler)
+    (let [handler (get-in component [:sente-handler :handler])
           {:keys [chsk ch-recv send-fn state]} (sente/make-channel-socket-client! path csrf-token options)
           component (assoc component
                            :chsk chsk

@@ -1,36 +1,13 @@
 (ns walking-deck.socket-events
   (:require [com.stuartsierra.component :as component]
-            [taoensso.sente  :as sente  :refer (cb-success?)]
-            [goog.string         :as gstr]) )
+            [re-frame.core :as re-frame]
+            [goog.string :as gstr]))
 
 (defn ->output! [fmt & args]
   (let [msg (apply gstr/format fmt args)]
     (println msg)))
 
-;;;; Define our Sente channel socket (chsk) client
-(def ?csrf-token
-  (when-let [el (.getElementById js/document "sente-csrf-token")]
-    (.getAttribute el "data-csrf-token")))
-
-(let [;; Serializtion format, must use same val for client + server:
-      packer :edn ; Default packer, a good choice in most cases
-      ;; (sente-transit/get-transit-packer) ; Needs Transit dep
-
-      {:keys [chsk ch-recv send-fn state]}
-      (sente/make-channel-socket-client!
-        "/chsk" ; Must match server Ring routing URL
-        ?csrf-token
-        {:type   :auto
-         :packer packer})]
-
-     (def chsk       chsk)
-     (def ch-chsk    ch-recv) ; ChannelSocket's receive channel
-     (def chsk-send! send-fn) ; ChannelSocket's send API fn
-     (def chsk-state state)   ; Watchable, read-only atom
-     )
-
 ;;;; Sente event handlers
-
 (defmulti -event-msg-handler
           "Multimethod to handle Sente `event-msg`s"
           :id ; Dispatch on event-id
@@ -54,8 +31,9 @@
                   (->output! "Channel socket state change: %s"              new-state-map))))
 
 (defmethod -event-msg-handler :chsk/recv
-           [{:as ev-msg :keys [?data]}]
-           (->output! "Push event from server: %s" ?data))
+  [{:as ev-msg :keys [?data]}]
+  (re-frame/dispatch ?data)
+  (->output! "Push event from server: %s" ?data))
 
 (defmethod -event-msg-handler :chsk/handshake
            [{:as ev-msg :keys [?data]}]

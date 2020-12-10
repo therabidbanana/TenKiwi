@@ -13,6 +13,11 @@
    (:user db)))
 
 (re-frame/reg-sub
+ :room
+ (fn [db]
+   (get-in db [:user :current-room])))
+
+(re-frame/reg-sub
  :join
  (fn [db]
    (:join db)))

@@ -1,13 +1,26 @@
 (ns walking-deck.system
   (:require [com.stuartsierra.component :as component]
-            [walking-deck.socket-events :refer [chsk]]
+            [re-frame.core :as re-frame]
+            [walking-deck.socket-events :refer [event-msg-handler]]
+            [system.components.sente :refer [new-channel-socket-client]]
             [walking-deck.components.ui :refer [new-ui-component]]))
 
 (declare system)
 
+;;;; Scrape document for a csrf token to boot sente with
+(def ?csrf-token
+  (when-let [el (.getElementById js/document "sente-csrf-token")]
+    (.getAttribute el "data-csrf-token")))
+
 ;; TODO: CHSK should probably live in here (prevent CSRF failures on figwheel?)
 (defn new-system []
   (component/system-map
+   :sente-handler {:handler event-msg-handler}
+   :sente (component/using
+           (do
+             (new-channel-socket-client "/chsk" ?csrf-token {:type :auto
+                                                            :packer :edn}))
+           [:sente-handler])
    :app-root (new-ui-component)))
 
 (defn init []
@@ -26,3 +39,16 @@
 (defn reset []
   (stop)
   (go))
+
+;; TODO: can I move this?
+(re-frame/reg-cofx
+ :system
+ (fn [cofx component]
+   (assoc cofx :system (get-in system [component]))))
+
+(re-frame/reg-fx
+ :websocket
+ (fn [chsk-args]
+   (let [chsk-send! (get-in system [:sente :chsk-send!])]
+     ;; TODO: Add timeout, callback for response -> dispatch
+     (chsk-send! chsk-args))))

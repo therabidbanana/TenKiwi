@@ -14,12 +14,14 @@
                  :on-change #(dispatch [:join/set-params {:user-name (val %)}])}]]]
       [:div.fieldset
        [:label
-        "Room"
+        "Lobby Code"
         [:br]
-        [:input {:name "room"
+        [:input {:name "lobby-code"
                  :value (-> join deref :room-code)
                  :on-change #(dispatch [:join/set-params {:room-code (val %)}])}]]]
-      [:button {:on-click #(do (dispatch [:join/join-room!]) (.preventDefault %))}
+      [:button {:on-click #(do
+                             (dispatch [:join/join-room!])
+                             (.preventDefault %))}
        "Join"]]]))
 
 (defn join-panel []
@@ -44,7 +46,10 @@
     [:div "Hello from " name]))
 
 (defn main-panel []
-  (let [name (re-frame/subscribe [:name])]
+  (let [user (re-frame/subscribe [:user])
+        name (re-frame/subscribe [:name])]
     [:div {}
-     [join-panel]
+     (if (get @user :current-room)
+       [lobby-panel]
+       [join-panel])
      [-main-panel @name]]))

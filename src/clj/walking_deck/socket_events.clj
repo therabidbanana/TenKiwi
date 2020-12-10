@@ -45,18 +45,20 @@
         (swap! (:players gamemaster) assoc uid :home)))))
 
 (defmethod -event-msg-handler :room/join-room!
-  [{:keys [gamemaster]} {:as ev-msg :keys [event uid]}]
+  [{:keys [gamemaster]} {:as ev-msg :keys [event uid send-fn]}]
   (let [[_ {:keys [user-name room-code]}] event
 
         rooms        (:rooms gamemaster)
-        current-room (@rooms room-code)]
+        current-room (@rooms room-code)
+        user {:id        uid
+              :user-name user-name}]
     (if (= uid :taoensso.sente/nil-uid)
       (println "Warning - unassigned user id! Ignoring join :room/join-room!")
       (do (if current-room
-            (swap! rooms update-in [room-code :players] conj user-name)
-            (swap! rooms assoc-in [room-code] {:room-code room-code :players [user-name]}))
+            (swap! rooms update-in [room-code :players] conj user)
+            (swap! rooms assoc-in [room-code] {:room-code room-code :players [user]}))
           (swap! (:players gamemaster) assoc uid room-code)))
-    (println "Rooms now -> " @rooms)))
+    (send-fn uid [:user/room-joined! (-> rooms deref (get room-code))])))
 
 (defmethod -event-msg-handler :example/toggle-broadcast
   [{:keys [broadcast-enabled?_]} {:as ev-msg :keys [?reply-fn]}]

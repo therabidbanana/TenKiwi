@@ -14,7 +14,7 @@
                  [clj-logging-config "1.9.12"]
                  [environ "1.1.0"]
                  [com.stuartsierra/component "0.3.2"]
-                 [org.danielsz/system "0.4.1"]
+                 [org.danielsz/system "0.4.6"]
                  [org.clojure/tools.namespace "0.2.11"]
                  [http-kit "2.5.0"]
                  [compojure "1.6.1"]

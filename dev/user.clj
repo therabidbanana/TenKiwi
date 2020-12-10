@@ -23,8 +23,9 @@
 
 (reloaded.repl/set-init! #(dev-system))
 
+;; TODO - this was failing without build specified - why?
 (defn cljs-repl []
-  (fw-sys/cljs-repl (:figwheel-system system)))
+  (fw-sys/cljs-repl (:figwheel-system system) :app))
 
 ;; Set up aliases so they don't accidentally
 ;; get scrubbed from the namespace declaration

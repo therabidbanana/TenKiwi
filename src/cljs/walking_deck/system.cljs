@@ -2,7 +2,7 @@
   (:require [com.stuartsierra.component :as component]
             [re-frame.core :as re-frame]
             [walking-deck.socket-events :refer [event-msg-handler]]
-            [system.components.sente :refer [new-channel-socket-client]]
+            [walking-deck.components.sente :refer [new-channel-socket-client]]
             [walking-deck.components.ui :refer [new-ui-component]]))
 
 (declare system)
@@ -17,9 +17,8 @@
   (component/system-map
    :sente-handler {:handler event-msg-handler}
    :sente (component/using
-           (do
-             (new-channel-socket-client "/chsk" ?csrf-token {:type :auto
-                                                            :packer :edn}))
+           (new-channel-socket-client "/chsk" ?csrf-token {:type :auto
+                                                           :packer :edn})
            [:sente-handler])
    :app-root (new-ui-component)))
 

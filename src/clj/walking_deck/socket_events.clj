@@ -36,13 +36,16 @@
     #_(println "hiya")))
 
 (defmethod -event-msg-handler :chsk/uidport-open
-  [{:keys [gamemaster]} {:as ev-msg :keys [event]}]
+  [{:keys [gamemaster]} {:as ev-msg :keys [event send-fn]}]
   (let [[_ uid]         event
+        rooms           (:rooms gamemaster)
         player-location (-> gamemaster :players deref (get uid))]
-    (if (= uid :taoensso.sente/nil-uid)
-      (println "Warning - unassigned user id!")
-      (if (nil? player-location)
-        (swap! (:players gamemaster) assoc uid :home)))))
+    (if-not (= uid :taoensso.sente/nil-uid)
+      (if (= :home (or player-location :home))
+        (swap! (:players gamemaster) assoc uid :home)
+        (do
+          (println "Hi, rejoining " player-location)
+          (send-fn uid [:user/room-joined! (-> rooms deref player-location)]))))))
 
 (defmethod -event-msg-handler :room/join-room!
   [{:keys [gamemaster]} {:as ev-msg :keys [event uid send-fn]}]
@@ -58,7 +61,27 @@
             (swap! rooms update-in [room-code :players] conj user)
             (swap! rooms assoc-in [room-code] {:room-code room-code :players [user]}))
           (swap! (:players gamemaster) assoc uid room-code)))
-    (send-fn uid [:user/room-joined! (-> rooms deref (get room-code))])))
+    (send-fn uid [:user/room-joined! (-> rooms deref (get room-code))])
+    (doseq [player (-> rooms deref (get-in [room-code :players]))]
+      (send-fn (:id player) [:room/user-joined! (-> rooms deref (get room-code))]))))
+
+(defmethod -event-msg-handler :room/boot-player!
+  [{:keys [gamemaster]} {:as ev-msg :keys [event uid send-fn]}]
+  (let [[_ booted] event
+
+        _ (println booted)
+        rooms        (:rooms gamemaster)
+        players      (:players gamemaster)
+        current-room (@players booted)
+        room-code    current-room]
+    (if (= uid :taoensso.sente/nil-uid)
+      (println "Warning - unassigned user id! Ignoring join :room/join-room!")
+      (do (if current-room
+            (swap! rooms update-in [room-code :players] (partial remove #(= (:id %) booted))))
+          (swap! (:players gamemaster) assoc booted :home)))
+    (send-fn booted [:user/booted!])
+    (doseq [player (-> rooms deref (get-in [room-code :players]))]
+      (send-fn (:id player) [:room/user-left! (-> rooms deref (get room-code))]))))
 
 (defmethod -event-msg-handler :example/toggle-broadcast
   [{:keys [broadcast-enabled?_]} {:as ev-msg :keys [?reply-fn]}]

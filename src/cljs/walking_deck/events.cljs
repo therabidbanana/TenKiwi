@@ -17,8 +17,32 @@
  (fn [db [_ params]]
    (update-in db [:user] assoc :current-room params)))
 
+(re-frame/reg-event-db
+ :user/booted!
+ (fn [db [_ params]]
+   (update-in db [:user] assoc :current-room nil)))
+
+(re-frame/reg-event-db
+ :room/user-joined!
+ (fn [db [_ params]]
+   (let [current-room (get-in db [:user :current-room])]
+     (if (= (:room-code params) (:room-code current-room))
+       (update-in db [:user] assoc :current-room params)))))
+
+(re-frame/reg-event-db
+ :room/user-left!
+ (fn [db [_ params]]
+   (let [current-room (get-in db [:user :current-room])]
+     (if (= (:room-code params) (:room-code current-room))
+       (update-in db [:user] assoc :current-room params)))))
+
 (re-frame/reg-event-fx
  :join/join-room!
  (fn [{:keys [db]} [_ val]]
    (let [join (:join db)]
      {:fx [[:websocket [:room/join-room! join]]]})))
+
+(re-frame/reg-event-fx
+ :room/boot-player!
+ (fn [{:keys [db]} [_ val]]
+   {:fx [[:websocket [:room/boot-player! val]]]}))

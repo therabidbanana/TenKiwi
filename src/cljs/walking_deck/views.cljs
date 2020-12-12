@@ -35,7 +35,7 @@
      [:ul.players
       (for [player (:players game-data)]
         ^{:key (:id player)} [:li (:user-name player)
-                              [:a {:on-click #(dispatch [:room/boot-player! (:id player)])} "x"]])]]))
+                              [:a.boot {:on-click #(dispatch [:room/boot-player! (:id player)])} "x"]])]]))
 
 (defn lobby-panel []
   (let [game-data (re-frame/subscribe [:room])]

@@ -5,16 +5,45 @@ h1 {
 input {
   width: 100%;
   font-size: 2rem;
-  margin: 1rem;
+  margin: 0.5rem;
 }
 
 form {
-  width: 90%;
+  max-width: 80%;
   margin: 0 auto;
+  padding: 1rem;
+}
+
+button {
+  font-size: 2rem;
 }
 
 body {
   color: #eeeef0;
   font-size: 1.4em;
+  font-family: Tahoma;
   background-color: #223;
+}
+
+.lobby {
+  max-width: 80%;
+  margin: 0 auto;
+}
+
+.lobby li {
+  border: 1px solid #bbb;
+  font-size: 2rem;
+  list-style: none;
+  padding: 0.6rem;
+}
+
+.lobby .boot {
+  cursor: pointer;
+  padding: 0.6rem 1rem;
+  margin-top: -0.6rem;
+  margin-right: -0.6rem;
+  overflow: hidden;
+  color: white;
+  background: red;
+  float: right;
 }

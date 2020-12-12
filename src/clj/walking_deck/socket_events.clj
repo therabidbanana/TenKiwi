@@ -31,22 +31,22 @@
       (?reply-fn {:umatched-event-as-echoed-from-from-server event}))))
 
 (defmethod -event-msg-handler :chsk/ws-ping
-  [{:keys [gamemaster]} {:as ev-msg :keys [uid]}]
-  (let [player-location (-> gamemaster :players deref (get uid))]
-    (println "Player expected at " (or player-location :unknown))
-    #_(println "hiya")))
+  [{:keys [gamemaster]} {:as ev-msg :keys [uid send-fn]}]
+  (let [rooms (:rooms gamemaster)]
+    (if-let [player-location (-> gamemaster :players deref (get uid))]
+      (send-fn uid [:user/room-joined! (-> rooms deref (get player-location))])
+     #_(println "Player expected at " (or player-location :unknown))
+     #_(println "hiya"))))
 
-#_(defmethod -event-msg-handler :chsk/uidport-open
-  [{:keys [gamemaster]} {:as ev-msg :keys [event send-fn]}]
-  (let [[_ uid]         event
-        rooms           (:rooms gamemaster)
-        player-location (-> gamemaster :players deref (get uid))]
-    (if-not (= uid :taoensso.sente/nil-uid)
-      (if (= :home (or player-location :home))
-        (swap! (:players gamemaster) assoc uid :home)
-        (do
-          (println "Hi, rejoining " player-location)
-          (send-fn uid [:user/room-joined! (-> rooms deref player-location)]))))))
+(defmethod -event-msg-handler :chsk/uidport-open
+  [{:keys [gamemaster]} {:as ev-msg :keys [uid event send-fn]}]
+  (let [rooms            (:rooms gamemaster)
+        ;; uid              (or uid fallback-uid)
+        player-location  (-> gamemaster :players deref (get uid))]
+    (if-not (or (= uid :taoensso.sente/nil-uid) (= :home (or player-location :home)))
+      (do
+        (println "Hi, rejoining " player-location)
+        (send-fn uid [:user/room-joined! (-> rooms deref (get player-location))])))))
 
 (defmethod -event-msg-handler :room/join-room!
   [{:keys [gamemaster]} {:as ev-msg :keys [event uid send-fn]}]

@@ -7,10 +7,11 @@
             [system.components.handler :refer [new-handler]]
             [system.components.middleware :refer [new-middleware]]
             [system.components.http-kit :refer [new-web-server]]
-            [system.components.sente :refer [new-channel-socket-server sente-routes]]
+            [system.components.sente :refer [sente-routes]]
             [walking-deck.socket-events :refer [event-msg-handler]]
             [walking-deck.config :refer [config]]
-            [walking-deck.components.gamemaster :refer [new-gamemaster]]
+            [walking-deck.components.register :refer [new-register]]
+            [walking-deck.components.sente :refer [new-channel-socket-server]]
             [walking-deck.routes :refer [home-routes]]))
 
 (defn app-system [config]
@@ -31,8 +32,8 @@
             (get-sch-adapter)
             {:user-id-fn      (fn [ring-req] (:client-id ring-req))
              :wrap-component? true})
-           [:gamemaster])
-   :gamemaster  (new-gamemaster)
+           [:register])
+   :register  (new-register (atom {}))
    :server-info (server-info (:http-port config))))
 
 (defn -main [& _]

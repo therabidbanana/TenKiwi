@@ -7,6 +7,11 @@
  (fn  [_ _]
    db/default-db))
 
+(re-frame/reg-event-fx
+ :initialize-system
+ (fn  [_ _]
+   {:fx [[:websocket [:user/connected!]]]}))
+
 (re-frame/reg-event-db
  :join/set-params
  (fn [db [_ params]]

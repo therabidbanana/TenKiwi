@@ -1,6 +1,7 @@
 (ns walking-deck.socket-events
   (:require
             [clojure.core.async :as async :refer [<! <!! >! >!! put! chan go go-loop]]
+            [walking-deck.gamemasters.host :as host]
             [taoensso.sente :as sente]))
 
 ;; (reset! sente/debug-mode?_ true)                            ; Uncomment for extra debug info
@@ -31,62 +32,37 @@
       (?reply-fn {:umatched-event-as-echoed-from-from-server event}))))
 
 (defmethod -event-msg-handler :chsk/ws-ping
-  [{:keys [gamemaster]} {:as ev-msg :keys [uid send-fn]}]
-  (let [rooms (:rooms gamemaster)]
-    (if-let [player-location (-> gamemaster :players deref (get uid))]
+  [{:keys [register]} {:as ev-msg :keys [uid send-fn]}]
+  (let []
+    #_(host/player-ping register uid)
+    #_(if-let [player-location (-> gamemaster :players deref (get uid))]
       (send-fn uid [:user/room-joined! (-> rooms deref (get player-location))])
      #_(println "Player expected at " (or player-location :unknown))
      #_(println "hiya"))))
 
 (defmethod -event-msg-handler :chsk/uidport-open
-  [{:keys [gamemaster]} {:as ev-msg :keys [uid event send-fn]}]
-  (let [rooms            (:rooms gamemaster)
-        ;; uid              (or uid fallback-uid)
-        player-location  (-> gamemaster :players deref (get uid))]
-    (if-not (or (= uid :taoensso.sente/nil-uid) (= :home (or player-location :home)))
-      (do
-        (println "Hi, rejoining " player-location)
-        (send-fn uid [:user/room-joined! (-> rooms deref (get player-location))])))))
+  [system {:as ev-msg :keys [uid event send-fn]}]
+  (let []
+    #_(host/new-arrival! system uid)))
+
+(defmethod -event-msg-handler :user/connected!
+  [system {:as ev-msg :keys [uid event send-fn]}]
+  (let []
+    (host/new-arrival! system uid)))
 
 (defmethod -event-msg-handler :room/join-room!
-  [{:keys [gamemaster]} {:as ev-msg :keys [event uid send-fn]}]
+  [system {:as ev-msg :keys [event uid send-fn]}]
   (let [[_ {:keys [user-name room-code]}] event
 
-        rooms        (:rooms gamemaster)
-        current-room (@rooms room-code)
         user {:id        uid
               :user-name user-name}]
     (if (= uid :taoensso.sente/nil-uid)
       (println "Warning - unassigned user id! Ignoring join :room/join-room!")
-      (do (if current-room
-            (swap! rooms update-in [room-code :players] conj user)
-            (swap! rooms assoc-in [room-code] {:room-code room-code :players [user]}))
-          (swap! (:players gamemaster) assoc uid room-code)))
-    (send-fn uid [:user/room-joined! (-> rooms deref (get room-code))])
-    (doseq [player (-> rooms deref (get-in [room-code :players]))]
-      (send-fn (:id player) [:room/user-joined! (-> rooms deref (get room-code))]))))
+      (host/join-room! system uid room-code user))))
 
 (defmethod -event-msg-handler :room/boot-player!
-  [{:keys [gamemaster]} {:as ev-msg :keys [event uid send-fn]}]
-  (let [[_ booted] event
-
-        _ (println booted)
-        rooms        (:rooms gamemaster)
-        players      (:players gamemaster)
-        current-room (@players booted)
-        room-code    current-room]
+  [system {:as ev-msg :keys [event uid send-fn]}]
+  (let [[_ booted] event]
     (if (= uid :taoensso.sente/nil-uid)
-      (println "Warning - unassigned user id! Ignoring join :room/join-room!")
-      (do (if current-room
-            (swap! rooms update-in [room-code :players] (partial remove #(= (:id %) booted))))
-          (swap! (:players gamemaster) assoc booted :home)))
-    (send-fn booted [:user/booted!])
-    (doseq [player (-> rooms deref (get-in [room-code :players]))]
-      (send-fn (:id player) [:room/user-left! (-> rooms deref (get room-code))]))))
-
-(defmethod -event-msg-handler :example/toggle-broadcast
-  [{:keys [broadcast-enabled?_]} {:as ev-msg :keys [?reply-fn]}]
-  (let [loop-enabled? (swap! broadcast-enabled?_ not)]
-    (?reply-fn loop-enabled?)))
-
-;; TODO Add your (defmethod -event-msg-handler <event-id> [ev-msg] <body>)s here...
+      (println "Warning - unassigned user id! Ignoring boot")
+      (host/boot-player! system booted))))

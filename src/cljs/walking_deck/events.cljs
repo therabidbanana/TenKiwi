@@ -33,6 +33,14 @@
    (update-in db [:user] assoc :current-room nil)))
 
 (re-frame/reg-event-db
+ :game/started!
+ (fn [db [_ params]]
+   (let [current-room (get-in db [:user :current-room])]
+     (if (= (:room-code params) (:room-code current-room))
+       (do (update-in db [:user] assoc :current-room params)
+           (println db))))))
+
+(re-frame/reg-event-db
  :room/user-joined!
  (fn [db [_ params]]
    (let [current-room (get-in db [:user :current-room])]
@@ -47,12 +55,17 @@
        (update-in db [:user] assoc :current-room params)))))
 
 (re-frame/reg-event-fx
- :join/join-room!
+ :->game/start!
+ (fn [{:keys [db]} [_ id]]
+   {:fx [[:websocket [:game/start! id]]]}))
+
+(re-frame/reg-event-fx
+ :->join/join-room!
  (fn [{:keys [db]} [_ val]]
    (let [join (:join db)]
      {:fx [[:websocket [:room/join-room! join]]]})))
 
 (re-frame/reg-event-fx
- :room/boot-player!
+ :->room/boot-player!
  (fn [{:keys [db]} [_ val]]
    {:fx [[:websocket [:room/boot-player! val]]]}))

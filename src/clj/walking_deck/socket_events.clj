@@ -47,8 +47,13 @@
 
 (defmethod -event-msg-handler :user/connected!
   [system {:as ev-msg :keys [uid event send-fn]}]
-  (let []
-    (host/new-arrival! system uid)))
+  (host/new-arrival! system uid))
+
+(defmethod -event-msg-handler :game/start!
+  [system {:as ev-msg :keys [uid event send-fn]}]
+  (let [[_ game-type] event]
+    (host/start-game! system uid game-type)
+    (println "ready to start")))
 
 (defmethod -event-msg-handler :room/join-room!
   [system {:as ev-msg :keys [event uid send-fn]}]

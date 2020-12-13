@@ -1,9 +1,10 @@
 (ns walking-deck.gamemasters.host
   "The host is in charge of moving users back and forth to rooms"
-  #_(:require [com.stuartsierra.component :as component]))
+  (:require [walking-deck.gamemasters.ftq :as ftq]))
 
 (def home-room :home)
 (defn home-room? [room] (= home-room (or room home-room)))
+(defn valid-game? [type] (#{:ftq} type))
 
 (defn ->players [{:keys [chsk-send!]} uids message]
   (doseq [uid uids]
@@ -40,6 +41,7 @@
   ([world-atom uid room-id user-info]
    (let [room (or (get-room world-atom room-id)
                   {:id room-id
+                   :room-code room-id
                    :players []})
          _ (println room)
          new-room (update-in room [:players] conj user-info)]
@@ -79,6 +81,23 @@
       (->player system uid [:user/room-joined! room])
       (println "send to " player-location)
       (->room system player-location [:room/user-joined! room]))))
+
+(defn start-game!
+  "Called to trigger a game start by host"
+  [{:as system :keys [register]} uid game-type]
+  (let [world           (:world register)
+        player-location (get-player-location world uid)
+        room            (get-room world player-location)]
+    (cond
+      (home-room? player-location)  nil
+      (not (valid-game? game-type)) nil
+      :else
+      (do
+        (case game-type
+         :ftq (ftq/start-game world player-location)
+         ;; call game setup
+         )
+        (->room system player-location [:game/started! (get-room world player-location)])))))
 
 (defn boot-player!
   [{:as system :keys [register]} uid]

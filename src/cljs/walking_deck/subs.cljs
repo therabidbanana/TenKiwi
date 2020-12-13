@@ -18,6 +18,11 @@
    (get-in db [:user :current-room])))
 
 (re-frame/reg-sub
+ :game
+ (fn [db]
+   (get-in db [:user :current-room :game])))
+
+(re-frame/reg-sub
  :join
  (fn [db]
    (:join db)))

@@ -20,7 +20,7 @@
                  :value (-> join deref :room-code)
                  :on-change #(dispatch [:join/set-params {:room-code (val %)}])}]]]
       [:button {:on-click #(do
-                             (dispatch [:join/join-room!])
+                             (dispatch [:->join/join-room!])
                              (.preventDefault %))}
        "Join"]]]))
 
@@ -34,11 +34,12 @@
     [:div.lobby
      [:ul.players
       (for [player (:players game-data)]
-        ^{:key (:id player)} [:li (:user-name player)
-                              [:a.boot {:on-click #(dispatch [:room/boot-player! (:id player)])} "x"]])]
+        ^{:key (:id player)}
+        [:li (:user-name player)
+         [:a.boot {:on-click #(dispatch [:->room/boot-player! (:id player)])} "x"]])]
      [:div.actions
       [:button {:on-click #(do
-                             (dispatch [:game/start! "ftq"])
+                             (dispatch [:->game/start! :ftq])
                              (.preventDefault %))}
        "Start FTQ"]]]))
 
@@ -48,18 +49,21 @@
 
 (defn game-panel []
   (let [game-data (re-frame/subscribe [:room])]
-    [-lobby-panel game-data re-frame/dispatch]))
+    [:div {}
+     "play"
+     [-lobby-panel game-data re-frame/dispatch]]))
 
 (defn -connecting-panel []
   (let []
     [:div "Connecting to server..."]))
 
 (defn main-panel []
-  (let [user (re-frame/subscribe [:user])]
+  (let [user (re-frame/subscribe [:user])
+        game (re-frame/subscribe [:game])]
     [:div {}
      (cond
+       @game [game-panel]
        (get @user :current-room) [lobby-panel]
-       (get @user :current-game) [game-panel]
        (get @user :connected?) [join-panel]
        :else [-connecting-panel])
      ]))

@@ -47,19 +47,34 @@
   (let [game-data (re-frame/subscribe [:room])]
     [-lobby-panel game-data re-frame/dispatch]))
 
-(defn -game-panel [game-data dispatch]
-  (let [game-data @game-data]
+(defn -game-panel [user-data dispatch]
+  (let [{user-id        :id
+         :as data
+         {:as   room
+          :keys [game]} :current-room} @user-data
+        active?                        (= user-id (:active-player game))
+        display                        (if active?
+                                         (:active-display game)
+                                         (:inactive-display game))
+        _                              (println data)
+        ]
     [:div.game-table
-     [:ul.players
-      (for [player (:players game-data)]
-        ^{:key (:id player)}
-        [:li (:user-name player)])]
-     [:div.actions
-      ]]))
+     [:div.current {}
+        [:div.active-area {}
+         [:div.card (get-in display [:card])]
+         (map #(with-meta (vector :div.action %) {:key %})
+              (get-in display [:actions]))]
+      ]
+     [:div.extras
+      [:ul.players
+       (for [player (:players room)]
+         ^{:key (:id player)}
+         [:li (:user-name player)])]
+      [:div.actions]]]))
 
 (defn game-panel []
-  (let [game-data (re-frame/subscribe [:room])]
-    [-game-panel game-data re-frame/dispatch]))
+  (let [user-data (re-frame/subscribe [:user])]
+    [-game-panel user-data re-frame/dispatch]))
 
 (defn -connecting-panel []
   (let []

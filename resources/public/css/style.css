@@ -47,3 +47,16 @@ body {
   background: red;
   float: right;
 }
+
+.game-table .active-area {
+  text-align: center;
+}
+
+.game-table .card {
+  background-color: #efefef;
+  padding: 0.8rem;
+  margin: 0.5rem;
+  font-family: Georgia;
+  font-size: 1.8rem;
+  color: #224;
+}

@@ -29,6 +29,7 @@
                                                            :packer    :edn
                                                            :client-id (?client-id)})
            [:sente-handler])
+   :client-id (?client-id)
    :app-root (new-ui-component)))
 
 (defn init []
@@ -52,7 +53,8 @@
 (re-frame/reg-cofx
  :system
  (fn [cofx component]
-   (assoc cofx :system (get-in system [component]))))
+   (println component)
+   (assoc cofx component (get-in system [component]))))
 
 (re-frame/reg-fx
  :websocket

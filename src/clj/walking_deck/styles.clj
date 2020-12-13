@@ -16,6 +16,18 @@
            :font-family "Tahoma"
            :background-color "#223"}]))
 
+
+(def game-table
+  (list
+   [:.game-table
+    [:.active-area {:text-align "center"}]
+    [:.card {:background-color "#efefef"
+             :padding "0.8rem"
+             :margin "0.5rem"
+             :font-family "Georgia"
+             :font-size "1.8rem"
+             :color "#224"}]]
+   ))
 (def lobby
   (list
    [:.lobby
@@ -37,4 +49,4 @@
              :float 'right}]]))
 
 (defstyles style
-  (conj [] base lobby))
+  (conj [] base lobby game-table))

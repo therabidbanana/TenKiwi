@@ -12,10 +12,14 @@
  (fn  [_ _]
    {:fx [[:websocket [:user/connected!]]]}))
 
-(re-frame/reg-event-db
+(re-frame/reg-event-fx
  :user/connected!
- (fn [db [_ params]]
-   (update-in db [:user] assoc :connected? true)))
+ [(re-frame/inject-cofx :system :client-id)]
+ (fn [{:as x :keys [db client-id]} [_ params]]
+   (println x)
+   {:db (update-in db [:user] assoc
+                   :id client-id
+                   :connected? true)}))
 
 (re-frame/reg-event-db
  :join/set-params

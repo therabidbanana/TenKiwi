@@ -47,11 +47,19 @@
   (let [game-data (re-frame/subscribe [:room])]
     [-lobby-panel game-data re-frame/dispatch]))
 
+(defn -game-panel [game-data dispatch]
+  (let [game-data @game-data]
+    [:div.game-table
+     [:ul.players
+      (for [player (:players game-data)]
+        ^{:key (:id player)}
+        [:li (:user-name player)])]
+     [:div.actions
+      ]]))
+
 (defn game-panel []
   (let [game-data (re-frame/subscribe [:room])]
-    [:div {}
-     "play"
-     [-lobby-panel game-data re-frame/dispatch]]))
+    [-game-panel game-data re-frame/dispatch]))
 
 (defn -connecting-panel []
   (let []

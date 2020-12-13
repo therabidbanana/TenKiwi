@@ -24,13 +24,13 @@
            (->output! "Unhandled event: %s" event))
 
 (defmethod -event-msg-handler :chsk/state
-           [{:as ev-msg :keys [?data]}]
-           (let [[old-state-map new-state-map] ?data]
-                (if (:first-open? new-state-map)
-                  (do
-                    (re-frame/dispatch [:user/connected!])
-                    (->output! "Channel socket successfully established!: %s" new-state-map))
-                  (->output! "Channel socket state change: %s"              new-state-map))))
+  [{:as ev-msg :keys [?data]}]
+  (let [[old-state-map new-state-map] ?data]
+    (if (:first-open? new-state-map)
+      (do
+        (re-frame/dispatch [:user/connected!])
+        (->output! "Channel socket successfully established!: %s" new-state-map))
+      (->output! "Channel socket state change: %s"              new-state-map))))
 
 (defmethod -event-msg-handler :chsk/recv
   [{:as ev-msg :keys [?data]}]

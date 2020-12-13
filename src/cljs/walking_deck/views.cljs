@@ -35,21 +35,31 @@
      [:ul.players
       (for [player (:players game-data)]
         ^{:key (:id player)} [:li (:user-name player)
-                              [:a.boot {:on-click #(dispatch [:room/boot-player! (:id player)])} "x"]])]]))
+                              [:a.boot {:on-click #(dispatch [:room/boot-player! (:id player)])} "x"]])]
+     [:div.actions
+      [:button {:on-click #(do
+                             (dispatch [:game/start! "ftq"])
+                             (.preventDefault %))}
+       "Start FTQ"]]]))
 
 (defn lobby-panel []
   (let [game-data (re-frame/subscribe [:room])]
     [-lobby-panel game-data re-frame/dispatch]))
 
-(defn -main-panel [name]
+(defn game-panel []
+  (let [game-data (re-frame/subscribe [:room])]
+    [-lobby-panel game-data re-frame/dispatch]))
+
+(defn -connecting-panel []
   (let []
-    [:div "Hello from " name]))
+    [:div "Connecting to server..."]))
 
 (defn main-panel []
-  (let [user (re-frame/subscribe [:user])
-        name (re-frame/subscribe [:name])]
+  (let [user (re-frame/subscribe [:user])]
     [:div {}
-     (if (get @user :current-room)
-       [lobby-panel]
-       [join-panel])
-     [-main-panel @name]]))
+     (cond
+       (get @user :current-room) [lobby-panel]
+       (get @user :current-game) [game-panel]
+       (get @user :connected?) [join-panel]
+       :else [-connecting-panel])
+     ]))

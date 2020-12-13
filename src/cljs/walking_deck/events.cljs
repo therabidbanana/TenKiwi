@@ -13,6 +13,11 @@
    {:fx [[:websocket [:user/connected!]]]}))
 
 (re-frame/reg-event-db
+ :user/connected!
+ (fn [db [_ params]]
+   (update-in db [:user] assoc :connected? true)))
+
+(re-frame/reg-event-db
  :join/set-params
  (fn [db [_ params]]
    (update-in db [:join] merge params)))

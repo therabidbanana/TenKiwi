@@ -6,14 +6,17 @@
 Code cleanup:
 
 * Reset any current user info on refresh (name)
-* Manual leave (boot should soft-ban?)
+
+Rules for lobby
+
+* Manual leave
+  (boot should soft-ban?)
 * Only host can actually boot
-
-^ If we can get all of that working an synchronized over multiple clients, then
-framwork in place for:
-
 * All players state ready
-* Start game
+
+Next stage
+
+* Start game (host only)
 * Show card to player
 * Show everyone else whose turn
 

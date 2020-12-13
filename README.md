@@ -6,6 +6,8 @@
 Code cleanup:
 
 * Reset any current user info on refresh (name)
+* Easier way to distinguish outgoing socket events and incoming events
+  (some naming convention? Maybe all outgoing events are ->foo... shared event?)
 
 Rules for lobby
 

@@ -61,8 +61,8 @@
     [:div.game-table
      [:div.current {}
         [:div.active-area {}
-         [:div.card (get-in display [:card])]
-         (map #(with-meta (vector :div.action %) {:key %})
+         [:div.card (get-in display [:card :text])]
+         (map (fn [x] (with-meta (vector :div.action [:a {:on-click #(dispatch [:->game/action! x])} x]) {:key x}))
               (get-in display [:actions]))]
       ]
      [:div.extras
@@ -73,19 +73,22 @@
       [:div.actions]]]))
 
 (defn game-panel []
-  (let [user-data (re-frame/subscribe [:user])]
+  (let [user-data (re-frame/subscribe [:user])
+        room (re-frame/subscribe [:room])]
     [-game-panel user-data re-frame/dispatch]))
 
 (defn -connecting-panel []
   (let []
     [:div "Connecting to server..."]))
 
+;; TODO - doesn't rerender?
 (defn main-panel []
   (let [user (re-frame/subscribe [:user])
-        game (re-frame/subscribe [:game])]
+        room (re-frame/subscribe [:room])
+        game (get-in @user [:current-room :game])]
     [:div {}
      (cond
-       @game [game-panel]
+       game [game-panel]
        (get @user :current-room) [lobby-panel]
        (get @user :connected?) [join-panel]
        :else [-connecting-panel])

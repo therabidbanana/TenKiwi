@@ -99,6 +99,26 @@
          )
         (->room system player-location [:game/started! (get-room world player-location)])))))
 
+(defn take-action!
+  "Called to trigger a game start by host"
+  [{:as system :keys [register]} uid action]
+  (let [world           (:world register)
+        player-location (get-player-location world uid)
+        room            (get-room world player-location)
+        current-game    (get-in room [:game :game])
+        action          (assoc action :room-id player-location :uid uid)]
+    (println action)
+    (cond
+      (home-room? player-location)  nil
+      (not (valid-game? current-game)) nil
+      :else
+      (do
+        (case current-game
+          :ftq (ftq/take-action world action)
+          ;; call game setup
+          )
+        (->room system player-location [:game/changed! (get-room world player-location)])))))
+
 (defn boot-player!
   [{:as system :keys [register]} uid]
   (let [world           (:world register)

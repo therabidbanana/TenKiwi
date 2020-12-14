@@ -61,7 +61,9 @@
     [:div.game-table
      [:div.current {}
         [:div.active-area {}
-         [:div.card (get-in display [:card :text])]
+         [:div.x-card {}
+          [:a {:on-click #(dispatch [:->game/x-card!])} "X"]]
+         [:div.card {:class (get-in display [:card :state])} (get-in display [:card :text])]
          (map (fn [x] (with-meta (vector :div.action [:a {:on-click #(dispatch [:->game/action! x])} x]) {:key x}))
               (get-in display [:actions]))]
       ]

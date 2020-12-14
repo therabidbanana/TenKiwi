@@ -52,11 +52,43 @@ body {
   text-align: center;
 }
 
+.game-table .active-area .x-card {
+  background-color: red;
+  color: white;
+  float: right;
+  padding: 0.6rem;
+}
+
+.game-table .active-area .x-card a {
+  display: block;
+}
+
+.game-table .action {
+  width: 80%;
+  background: #222;
+  border: 1px solid white;
+  cursor: pointer;
+  padding: 1rem;
+  margin: 1rem auto;
+  border-radius: 0.2rem;
+  box-shadow: 2px 2px 4px #123;
+}
+
+.game-table .action a {
+  display: block;
+}
+
 .game-table .card {
   background-color: #efefef;
-  padding: 0.8rem;
+  padding: 2.2rem 1.2rem;
   margin: 0.5rem;
   font-family: Georgia;
   font-size: 1.8rem;
   color: #224;
+  border-radius: 0.2rem;
+  box-shadow: 2px 2px 4px #123;
+}
+
+.game-table .card.question {
+  border: 0.4rem solid #47a;
 }

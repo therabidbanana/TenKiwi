@@ -117,7 +117,7 @@
   [{:keys [user-name]}]
   {:id    "waiting"
    :state :inactive
-   :text  (str "Waiting for " user-name "...")})
+   :text  (str "It is " user-name "'s turn...")})
 
 (defn start-game [world-atom room-id]
   (let [players      (get-in @world-atom [:rooms room-id :players])

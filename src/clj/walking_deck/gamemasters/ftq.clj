@@ -119,8 +119,22 @@
    :state :inactive
    :text  (str "It is " user-name "'s turn...")})
 
+(defn next-player [player-order current-player]
+  (let [curr-index (.indexOf (mapv :id player-order) current-player)
+        next-index (inc curr-index)
+        next-index (if (>= next-index (count player-order))
+                     0
+                     next-index)]
+    (get player-order next-index)))
+
 (defn start-game [world-atom room-id]
   (let [players      (get-in @world-atom [:rooms room-id :players])
+        done            {:action :done
+                         :text   "Finish Turn"}
+        discard         {:action :discard
+                         :text   "Discard this..."}
+        pass            {:action :pass
+                         :text   (str "Pass to " (:user-name (next-player players (:id (first players)))))}
         new-game     {:player-order     (into [] players)
                       :game             :ftq
                       :state            :intro
@@ -131,12 +145,12 @@
                                                       [queen-attacked]))
                       :active-player    (:id (first players))
                       :active-display   {:card (first intro-cards)
-                                         :actions [:pass :done]}
+                                         :actions [done pass discard]}
                       :inactive-display {:card (waiting-for (first players))}}]
     (doto world-atom
       (swap! update-in [:rooms room-id] assoc :game new-game))))
 
-(def valid-active-actions #{:pass :done :x-card :end-game})
+(def valid-active-actions #{:pass :discard :done :x-card :end-game})
 (def valid-inactive-actions #{:x-card :undo})
 
 (defn valid-action? [active? action]
@@ -144,13 +158,6 @@
     (valid-active-actions action)
     (valid-inactive-actions action)))
 
-(defn next-player [player-order current-player]
-  (let [curr-index (.indexOf (mapv :id player-order) current-player)
-        next-index (inc curr-index)
-        next-index (if (>= next-index (count player-order))
-                     0
-                     next-index)]
-    (get player-order next-index)))
 
 (defn finish-card [game]
   (let [{:keys [player-order
@@ -163,7 +170,19 @@
         discard         (cons active-card discard)
         next-card       (first deck)
         deck            (rest deck)
-        next-state      (:state next-card)]
+        next-state      (:state next-card)
+        next-next       (next-player player-order (:id next-player))
+        ;; TODO: Why is this busted?
+        _ (println player-order next-next)
+
+        pass            {:action :pass
+                         :text   (str "Pass to " (:user-name next-next))}
+        done            {:action :done
+                         :text   "Done"}
+        discard         {:action :discard
+                         :text   "Discard this..."}
+        end-game        {:action :end-game
+                         :text   "End the Game"}]
     (assoc game
            :deck deck
            :state next-state
@@ -171,10 +190,42 @@
            :active-player (:id next-player)
            :active-display {:card    next-card
                             :actions (case next-state
-                                       :end [:pass :end-game]
-                                       :intro [:pass :done]
-                                       :question [:pass :done])}
+                                       :end      [pass end-game]
+                                       :intro    [done pass discard]
+                                       :question [done pass discard])}
            :inactive-display {:card (waiting-for next-player)})))
+
+(defn discard-card [game]
+  (let [{:keys [player-order
+                active-player
+                discard
+                deck
+                state]} game
+        active-card     (get-in game [:active-display :card])
+        next-player     (next-player player-order active-player)
+        discard         (cons active-card discard)
+        next-card       (first deck)
+        deck            (rest deck)
+        next-state      (:state next-card)
+
+        pass            {:action :pass
+                         :text   (str "Pass to " (:user-name next-player))}
+        done            {:action :done
+                         :text   "Finish Turn"}
+        discard         {:action :discard
+                         :text   "Discard this..."}
+        end-game        {:action :end-game
+                         :text   "End the Game"}]
+    (assoc game
+           :deck deck
+           :state next-state
+           :discard discard
+           :active-display {:card    next-card
+                            :actions (case next-state
+                                       :end      [pass end-game]
+                                       :intro    [done pass discard]
+                                       :question [done pass discard])})))
+
 
 (defn pass-card [game]
   (let [{:keys [player-order
@@ -200,9 +251,10 @@
         valid?         (valid-action? active-player? action)
         next-state     (case action
                          :done     (finish-card game)
+                         :discard  (discard-card game)
                          :pass     (pass-card game)
                          :end-game (end-game game))]
-    (println valid? active-player? next-state)
+    (println next-state)
     (swap! world-atom update-in [:rooms room-id] assoc :game next-state)))
 
 (comment

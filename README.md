@@ -6,6 +6,8 @@
 Code cleanup:
 
 * Reset any current user info on refresh (name)
+* Cleaner action text
+* Start game duplication of setup logic
 * Easier way to distinguish outgoing socket events and incoming events
   (some naming convention? Maybe all outgoing events are ->foo... shared event?)
 
@@ -18,9 +20,12 @@ Rules for lobby
 
 Next stage
 
-* Start game (host only)
-* Show card to player
-* Show everyone else whose turn
+* Start game - host only ability
+* X-Card support - should announce X to all players
+* Leave game support - needs to rewrite state
+* Pick the queen image
+* Don't broadcast deck / discard?
+* Per-player displays, with personal broadcast, instead of "active/inactive"
 
 ## Development
 

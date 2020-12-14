@@ -24,6 +24,7 @@
                  [lambdaisland/garden-watcher "0.3.3"]
 
 
+                 [markdown-to-hiccup "0.6.2"]
                  [com.taoensso/sente "1.16.0"]
                  [devcards "0.2.5"]
                  ]

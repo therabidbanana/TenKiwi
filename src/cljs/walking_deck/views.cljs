@@ -1,5 +1,6 @@
 (ns walking-deck.views
-  (:require [re-frame.core :as re-frame]))
+  (:require [re-frame.core :as re-frame]
+            [markdown-to-hiccup.core :as m]))
 
 (defn -join-panel [join dispatch]
   (let [val #(-> % .-target .-value)]
@@ -63,7 +64,10 @@
         [:div.active-area {}
          [:div.x-card {}
           [:a {:on-click #(dispatch [:->game/x-card!])} "X"]]
-         [:div.card {:class (get-in display [:card :state])} (get-in display [:card :text])]
+         [:div.card {:class (get-in display [:card :state])}
+          (-> (get-in display [:card :text])
+              (m/md->hiccup)
+              (m/component))]
          (map (fn [{:keys [action text]}] (with-meta (vector :div.action [:a {:on-click #(dispatch [:->game/action! action])} text]) {:key action}))
               (get-in display [:actions]))]
       ]

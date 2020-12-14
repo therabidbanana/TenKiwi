@@ -34,7 +34,7 @@
 
 
 (def intro [
-            "Each player will take turns reading cards aloud, and then hitting done."
+            "Each player will take turns reading cards aloud, and then hitting **\"Finish Turn\"**."
             "The land you live in has been at war for as long as any of you have been alive."
             "The Queen has decided to undertake a long and perilous journey to broker an alliance with a distant power."
             "The Queen has chosen all of you, and no one else, to be her retinue, and accompany her on this journey."
@@ -178,7 +178,7 @@
         pass            {:action :pass
                          :text   (str "Pass to " (:user-name next-next))}
         done            {:action :done
-                         :text   "Done"}
+                         :text   "Finish Turn"}
         discard         {:action :discard
                          :text   "Discard this..."}
         end-game        {:action :end-game

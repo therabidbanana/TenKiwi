@@ -22,8 +22,10 @@ Next stage
 
 * Start game - host only ability
 * X-Card support - should announce X to all players
+  * Maybe discard only if X?
 * Leave game support - needs to rewrite state
 * Pick the queen image
+* Card formatting - newlines / italics / bold?
 * Don't broadcast deck / discard?
 * Per-player displays, with personal broadcast, instead of "active/inactive"
 

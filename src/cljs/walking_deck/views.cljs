@@ -72,8 +72,9 @@
           (-> (get-in display [:card :text])
               (m/md->hiccup)
               (m/component))]
-         (map (fn [{:keys [action text]}] (with-meta (vector :div.action [:a {:on-click #(dispatch [:->game/action! action])} text]) {:key action}))
-              (get-in display [:actions]))]
+         [:div.actions
+          (map (fn [{:keys [action text]}] (with-meta (vector :div.action [:a {:on-click #(dispatch [:->game/action! action])} text]) {:key action}))
+               (get-in display [:actions]))]]
       ]
      [:div.extras
       [:ul.players

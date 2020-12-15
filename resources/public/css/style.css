@@ -69,6 +69,12 @@ body {
   cursor: pointer;
 }
 
+.game-table .actions {
+  position: fixed;
+  width: 100%;
+  bottom: 0px;
+}
+
 .game-table .action {
   width: 80%;
   background: #222;
@@ -96,10 +102,14 @@ body {
   color: #224;
 }
 
-.game-table .card.x-carded {
-  border-color: red;
+.game-table .card.intro {
+  border-color: #aab;
 }
 
 .game-table .card.question {
-  border: 0.4rem solid #47a;
+  border-color: #47a;
+}
+
+.game-table .card.x-carded {
+  border-color: red;
 }

@@ -29,6 +29,9 @@
       [:a {:display 'block
            :padding "0.9rem 0.7rem"
            :cursor  'pointer}]]]
+    [:.actions {:position 'fixed
+                :width "100%"
+                :bottom "0px"}]
     [:.action {:width         "80%"
                :background    "#222"
                :border        "1px solid white"
@@ -47,8 +50,9 @@
              :border-radius    "0.2rem"
              :border           "0.4rem solid #efefef"
              :box-shadow       "2px 2px 4px #123"}
+     [:&.intro {:border-color "#aab"}]
+     [:&.question {:border-color "#47a"}]
      [:&.x-carded {:border-color "red"}]
-     [:&.question {:border "0.4rem solid #47a"}]
      ]]
    ))
 

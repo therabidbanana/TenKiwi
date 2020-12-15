@@ -2,19 +2,26 @@
   "The host is in charge of moving users back and forth to rooms"
   #_(:require [com.stuartsierra.component :as component]))
 
-;; TODO: Extract these - duplicated in host?
-(defn ->players [{:keys [chsk-send!]} uids message]
-  (doseq [uid uids]
-    (chsk-send! uid message)))
+(def valid-active-actions #{:pass :discard :done :x-card :end-game})
+(def valid-inactive-actions #{:x-card :undo})
 
-(defn ->player [system uid message]
-  (->players system [uid] message))
+(defn valid-action? [active? action]
+  (if active?
+    (valid-active-actions action)
+    (valid-inactive-actions action)))
 
-(defn ->room
-  [{:keys [register] :as system} room message]
-  (if-let [players (-> register :world deref
-                       (get-in [:rooms room :players]))]
-    (->players system (map :id players) message)))
+(def done-action
+  {:action :done
+   :text   "Finish Turn"})
+
+(def discard-action
+  {:action :discard
+   :text   "[X] Discard this..."})
+
+(def end-game-action
+  {:action :end-game
+   :text   "End the Game"})
+
 
 (def intro [
             "Each player will take turns reading cards aloud, and then hitting **\"Finish Turn\"**."
@@ -24,9 +31,9 @@
             "_She chose you because she knows that you love her._"
             "When you have completed the introduction cards, take turns reading the prompts out loud. Interpret these questions and answer them, however you wish."
             "Other players may ask you questions or make suggestions on your turn, but whether you answer those questions or take those suggestions is entirely up to you."
-            "The X-Card option is available to all players at all times."
-            "If you encounter a prompt, or an answer, that you don't want to be included in the game, use the X-Card. That content should be considered removed from the game."
-            "If you draw a card that is removed this way, simply draw another card. You may 'X' a card you drew yourself."
+            "The X option is available to all players at all times."
+            "If you encounter a prompt, or an answer, that you don't want to be included in the game, use the 'X'. That content should be considered removed from the game."
+            "If you draw a card that is removed this way, the border will be red. Simply draw another card. You may 'X' a card you drew yourself."
             "You can also pass on your turn. To do so, use the pass button and say: \"I'd like to hear your answer to this question\""
             "A prompt can be passed around until someone applies the 'X' to it."
             "Continue answering, passing and X-ing questions until 'The Queen is under attack' card is drawn."
@@ -129,26 +136,6 @@
     (doto world-atom
       (swap! update-in [:rooms room-id] assoc :game new-game))))
 
-(def valid-active-actions #{:pass :discard :done :x-card :end-game})
-(def valid-inactive-actions #{:x-card :undo})
-
-(defn valid-action? [active? action]
-  (if active?
-    (valid-active-actions action)
-    (valid-inactive-actions action)))
-
-(def done-action
-  {:action :done
-   :text   "Finish Turn"})
-
-(def discard-action
-  {:action :discard
-   :text   "Discard this..."})
-
-(def end-game-action
-  {:action :end-game
-   :text   "End the Game"})
-
 (defn finish-card [game]
   (let [{:keys [player-order
                 active-player
@@ -212,6 +199,11 @@
     (assoc game
            :active-player (:id next-player))))
 
+(defn push-uniq [coll item]
+  (if (some #(= % item) coll)
+    coll
+    (into [item] coll)))
+
 (defn x-card [game]
   (let [{:keys [player-order
                 active-player
@@ -220,7 +212,7 @@
         next-player     (next-player player-order active-player)]
     (-> game
         (assoc-in [:active-display :x-card-active?] true)
-        (update-in [:active-display :actions] conj discard-action)
+        (update-in [:active-display :actions] push-uniq discard-action)
         (assoc-in [:inactive-display :x-card-active?] true))))
 
 (defn end-game [game]

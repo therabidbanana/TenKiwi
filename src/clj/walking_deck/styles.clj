@@ -21,28 +21,33 @@
   (list
    [:.game-table
     [:.active-area {:text-align "center"}
-     [:.x-card {:background-color "red"
-                :color "white"
-                :float 'right
-                :padding "0.6rem"}
-      [:a {:display 'block}]]]
-    [:.action {:width "80%"
-               :background "#222"
-               :border "1px solid white"
-               :cursor 'pointer
-               :padding "1rem"
-               :margin "1rem auto"
+     [:.x-card {:float            'right
+                :background-color "#47a"
+                :color            "white"}
+      [:&.active {:background-color "red"
+                  :color            "white"}]
+      [:a {:display 'block
+           :padding "0.9rem 0.7rem"
+           :cursor  'pointer}]]]
+    [:.action {:width         "80%"
+               :background    "#222"
+               :border        "1px solid white"
+               :cursor        'pointer
+               :margin        "1rem auto"
                :border-radius "0.2rem"
-               :box-shadow "2px 2px 4px #123"}
-     [:a {:display "block"}]]
+               :box-shadow    "2px 2px 4px #123"}
+     [:a {:display "block"
+          :padding "1rem"}]]
     [:.card {:background-color "#efefef"
-             :padding "2.2rem 1.2rem"
-             :margin "0.5rem"
-             :font-family "Georgia"
-             :font-size "1.8rem"
-             :color "#224"
-             :border-radius "0.2rem"
-             :box-shadow "2px 2px 4px #123"}
+             :padding          "2.2rem 1.2rem"
+             :margin           "0.5rem"
+             :font-family      "Georgia"
+             :font-size        "1.8rem"
+             :color            "#224"
+             :border-radius    "0.2rem"
+             :border           "0.4rem solid #efefef"
+             :box-shadow       "2px 2px 4px #123"}
+     [:&.x-carded {:border-color "red"}]
      [:&.question {:border "0.4rem solid #47a"}]
      ]]
    ))

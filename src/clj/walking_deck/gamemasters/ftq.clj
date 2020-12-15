@@ -16,23 +16,6 @@
                        (get-in [:rooms room :players]))]
     (->players system (map :id players) message)))
 
-
-#_(defn set-player-room
-  ([world-atom uid room-id]
-   (let [user-info (get-in @world-atom [:player-info uid])]
-     (set-player-room world-atom uid room-id user-info)))
-  ([world-atom uid room-id user-info]
-   (let [room (or (get-room world-atom room-id)
-                  {:id room-id
-                   :players []})
-         _ (println room)
-         new-room (update-in room [:players] conj user-info)]
-     (doto world-atom
-       (swap! update-in [:players] assoc uid room-id)
-       (swap! update-in [:player-info] assoc uid user-info)
-       (swap! update-in [:rooms] assoc room-id new-room)))))
-
-
 (def intro [
             "Each player will take turns reading cards aloud, and then hitting **\"Finish Turn\"**."
             "_The land you live in has been at war for as long as any of you have been alive._"
@@ -129,10 +112,6 @@
 
 (defn start-game [world-atom room-id]
   (let [players      (get-in @world-atom [:rooms room-id :players])
-        done            {:action :done
-                         :text   "Finish Turn"}
-        discard         {:action :discard
-                         :text   "Discard this..."}
         pass            {:action :pass
                          :text   (str "Pass to " (:user-name (next-player players (:id (first players)))))}
         new-game     {:player-order     (into [] players)
@@ -145,7 +124,7 @@
                                                       [queen-attacked]))
                       :active-player    (:id (first players))
                       :active-display   {:card (first intro-cards)
-                                         :actions [done pass discard]}
+                                         :actions [done-action pass]}
                       :inactive-display {:card (waiting-for (first players))}}]
     (doto world-atom
       (swap! update-in [:rooms room-id] assoc :game new-game))))
@@ -158,6 +137,17 @@
     (valid-active-actions action)
     (valid-inactive-actions action)))
 
+(def done-action
+  {:action :done
+   :text   "Finish Turn"})
+
+(def discard-action
+  {:action :discard
+   :text   "Discard this..."})
+
+(def end-game-action
+  {:action :end-game
+   :text   "End the Game"})
 
 (defn finish-card [game]
   (let [{:keys [player-order
@@ -174,13 +164,7 @@
         next-next       (next-player player-order (:id next-up))
 
         pass            {:action :pass
-                         :text   (str "Pass to " (:user-name next-next))}
-        done            {:action :done
-                         :text   "Finish Turn"}
-        discard         {:action :discard
-                         :text   "Discard this..."}
-        end-game        {:action :end-game
-                         :text   "End the Game"}]
+                         :text   (str "Pass to " (:user-name next-next))}]
     (assoc game
            :deck deck
            :state next-state
@@ -188,9 +172,9 @@
            :active-player (:id next-up)
            :active-display {:card    next-card
                             :actions (case next-state
-                                       :end      [pass end-game]
-                                       :intro    [done pass discard]
-                                       :question [done pass discard])}
+                                       :end      [pass end-game-action]
+                                       :intro    [done-action pass]
+                                       :question [done-action pass])}
            :inactive-display {:card (waiting-for next-up)})))
 
 (defn discard-card [game]
@@ -207,22 +191,16 @@
         next-state      (:state next-card)
 
         pass            {:action :pass
-                         :text   (str "Pass to " (:user-name next-player))}
-        done            {:action :done
-                         :text   "Finish Turn"}
-        discard         {:action :discard
-                         :text   "Discard this..."}
-        end-game        {:action :end-game
-                         :text   "End the Game"}]
+                         :text   (str "Pass to " (:user-name next-player))}]
     (assoc game
            :deck deck
            :state next-state
            :discard discard
            :active-display {:card    next-card
                             :actions (case next-state
-                                       :end      [pass end-game]
-                                       :intro    [done pass discard]
-                                       :question [done pass discard])})))
+                                       :end      [pass end-game-action]
+                                       :intro    [done-action pass]
+                                       :question [done-action pass])})))
 
 
 (defn pass-card [game]
@@ -233,6 +211,17 @@
         next-player     (next-player player-order active-player)]
     (assoc game
            :active-player (:id next-player))))
+
+(defn x-card [game]
+  (let [{:keys [player-order
+                active-player
+                deck
+                state]} game
+        next-player     (next-player player-order active-player)]
+    (-> game
+        (assoc-in [:active-display :x-card-active?] true)
+        (update-in [:active-display :actions] conj discard-action)
+        (assoc-in [:inactive-display :x-card-active?] true))))
 
 (defn end-game [game]
   nil)
@@ -249,6 +238,7 @@
         valid?         (valid-action? active-player? action)
         next-state     (case action
                          :done     (finish-card game)
+                         :x-card   (x-card game)
                          :discard  (discard-card game)
                          :pass     (pass-card game)
                          :end-game (end-game game))]

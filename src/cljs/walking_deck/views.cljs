@@ -57,14 +57,18 @@
         display                        (if active?
                                          (:active-display game)
                                          (:inactive-display game))
+        x-carded?                      (:x-card-active? display)
         _                              (println data)
         ]
     [:div.game-table
      [:div.current {}
         [:div.active-area {}
-         [:div.x-card {}
-          [:a {:on-click #(dispatch [:->game/x-card!])} "X"]]
-         [:div.card {:class (get-in display [:card :state])}
+         [:div.x-card {:class (if x-carded? "active" "inactive")}
+          [:a {:on-click #(dispatch [:->game/action! :x-card])} "X"]]
+         [:div.card {:class (str (name (get-in display [:card :state]))
+                                 " "
+                                 (if x-carded?
+                                   "x-carded"))}
           (-> (get-in display [:card :text])
               (m/md->hiccup)
               (m/component))]

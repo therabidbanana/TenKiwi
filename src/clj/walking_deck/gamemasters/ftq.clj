@@ -125,7 +125,7 @@
         next-index (if (>= next-index (count player-order))
                      0
                      next-index)]
-    (get player-order next-index)))
+    (nth player-order next-index)))
 
 (defn start-game [world-atom room-id]
   (let [players      (get-in @world-atom [:rooms room-id :players])
@@ -166,14 +166,12 @@
                 deck
                 state]} game
         active-card     (get-in game [:active-display :card])
-        next-player     (next-player player-order active-player)
+        next-up     (next-player player-order active-player)
         discard         (cons active-card discard)
         next-card       (first deck)
         deck            (rest deck)
         next-state      (:state next-card)
-        next-next       (next-player player-order (:id next-player))
-        ;; TODO: Why is this busted?
-        _ (println player-order next-next)
+        next-next       (next-player player-order (:id next-up))
 
         pass            {:action :pass
                          :text   (str "Pass to " (:user-name next-next))}
@@ -187,13 +185,13 @@
            :deck deck
            :state next-state
            :discard discard
-           :active-player (:id next-player)
+           :active-player (:id next-up)
            :active-display {:card    next-card
                             :actions (case next-state
                                        :end      [pass end-game]
                                        :intro    [done pass discard]
                                        :question [done pass discard])}
-           :inactive-display {:card (waiting-for next-player)})))
+           :inactive-display {:card (waiting-for next-up)})))
 
 (defn discard-card [game]
   (let [{:keys [player-order

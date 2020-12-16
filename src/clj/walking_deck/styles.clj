@@ -12,16 +12,18 @@
            :padding "1rem"}]
    [:button {:font-size "2rem"}]
    [:body {:color "#eeeef0"
-           :font-size "1.4em"
+           :font-size "1.2rem"
            :font-family "Tahoma"
            :background-color "#223"}]))
 
 
 (def game-table
   (list
-   [:.game-table
-    [:.active-area {:text-align "center"}
+   [:.game-table {:margin-bottom "9rem"}
+    [:.active-area {:text-align "center"
+                    :margin-bottom "9rem"}
      [:.x-card {:float            'right
+                :font-size        "1.6rem"
                 :background-color "#47a"
                 :color            "white"}
       [:&.active {:background-color "red"
@@ -33,6 +35,7 @@
                 :width "100%"
                 :bottom "0px"}]
     [:.action {:width         "80%"
+               :font-size     "1.4rem"
                :background    "#222"
                :border        "1px solid white"
                :cursor        'pointer
@@ -45,7 +48,7 @@
              :padding          "2.2rem 1.2rem"
              :margin           "0.5rem"
              :font-family      "Georgia"
-             :font-size        "1.8rem"
+             :font-size        "1.6rem"
              :color            "#224"
              :border-radius    "0.2rem"
              :border           "0.4rem solid #efefef"

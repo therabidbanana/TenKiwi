@@ -20,7 +20,7 @@ button {
 
 body {
   color: #eeeef0;
-  font-size: 1.4em;
+  font-size: 1.2rem;
   font-family: Tahoma;
   background-color: #223;
 }
@@ -48,12 +48,18 @@ body {
   float: right;
 }
 
+.game-table {
+  margin-bottom: 9rem;
+}
+
 .game-table .active-area {
   text-align: center;
+  margin-bottom: 9rem;
 }
 
 .game-table .active-area .x-card {
   float: right;
+  font-size: 1.6rem;
   background-color: #47a;
   color: white;
 }
@@ -77,6 +83,7 @@ body {
 
 .game-table .action {
   width: 80%;
+  font-size: 1.4rem;
   background: #222;
   border: 1px solid white;
   cursor: pointer;
@@ -96,7 +103,7 @@ body {
   border: 0.4rem solid #efefef;
   padding: 2.2rem 1.2rem;
   box-shadow: 2px 2px 4px #123;
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   background-color: #efefef;
   border-radius: 0.2rem;
   color: #224;

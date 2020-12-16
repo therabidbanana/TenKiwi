@@ -50,10 +50,11 @@
 
 (defn -game-panel [user-data dispatch]
   (let [{user-id        :id
-         :as data
+         :as            data
          {:as   room
           :keys [game]} :current-room} @user-data
         active?                        (= user-id (:active-player game))
+        queen                          (:queen game)
         display                        (if active?
                                          (:active-display game)
                                          (:inactive-display game))
@@ -62,13 +63,13 @@
         ]
     [:div.game-table
      [:div.current {}
-        [:div.active-area {}
-         [:div.x-card {:class (if x-carded? "active" "inactive")}
-          [:a {:on-click #(dispatch [:->game/action! :x-card])} "X"]]
-         [:div.card {:class (str (name (get-in display [:card :state]))
-                                 " "
-                                 (if x-carded?
-                                   "x-carded"))}
+      [:div.active-area {}
+       [:div.x-card {:class (if x-carded? "active" "inactive")}
+        [:a {:on-click #(dispatch [:->game/action! :x-card])} "X"]]
+       [:div.card {:class (str (name (get-in display [:card :state]))
+                               " "
+                               (if x-carded?
+                                 "x-carded"))}
           (-> (get-in display [:card :text])
               (m/md->hiccup)
               (m/component))]
@@ -77,11 +78,11 @@
                (get-in display [:actions]))]]
       ]
      [:div.extras
-      [:ul.players
-       (for [player (:players room)]
-         ^{:key (:id player)}
-         [:li (:user-name player)])]
-      [:div.actions]]]))
+      [:img {:src (str "/" queen)}]
+      [:div.extra-actions
+       (map (fn [{:keys [action text]}] (with-meta (vector :div.extra-action [:a {:href "#" :on-click #(dispatch [:->game/action! action])} text]) {:key action}))
+            (get-in display [:extra-actions]))
+       ]]]))
 
 (defn game-panel []
   (let [user-data (re-frame/subscribe [:user])

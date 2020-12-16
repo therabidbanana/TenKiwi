@@ -127,39 +127,3 @@
     (let [room (get-room world player-location)]
       (->player system uid [:user/booted!])
       (->room system player-location [:room/user-left! room]))))
-
-#_(defmethod -event-msg-handler :room/join-room!
-  [{:keys [gamemaster]} {:as ev-msg :keys [event uid send-fn]}]
-  (let [[_ {:keys [user-name room-code]}] event
-
-        rooms        (:rooms gamemaster)
-        current-room (@rooms room-code)
-        user {:id        uid
-              :user-name user-name}]
-    (if (= uid :taoensso.sente/nil-uid)
-      (println "Warning - unassigned user id! Ignoring join :room/join-room!")
-      (do (if current-room
-            (swap! rooms update-in [room-code :players] conj user)
-            (swap! rooms assoc-in [room-code] {:room-code room-code :players [user]}))
-          (swap! (:players gamemaster) assoc uid room-code)))
-    (send-fn uid [:user/room-joined! (-> rooms deref (get room-code))])
-    (doseq [player (-> rooms deref (get-in [room-code :players]))]
-      (send-fn (:id player) [:room/user-joined! (-> rooms deref (get room-code))]))))
-
-#_(defmethod -event-msg-handler :room/boot-player!
-  [{:keys [gamemaster]} {:as ev-msg :keys [event uid send-fn]}]
-  (let [[_ booted] event
-
-        _ (println booted)
-        rooms        (:rooms gamemaster)
-        players      (:players gamemaster)
-        current-room (@players booted)
-        room-code    current-room]
-    (if (= uid :taoensso.sente/nil-uid)
-      (println "Warning - unassigned user id! Ignoring join :room/join-room!")
-      (do (if current-room
-            (swap! rooms update-in [room-code :players] (partial remove #(= (:id %) booted))))
-          (swap! (:players gamemaster) assoc booted :home)))
-    (send-fn booted [:user/booted!])
-    (doseq [player (-> rooms deref (get-in [room-code :players]))]
-      (send-fn (:id player) [:room/user-left! (-> rooms deref (get room-code))]))))

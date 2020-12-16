@@ -2,8 +2,8 @@
   "The host is in charge of moving users back and forth to rooms"
   #_(:require [com.stuartsierra.component :as component]))
 
-(def valid-active-actions #{:pass :discard :done :x-card :end-game})
-(def valid-inactive-actions #{:x-card :undo})
+(def valid-active-actions #{:pass :discard :done :x-card :end-game :next-queen :leave-game})
+(def valid-inactive-actions #{:x-card :undo :leave-game})
 
 (defn valid-action? [active? action]
   (if active?
@@ -13,6 +13,14 @@
 (def done-action
   {:action :done
    :text   "Finish Turn"})
+
+(def leave-game-action
+  {:action :leave-game
+   :text   "End Game Now"})
+
+(def next-queen-action
+  {:action :next-queen
+   :text   "Cycle Queen"})
 
 (def discard-action
   {:action :discard
@@ -89,6 +97,16 @@
                 "What do you do that pleases the Queen on this journey?"
             ])
 
+(def queen-images [
+             "images/1.jpg"
+             "images/2.jpg"
+             "images/3.jpg"
+             "images/4.jpg"
+             "images/5.jpg"
+             "images/6.jpg"
+             "images/7.jpg"
+             ])
+
 (def intro-cards (into []
                        (map-indexed #(hash-map :state :intro :id %1 :text %2)
                                     intro)))
@@ -118,21 +136,26 @@
     (nth player-order next-index)))
 
 (defn start-game [world-atom room-id]
-  (let [players      (get-in @world-atom [:rooms room-id :players])
-        pass            {:action :pass
-                         :text   (str "Pass to " (:user-name (next-player players (:id (first players)))))}
-        new-game     {:player-order     (into [] players)
-                      :game             :ftq
-                      :state            :intro
-                      :discard          []
-                      :deck             (into []
-                                              (concat (rest intro-cards)
-                                                      (take 20 (shuffle question-cards))
-                                                      [queen-attacked]))
-                      :active-player    (:id (first players))
-                      :active-display   {:card (first intro-cards)
-                                         :actions [done-action pass]}
-                      :inactive-display {:card (waiting-for (first players))}}]
+  (let [players  (get-in @world-atom [:rooms room-id :players])
+        pass     {:action :pass
+                  :text   (str "Pass to " (:user-name (next-player players (:id (first players)))))}
+        new-game {:player-order     (into [] players)
+                  :game             :ftq
+                  :state            :intro
+                  :discard          []
+                  :deck             (into []
+                                          (concat (rest intro-cards)
+                                                  (take 20 (shuffle question-cards))
+                                                  [queen-attacked]))
+                  :active-player    (:id (first players))
+                  :queen-deck       (rest queen-images)
+                  :queen            (first queen-images)
+                  :active-display   {:card    (first intro-cards)
+                                     :extra-actions [next-queen-action leave-game-action]
+                                     :question [leave-game-action]
+                                     :actions [done-action pass]}
+                  :inactive-display {:card (waiting-for (first players))
+                                     :extra-actions [leave-game-action]}}]
     (doto world-atom
       (swap! update-in [:rooms room-id] assoc :game new-game))))
 
@@ -146,7 +169,7 @@
         next-up     (next-player player-order active-player)
         discard         (cons active-card discard)
         next-card       (first deck)
-        deck            (rest deck)
+        deck            (into [] (rest deck))
         next-state      (:state next-card)
         next-next       (next-player player-order (:id next-up))
 
@@ -158,11 +181,26 @@
            :discard discard
            :active-player (:id next-up)
            :active-display {:card    next-card
+                            :extra-actions (case next-state
+                                             :end      [leave-game-action]
+                                             :intro    [next-queen-action leave-game-action]
+                                             :question [leave-game-action])
                             :actions (case next-state
                                        :end      [pass end-game-action]
                                        :intro    [done-action pass]
-                                       :question [done-action pass])}
-           :inactive-display {:card (waiting-for next-up)})))
+                                       :question [done-action pass])
+                            }
+           :inactive-display {:card (waiting-for next-up)
+                              :extra-actions [leave-game-action]})))
+
+(defn next-queen [game]
+  (let [{:keys [queen-deck
+                queen]} game
+        next-queen      (first queen-deck)
+        next-queen-deck (conj (into [] (rest queen-deck)) queen)]
+    (assoc game
+           :queen next-queen
+           :queen-deck next-queen-deck)))
 
 (defn discard-card [game]
   (let [{:keys [player-order
@@ -177,17 +215,21 @@
         deck            (rest deck)
         next-state      (:state next-card)
 
-        pass            {:action :pass
-                         :text   (str "Pass to " (:user-name next-player))}]
+        pass {:action :pass
+              :text   (str "Pass to " (:user-name next-player))}]
     (assoc game
            :deck deck
            :state next-state
            :discard discard
-           :active-display {:card    next-card
-                            :actions (case next-state
-                                       :end      [pass end-game-action]
-                                       :intro    [done-action pass]
-                                       :question [done-action pass])})))
+           :active-display {:card          next-card
+                            :extra-actions (case next-state
+                                             :end      [leave-game-action]
+                                             :intro    [next-queen-action leave-game-action]
+                                             :question [leave-game-action])
+                            :actions       (case next-state
+                                             :end      [pass end-game-action]
+                                             :intro    [done-action pass]
+                                             :question [done-action pass])})))
 
 
 (defn pass-card [game]
@@ -229,11 +271,15 @@
         active-player? (= active-player uid)
         valid?         (valid-action? active-player? action)
         next-state     (case action
-                         :done     (finish-card game)
-                         :x-card   (x-card game)
-                         :discard  (discard-card game)
-                         :pass     (pass-card game)
-                         :end-game (end-game game))]
+                         :next-queen (next-queen game)
+                         :done       (finish-card game)
+                         :x-card     (x-card game)
+                         :discard    (discard-card game)
+                         :pass       (pass-card game)
+                         ;; TODO allow players to leave game without ending
+                         ;;; change action text
+                         :leave-game (end-game game)
+                         :end-game   (end-game game))]
     ;; (println next-state)
     (swap! world-atom update-in [:rooms room-id] assoc :game next-state)))
 

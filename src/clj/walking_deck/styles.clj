@@ -20,7 +20,9 @@
 (def game-table
   (list
    [:.game-table {:margin-bottom "9rem"}
-    [:.active-area {:text-align "center"
+    [:img {:max-height "60vh"
+           :margin "0 auto"}]
+    [:.active-area {:text-align    "center"
                     :margin-bottom "9rem"}
      [:.x-card {:float            'right
                 :font-size        "1.6rem"
@@ -32,8 +34,8 @@
            :padding "0.9rem 0.7rem"
            :cursor  'pointer}]]]
     [:.actions {:position 'fixed
-                :width "100%"
-                :bottom "0px"}]
+                :width    "100%"
+                :bottom   "0px"}]
     [:.action {:width         "80%"
                :font-size     "1.4rem"
                :background    "#222"

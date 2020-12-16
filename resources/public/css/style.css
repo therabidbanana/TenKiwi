@@ -52,6 +52,11 @@ body {
   margin-bottom: 9rem;
 }
 
+.game-table img {
+  max-height: 60vh;
+  margin: 0 auto;
+}
+
 .game-table .active-area {
   text-align: center;
   margin-bottom: 9rem;

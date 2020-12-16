@@ -19,9 +19,22 @@
 
 (def game-table
   (list
-   [:.game-table {:margin-bottom "9rem"}
-    [:img {:max-height "60vh"
-           :margin "0 auto"}]
+   ;; TODO: This styling is a tangled mess
+   [:.game-table {:margin-bottom "12rem"}
+    [:.extras
+     [:img {:display    "block"
+            :max-height "60vh"
+            :margin     "0 auto"}]
+     [:.extra-actions
+      [:a.button {:width      "80%"
+                  :font-size  "1.1rem"
+                  :background "#ccc"
+                  :color      "#111"
+                  :cursor     'pointer
+                  :margin     "1rem"
+                  :display    'block
+                  :padding    "1rem"}]
+      ]]
     [:.active-area {:text-align    "center"
                     :margin-bottom "9rem"}
      [:.x-card {:float            'right

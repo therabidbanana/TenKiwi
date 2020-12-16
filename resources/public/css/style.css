@@ -49,12 +49,24 @@ body {
 }
 
 .game-table {
-  margin-bottom: 9rem;
+  margin-bottom: 12rem;
 }
 
-.game-table img {
+.game-table .extras img {
+  display: block;
   max-height: 60vh;
   margin: 0 auto;
+}
+
+.game-table .extras .extra-actions a.button {
+  width: 80%;
+  font-size: 1.1rem;
+  background: #ccc;
+  color: #111;
+  cursor: pointer;
+  margin: 1rem;
+  display: block;
+  padding: 1rem;
 }
 
 .game-table .active-area {

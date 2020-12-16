@@ -80,7 +80,7 @@
      [:div.extras
       [:img {:src (str "/" queen)}]
       [:div.extra-actions
-       (map (fn [{:keys [action text]}] (with-meta (vector :div.extra-action [:a {:href "#" :on-click #(dispatch [:->game/action! action])} text]) {:key action}))
+       (map (fn [{:keys [action text]}] (with-meta (vector :div.extra-action [:a.button {:on-click #(dispatch [:->game/action! action])} text]) {:key action}))
             (get-in display [:extra-actions]))
        ]]]))
 

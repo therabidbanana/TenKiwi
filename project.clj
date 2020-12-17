@@ -1,4 +1,4 @@
-(defproject walking-deck "0.1.0-SNAPSHOT"
+(defproject tenkiwi "0.1.0-SNAPSHOT"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
@@ -40,10 +40,10 @@
 
   :clean-targets ^{:protect false} [:target-path :compile-path "resources/public/js" "dev-target"]
 
-  :uberjar-name "walking-deck.jar"
+  :uberjar-name "tenkiwi.jar"
 
   ;; Use `lein run` if you just want to start a HTTP server, without figwheel
-  :main walking-deck.application
+  :main tenkiwi.application
 
   ;; nREPL by default starts in the :main namespace, we want to start in `user`
   ;; because that's where our development helper functions like (go) and
@@ -55,32 +55,32 @@
               [{:id "app"
                 :source-paths ["src/cljs" "src/cljc" "dev"]
 
-                :figwheel {:on-jsload "walking-deck.system/reset"}
+                :figwheel {:on-jsload "tenkiwi.system/reset"}
 
                 :compiler {:main cljs.user
                            :asset-path "js/compiled/out"
-                           :output-to "dev-target/public/js/compiled/walking_deck.js"
+                           :output-to "dev-target/public/js/compiled/tenkiwi.js"
                            :output-dir "dev-target/public/js/compiled/out"
                            :source-map-timestamp true}}
                {:id           "devcards"
                 :source-paths ["src"]
                 :figwheel     { :devcards true } ;; <- note this
-                :compiler     {:main                 "walking-deck.devcards"
+                :compiler     {:main                 "tenkiwi.devcards"
                                :asset-path           "js/devcards_out/out"
-                               :output-to            "dev-target/public/js/devcards_out/walking_deck_devcards.js"
+                               :output-to            "dev-target/public/js/devcards_out/tenkiwi_devcards.js"
                                :output-dir           "dev-target/public/js/devcards_out/out"
                                :source-map-timestamp true}}
                {:id "test"
                 :source-paths ["src/cljs" "test/cljs" "src/cljc" "test/cljc"]
                 :compiler {:output-to "dev-target/public/js/compiled/testable.js"
-                           :main walking-deck.test-runner
+                           :main tenkiwi.test-runner
                            :optimizations :none}}
 
                {:id "min"
                 :source-paths ["src/cljs" "src/cljc"]
                 :jar true
-                :compiler {:main walking-deck.system
-                           :output-to "resources/public/js/compiled/walking_deck.js"
+                :compiler {:main tenkiwi.system
+                           :output-to "resources/public/js/compiled/tenkiwi.js"
                            :output-dir "target"
                            :source-map-timestamp true
                            :optimizations :advanced
@@ -138,7 +138,7 @@
              {:source-paths ^:replace ["src/clj" "src/cljc"]
               :prep-tasks ["compile"
                            ["cljsbuild" "once" "min"]
-                           ["run" "-m" "garden-watcher.main" "walking-deck.styles"]]
+                           ["run" "-m" "garden-watcher.main" "tenkiwi.styles"]]
               :hooks []
               :omit-source true
               :aot :all}})

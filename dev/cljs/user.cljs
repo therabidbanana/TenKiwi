@@ -1,6 +1,6 @@
 (ns cljs.user
-  (:require [walking-deck.core]
-            [walking-deck.system :as system]))
+  (:require [tenkiwi.core]
+            [tenkiwi.system :as system]))
 
 (def go system/go)
 (def reset system/reset)

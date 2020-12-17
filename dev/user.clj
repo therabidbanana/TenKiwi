@@ -1,5 +1,5 @@
 (ns user
-  (:require [walking-deck.application]
+  (:require [tenkiwi.application]
             [com.stuartsierra.component :as component]
             [figwheel-sidecar.config :as fw-config]
             [figwheel-sidecar.system :as fw-sys]
@@ -9,17 +9,17 @@
             [system.components.middleware :refer [new-middleware]]
             [figwheel-sidecar.repl-api :as figwheel]
             [garden-watcher.core :refer [new-garden-watcher]]
-            [walking-deck.config :refer [config]]))
+            [tenkiwi.config :refer [config]]))
 
 (defn dev-system []
   (let [config (config)]
-    (assoc (walking-deck.application/app-system config)
+    (assoc (tenkiwi.application/app-system config)
            :middleware (new-middleware
                         {:middleware (into [[wrap-file "dev-target/public"]]
                                            (:middleware config))})
            :figwheel-system (fw-sys/figwheel-system (fw-config/fetch-config))
            :css-watcher (fw-sys/css-watcher {:watch-paths ["resources/public/css"]})
-    :garden-watcher (new-garden-watcher ['walking-deck.styles]))))
+    :garden-watcher (new-garden-watcher ['tenkiwi.styles]))))
 
 (reloaded.repl/set-init! #(dev-system))
 

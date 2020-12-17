@@ -124,7 +124,7 @@
 
 (def queen-attacked {:id   "attacked"
                      :state :end
-                     :text "The queen is under attack. Do you defend her?"})
+                     :text "The queen is under attack.\n\nDo you defend her?"})
 
 
 ;; TODO: XSS danger?
@@ -143,9 +143,14 @@
     (nth player-order next-index)))
 
 (defn start-game [world-atom room-id]
-  (let [players  (get-in @world-atom [:rooms room-id :players])
-        pass     {:action :pass
-                  :text   (str "Pass to " (:user-name (next-player players (:id (first players)))))}
+  (let [players (get-in @world-atom [:rooms room-id :players])
+        pass    {:action :pass
+                 :text   (str "Pass to " (:user-name (next-player players (:id (first players)))))}
+
+        waiting-intro (update (waiting-for (first players))
+                              :text
+                              (partial str (first intro) "\n\n"))
+
         new-game {:player-order     (into [] players)
                   :game             :ftq
                   :state            :intro
@@ -157,11 +162,11 @@
                   :active-player    (:id (first players))
                   :queen-deck       (rest queen-images)
                   :queen            (first queen-images)
-                  :active-display   {:card    (first intro-cards)
+                  :active-display   {:card          (first intro-cards)
                                      :extra-actions [next-queen-action previous-queen-action leave-game-action]
-                                     :question [leave-game-action]
-                                     :actions [done-action pass]}
-                  :inactive-display {:card (waiting-for (first players))
+                                     :question      [leave-game-action]
+                                     :actions       [done-action pass]}
+                  :inactive-display {:card          waiting-intro
                                      :extra-actions [leave-game-action]}}]
     (doto world-atom
       (swap! update-in [:rooms room-id] assoc :game new-game))))

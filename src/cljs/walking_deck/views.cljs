@@ -10,15 +10,15 @@
        [:label
         "Name"
         [:br]
-        [:input {:name      "name"
+        [:input {:name      "game-user-name"
                  :value     (-> join deref :user-name)
                  :on-change #(dispatch [:join/set-params {:user-name (val %)}])}]]]
       [:div.fieldset
        [:label
         "Lobby Code"
         [:br]
-        [:input {:name "lobby-code"
-                 :value (-> join deref :room-code)
+        [:input {:name      "game-lobby-code"
+                 :value     (-> join deref :room-code)
                  :on-change #(dispatch [:join/set-params {:room-code (val %)}])}]]]
       [:button {:on-click #(do
                              (dispatch [:->join/join-room!])
@@ -58,9 +58,7 @@
         display                        (if active?
                                          (:active-display game)
                                          (:inactive-display game))
-        x-carded?                      (:x-card-active? display)
-        _                              (println data)
-        ]
+        x-carded?                      (:x-card-active? display)]
     [:div.game-table
      [:div.current {}
       [:div.active-area {}

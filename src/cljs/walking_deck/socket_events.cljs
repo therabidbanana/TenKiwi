@@ -35,7 +35,7 @@
 (defmethod -event-msg-handler :chsk/recv
   [{:as ev-msg :keys [?data]}]
   (re-frame/dispatch ?data)
-  (->output! "Push event from server: %s" ?data))
+  #_(->output! "Push event from server: %s" ?data))
 
 (defmethod -event-msg-handler :chsk/handshake
            [{:as ev-msg :keys [?data]}]

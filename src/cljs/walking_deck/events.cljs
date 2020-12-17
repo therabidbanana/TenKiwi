@@ -16,7 +16,6 @@
  :user/connected!
  [(re-frame/inject-cofx :system :client-id)]
  (fn [{:as x :keys [db client-id]} [_ params]]
-   (println x)
    {:db (update-in db [:user] assoc
                    :id client-id
                    :connected? true)}))
@@ -24,7 +23,11 @@
 (re-frame/reg-event-db
  :join/set-params
  (fn [db [_ params]]
-   (update-in db [:join] merge params)))
+   (let [{:keys [user-name
+                 room-code]} params
+         room-code (clojure.string/lower-case (or room-code ""))
+         params (assoc params :room-code room-code)]
+     (update-in db [:join] merge params))))
 
 (re-frame/reg-event-db
  :user/room-joined!
@@ -49,7 +52,6 @@
    (let [current-room (get-in db [:user :current-room])]
      (if (= (:room-code params) (:room-code current-room))
        (do
-         (println params)
          (update-in db [:user] assoc :current-room params))))))
 
 (re-frame/reg-event-db
@@ -58,7 +60,6 @@
    (let [current-room (get-in db [:user :current-room])]
      (if (= (:room-code params) (:room-code current-room))
        (do
-         (println params)
          (update-in db [:user] assoc :current-room params))))))
 
 (re-frame/reg-event-db

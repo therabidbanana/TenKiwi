@@ -1,8 +1,8 @@
 (ns walking-deck.gamemasters.ftq
   "The host is in charge of moving users back and forth to rooms"
-  #_(:require [com.stuartsierra.component :as component]))
+  )
 
-(def valid-active-actions #{:pass :discard :done :x-card :end-game :next-queen :leave-game})
+(def valid-active-actions #{:pass :discard :done :x-card :end-game :next-queen :previous-queen :leave-game})
 (def valid-inactive-actions #{:x-card :undo :leave-game})
 
 (defn valid-action? [active? action]
@@ -15,21 +15,27 @@
    :text   "Finish Turn"})
 
 (def leave-game-action
-  {:action :leave-game
-   :text   "End Game Now"})
+  {:action  :leave-game
+   :confirm true
+   :text    "End Game Now"})
 
 (def next-queen-action
   {:action :next-queen
-   :text   "Cycle Queen"})
+   :class  :next-button
+   :text   ">"})
+
+(def previous-queen-action
+  {:action :previous-queen
+   :class  :previous-button
+   :text   "<"})
 
 (def discard-action
   {:action :discard
    :text   "[X] Discard this..."})
 
 (def end-game-action
-  {:action :end-game
-   :text   "End the Game"})
-
+  {:action  :end-game
+   :text    "End the Game"})
 
 (def intro [
             "Each player will take turns reading cards aloud, and then hitting **\"Finish Turn\"**."
@@ -37,6 +43,7 @@
             "_The Queen has decided to undertake a long and perilous journey to broker an alliance with a distant power._"
             "_The Queen has chosen all of you, and no one else, to be her retinue, and accompany her on this journey._"
             "_She chose you because she knows that you love her._"
+            "You are welcome to choose a queen below.\n\nIf there is one that seems right for the group, leave it to inspire your story."
             "When you have completed the introduction cards, take turns reading the prompts out loud. Interpret these questions and answer them, however you wish."
             "Other players may ask you questions or make suggestions on your turn, but whether you answer those questions or take those suggestions is entirely up to you."
             "The X option is available to all players at all times."
@@ -151,7 +158,7 @@
                   :queen-deck       (rest queen-images)
                   :queen            (first queen-images)
                   :active-display   {:card    (first intro-cards)
-                                     :extra-actions [next-queen-action leave-game-action]
+                                     :extra-actions [next-queen-action previous-queen-action leave-game-action]
                                      :question [leave-game-action]
                                      :actions [done-action pass]}
                   :inactive-display {:card (waiting-for (first players))
@@ -183,7 +190,7 @@
            :active-display {:card    next-card
                             :extra-actions (case next-state
                                              :end      [leave-game-action]
-                                             :intro    [next-queen-action leave-game-action]
+                                             :intro    [next-queen-action previous-queen-action leave-game-action]
                                              :question [leave-game-action])
                             :actions (case next-state
                                        :end      [pass end-game-action]
@@ -192,6 +199,15 @@
                             }
            :inactive-display {:card (waiting-for next-up)
                               :extra-actions [leave-game-action]})))
+
+(defn previous-queen [game]
+  (let [{:keys [queen-deck
+                queen]} game
+        new-queen      (last queen-deck)
+        new-queen-deck (into [queen] (pop queen-deck))]
+    (assoc game
+           :queen new-queen
+           :queen-deck new-queen-deck)))
 
 (defn next-queen [game]
   (let [{:keys [queen-deck
@@ -217,19 +233,21 @@
 
         pass {:action :pass
               :text   (str "Pass to " (:user-name next-player))}]
-    (assoc game
-           :deck deck
-           :state next-state
-           :discard discard
-           :active-display {:card          next-card
-                            :extra-actions (case next-state
-                                             :end      [leave-game-action]
-                                             :intro    [next-queen-action leave-game-action]
-                                             :question [leave-game-action])
-                            :actions       (case next-state
-                                             :end      [pass end-game-action]
-                                             :intro    [done-action pass]
-                                             :question [done-action pass])})))
+    (-> game
+        (assoc-in [:inactive-display :x-card-active?] false)
+        (assoc :deck deck
+               :state next-state
+               :discard discard)
+        (assoc
+         :active-display {:card          next-card
+                          :extra-actions (case next-state
+                                           :end      [leave-game-action]
+                                           :intro    [next-queen-action previous-queen-action leave-game-action]
+                                           :question [leave-game-action])
+                          :actions       (case next-state
+                                           :end      [pass end-game-action]
+                                           :intro    [done-action pass]
+                                           :question [done-action pass])}))))
 
 
 (defn pass-card [game]
@@ -271,15 +289,16 @@
         active-player? (= active-player uid)
         valid?         (valid-action? active-player? action)
         next-state     (case action
-                         :next-queen (next-queen game)
-                         :done       (finish-card game)
-                         :x-card     (x-card game)
-                         :discard    (discard-card game)
-                         :pass       (pass-card game)
+                         :next-queen     (next-queen game)
+                         :previous-queen (previous-queen game)
+                         :done           (finish-card game)
+                         :x-card         (x-card game)
+                         :discard        (discard-card game)
+                         :pass           (pass-card game)
                          ;; TODO allow players to leave game without ending
                          ;;; change action text
-                         :leave-game (end-game game)
-                         :end-game   (end-game game))]
+                         :leave-game     (end-game game)
+                         :end-game       (end-game game))]
     ;; (println next-state)
     (swap! world-atom update-in [:rooms room-id] assoc :game next-state)))
 

@@ -3,6 +3,10 @@
 
 ## Next Steps
 
+Bugs:
+
+* First Load in incognito (some localstorage glitch)
+
 Code cleanup:
 
 * Reset any current user info on refresh (name)
@@ -11,22 +15,19 @@ Code cleanup:
 * Easier way to distinguish outgoing socket events and incoming events
   (some naming convention? Maybe all outgoing events are ->foo... shared event?)
 
-Rules for lobby
+Optimizations / Quality of Life
 
 * Manual leave
   (boot should soft-ban?)
 * Only host can actually boot
 * All players state ready
-
-Next stage
-
 * Start game - host only ability
-* X-Card support - should announce X to all players
-  - Needs to clear when finish / discard (I think only discard is broken)
-* Leave game support - needs to rewrite state
-* Pick the queen image - get this working better
 * Don't broadcast deck / discard?
 * Per-player displays, with personal broadcast, instead of "active/inactive"
+
+New Features
+
+* Leave game support - needs to rewrite state
 
 ## Development
 

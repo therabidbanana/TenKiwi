@@ -16,25 +16,47 @@
            :font-family "Tahoma"
            :background-color "#223"}]))
 
-
 (def game-table
   (list
    ;; TODO: This styling is a tangled mess
    [:.game-table {:margin-bottom "12rem"}
     [:.extras
+     {:position 'relative
+      :z-index  '0}
      [:img {:display    "block"
             :max-height "60vh"
             :margin     "0 auto"}]
-     [:.extra-actions
-      [:a.button {:width      "80%"
-                  :font-size  "1.1rem"
-                  :background "#ccc"
-                  :color      "#111"
-                  :cursor     'pointer
-                  :margin     "1rem"
-                  :display    'block
-                  :padding    "1rem"}]
-      ]]
+     [:a.button {:width      "80%"
+                 :font-size  "1.1rem"
+                 :background "#ccc"
+                 :color      "#111"
+                 :cursor     'pointer
+                 :margin     "1rem"
+                 :display    'block
+                 :padding    "1rem"}]
+     [:.next-button {:position   'absolute
+                     :text-align 'center
+                     :height     "70%"
+                     :top        "0"
+                     :right      "3rem"
+                     }
+      [:a.button {:margin           "3rem 0"
+                  :padding          "3rem 0.8rem"
+                  :background-color "#000"
+                  :color            'white
+                  :font-size        "5rem"
+                  :opacity          "20%"}]]
+     [:.previous-button {:position   'absolute
+                         :text-align 'center
+                         :height     "70%"
+                         :top        "0"
+                         :left       "3rem"}
+      [:a.button {:margin           "3rem 0"
+                  :padding          "3rem 0.8rem 3.8rem"
+                  :background-color "#000"
+                  :color            'white
+                  :font-size        "5rem"
+                  :opacity          "20%"}]]]
     [:.active-area {:text-align    "center"
                     :margin-bottom "9rem"}
      [:.x-card {:float            'right
@@ -47,6 +69,7 @@
            :padding "0.9rem 0.7rem"
            :cursor  'pointer}]]]
     [:.actions {:position 'fixed
+                :z-index  "1"
                 :width    "100%"
                 :bottom   "0px"}]
     [:.action {:width         "80%"
@@ -70,16 +93,13 @@
              :box-shadow       "2px 2px 4px #123"}
      [:&.intro {:border-color "#aab"}]
      [:&.question {:border-color "#47a"}]
-     [:&.x-carded {:border-color "red"}]
-     ]]
-   ))
+     [:&.x-carded {:border-color "red"}]]]))
 
 (def lobby
   (list
    [:.lobby
     {:max-width "80%"
-     :margin "0 auto"
-     }
+     :margin "0 auto"}
 
     [:li {:border "1px solid #bbb"
           :font-size "2rem"

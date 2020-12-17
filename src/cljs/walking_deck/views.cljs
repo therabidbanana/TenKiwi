@@ -79,10 +79,11 @@
       ]
      [:div.extras
       [:img {:src (str "/" queen)}]
-      [:div.extra-actions
-       (map (fn [{:keys [action text]}] (with-meta (vector :div.extra-action [:a.button {:on-click #(dispatch [:->game/action! action])} text]) {:key action}))
-            (get-in display [:extra-actions]))
-       ]]]))
+      (map (fn [{conf :confirm
+                 :keys [action class text]}]
+             (with-meta (vector :div.extra-action {:class class} [:a.button {:on-click #(if (or (not conf) (js/confirm "Are you sure?"))
+                                                                                          (dispatch [:->game/action! action]))} text]) {:key action}))
+           (get-in display [:extra-actions]))]]))
 
 (defn game-panel []
   (let [user-data (re-frame/subscribe [:user])

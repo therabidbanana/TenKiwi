@@ -52,13 +52,18 @@ body {
   margin-bottom: 12rem;
 }
 
+.game-table .extras {
+  position: relative;
+  z-index: 0;
+}
+
 .game-table .extras img {
   display: block;
   max-height: 60vh;
   margin: 0 auto;
 }
 
-.game-table .extras .extra-actions a.button {
+.game-table .extras a.button {
   width: 80%;
   font-size: 1.1rem;
   background: #ccc;
@@ -67,6 +72,40 @@ body {
   margin: 1rem;
   display: block;
   padding: 1rem;
+}
+
+.game-table .extras .next-button {
+  position: absolute;
+  text-align: center;
+  height: 70%;
+  top: 0;
+  right: 3rem;
+}
+
+.game-table .extras .next-button a.button {
+  margin: 3rem 0;
+  padding: 3rem 0.8rem;
+  background-color: #000;
+  color: white;
+  font-size: 5rem;
+  opacity: 20%;
+}
+
+.game-table .extras .previous-button {
+  position: absolute;
+  text-align: center;
+  height: 70%;
+  top: 0;
+  left: 3rem;
+}
+
+.game-table .extras .previous-button a.button {
+  margin: 3rem 0;
+  padding: 3rem 0.8rem 3.8rem;
+  background-color: #000;
+  color: white;
+  font-size: 5rem;
+  opacity: 20%;
 }
 
 .game-table .active-area {
@@ -94,6 +133,7 @@ body {
 
 .game-table .actions {
   position: fixed;
+  z-index: 1;
   width: 100%;
   bottom: 0px;
 }

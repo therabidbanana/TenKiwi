@@ -3,10 +3,6 @@
 
 ## Next Steps
 
-Bugs:
-
-* First Load in incognito (some localstorage glitch)
-
 Code cleanup:
 
 * Reset any current user info on refresh (name)

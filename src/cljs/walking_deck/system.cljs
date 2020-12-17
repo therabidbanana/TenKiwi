@@ -14,7 +14,7 @@
 
 (defn ?client-id []
   (let [client-id (js->clj (.getItem js/localStorage "device-id"))
-        client-id (or client-id (random-uuid))
+        client-id (or client-id (str (random-uuid)))
         as-str    (clj->js client-id)]
     (do
       (.setItem js/localStorage "device-id" as-str)

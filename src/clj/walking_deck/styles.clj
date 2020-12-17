@@ -38,10 +38,10 @@
                      :text-align 'center
                      :height     "70%"
                      :top        "0"
-                     :right      "3rem"
+                     :right      "0.3rem"
                      }
       [:a.button {:margin           "3rem 0"
-                  :padding          "3rem 0.8rem"
+                  :padding          "3rem 0.3rem 3.8rem"
                   :background-color "#000"
                   :color            'white
                   :font-size        "5rem"
@@ -50,9 +50,9 @@
                          :text-align 'center
                          :height     "70%"
                          :top        "0"
-                         :left       "3rem"}
+                         :left       "0.3rem"}
       [:a.button {:margin           "3rem 0"
-                  :padding          "3rem 0.8rem 3.8rem"
+                  :padding          "3rem 0.3rem 3.8rem"
                   :background-color "#000"
                   :color            'white
                   :font-size        "5rem"

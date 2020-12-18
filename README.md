@@ -18,12 +18,15 @@ Optimizations / Quality of Life
 * Only host can actually boot
 * All players state ready
 * Start game - host only ability
+* Cleaner Home Screen
 * Don't broadcast deck / discard?
 * Per-player displays, with personal broadcast, instead of "active/inactive"
+* Clean up memory 
 
 New Features
 
 * Leave game support - needs to rewrite state
+* User login (itch based?)
 
 ## Development
 

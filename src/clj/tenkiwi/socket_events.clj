@@ -18,8 +18,8 @@
   [component]
   (fn [ev-msg]
     (println "Incoming event is : " (:id ev-msg) (:?data ev-msg))
-    (-event-msg-handler component ev-msg)                             ; Handle event-msgs on a single thread
-    ;; (future (-event-msg-handler component ev-msg)) ; Handle event-msgs on a thread pool
+    #_(-event-msg-handler component ev-msg)                             ; Handle event-msgs on a single thread
+    (future (-event-msg-handler component ev-msg)) ; Handle event-msgs on a thread pool
     ))
 
 (defmethod -event-msg-handler

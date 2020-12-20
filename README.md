@@ -22,6 +22,8 @@ Code cleanup:
 
 Optimizations / Quality of Life
 
+* Click effect - color change / something?
+* Turn notification
 * Allow game length configuration
 * Manual leave
   (boot should soft-ban?)

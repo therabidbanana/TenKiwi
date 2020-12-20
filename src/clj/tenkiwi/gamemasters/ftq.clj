@@ -146,7 +146,7 @@
 (defn build-active-card [card active-player next-player]
   (let [next-state (or (:state card) :intro)
         pass       {:action :pass
-                    :text   (str "Pass to " (:user-name next-player))}]
+                    :text   (str "Pass card to " (:user-name next-player))}]
     {:card          card
      :extra-actions (case next-state
                       :end      [leave-game-action]

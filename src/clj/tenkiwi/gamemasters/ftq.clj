@@ -135,22 +135,43 @@
    :text  (str "It is " user-name "'s turn...")})
 
 (defn next-player [player-order current-player]
-  (let [curr-index (.indexOf (mapv :id player-order) current-player)
+  (let [curr-id    (:id current-player)
+        curr-index (.indexOf (mapv :id player-order) curr-id)
         next-index (inc curr-index)
         next-index (if (>= next-index (count player-order))
                      0
                      next-index)]
     (nth player-order next-index)))
 
+(defn build-active-card [card active-player next-player]
+  (let [next-state (or (:state card) :intro)
+        pass       {:action :pass
+                    :text   (str "Pass to " (:user-name next-player))}]
+    {:card          card
+     :extra-actions (case next-state
+                      :end      [leave-game-action]
+                      :intro    [next-queen-action previous-queen-action leave-game-action]
+                      :question [leave-game-action])
+     :actions       (case next-state
+                      :end      [pass end-game-action]
+                      :intro    [done-action pass]
+                      :question [done-action pass])}))
+
+(defn build-inactive-card [active-player extra-text]
+  (let [waiting (waiting-for active-player)
+        waiting (if extra-text
+                        (update waiting
+                               :text
+                               (partial str extra-text "\n\n"))
+                        waiting)]
+
+    {:card          waiting
+     :extra-actions [leave-game-action]}))
+
 (defn start-game [world-atom room-id]
-  (let [players (get-in @world-atom [:rooms room-id :players])
-        pass    {:action :pass
-                 :text   (str "Pass to " (:user-name (next-player players (:id (first players)))))}
-
-        waiting-intro (update (waiting-for (first players))
-                              :text
-                              (partial str (first intro) "\n\n"))
-
+  (let [players      (get-in @world-atom [:rooms room-id :players])
+        first-player (first players)
+        next-player  (next-player players (:id first-player))
         new-game {:player-order     (into [] players)
                   :game             :ftq
                   :state            :intro
@@ -159,15 +180,11 @@
                                           (concat (rest intro-cards)
                                                   (take 20 (shuffle question-cards))
                                                   [queen-attacked]))
-                  :active-player    (:id (first players))
+                  :active-player    (first players)
                   :queen-deck       (rest queen-images)
                   :queen            (first queen-images)
-                  :active-display   {:card          (first intro-cards)
-                                     :extra-actions [next-queen-action previous-queen-action leave-game-action]
-                                     :question      [leave-game-action]
-                                     :actions       [done-action pass]}
-                  :inactive-display {:card          waiting-intro
-                                     :extra-actions [leave-game-action]}}]
+                  :active-display   (build-active-card (first intro-cards) first-player next-player)
+                  :inactive-display (build-inactive-card first-player (first intro))}]
     (doto world-atom
       (swap! update-in [:rooms room-id] assoc :game new-game))))
 
@@ -178,32 +195,19 @@
                 deck
                 state]} game
         active-card     (get-in game [:active-display :card])
-        next-up     (next-player player-order active-player)
+        next-up         (next-player player-order active-player)
         discard         (cons active-card discard)
         next-card       (first deck)
         deck            (into [] (rest deck))
         next-state      (:state next-card)
-        next-next       (next-player player-order (:id next-up))
-
-        pass            {:action :pass
-                         :text   (str "Pass to " (:user-name next-next))}]
+        next-next       (next-player player-order next-up)]
     (assoc game
            :deck deck
            :state next-state
            :discard discard
-           :active-player (:id next-up)
-           :active-display {:card    next-card
-                            :extra-actions (case next-state
-                                             :end      [leave-game-action]
-                                             :intro    [next-queen-action previous-queen-action leave-game-action]
-                                             :question [leave-game-action])
-                            :actions (case next-state
-                                       :end      [pass end-game-action]
-                                       :intro    [done-action pass]
-                                       :question [done-action pass])
-                            }
-           :inactive-display {:card (waiting-for next-up)
-                              :extra-actions [leave-game-action]})))
+           :active-player next-up
+           :active-display (build-active-card next-card next-up next-next)
+           :inactive-display (build-inactive-card next-up nil))))
 
 (defn previous-queen [game]
   (let [{:keys [queen-deck
@@ -230,39 +234,30 @@
                 deck
                 state]} game
         active-card     (get-in game [:active-display :card])
-        next-player     (next-player player-order active-player)
+        next-up         (next-player player-order active-player)
         discard         (cons active-card discard)
         next-card       (first deck)
         deck            (rest deck)
-        next-state      (:state next-card)
-
-        pass {:action :pass
-              :text   (str "Pass to " (:user-name next-player))}]
+        next-state      (:state next-card)]
     (-> game
         (assoc-in [:inactive-display :x-card-active?] false)
         (assoc :deck deck
                :state next-state
                :discard discard)
         (assoc
-         :active-display {:card          next-card
-                          :extra-actions (case next-state
-                                           :end      [leave-game-action]
-                                           :intro    [next-queen-action previous-queen-action leave-game-action]
-                                           :question [leave-game-action])
-                          :actions       (case next-state
-                                           :end      [pass end-game-action]
-                                           :intro    [done-action pass]
-                                           :question [done-action pass])}))))
+         :active-display (build-active-card next-card active-player next-up)))))
 
 
 (defn pass-card [game]
   (let [{:keys [player-order
-                active-player
-                deck
-                state]} game
-        next-player     (next-player player-order active-player)]
+                active-player]} game
+        active-card     (get-in game [:active-display :card])
+        next-up         (next-player player-order active-player)
+        next-next       (next-player player-order next-up)]
     (assoc game
-           :active-player (:id next-player))))
+           :active-player next-up
+           :inactive-display (build-inactive-card next-up nil)
+           :active-display (build-active-card active-card next-up next-next))))
 
 (defn push-uniq [coll item]
   (if (some #(= % item) coll)
@@ -270,11 +265,7 @@
     (into [item] coll)))
 
 (defn x-card [game]
-  (let [{:keys [player-order
-                active-player
-                deck
-                state]} game
-        next-player     (next-player player-order active-player)]
+  (let [{:keys []} game]
     (-> game
         (assoc-in [:active-display :x-card-active?] true)
         (update-in [:active-display :actions] push-uniq discard-action)
@@ -291,7 +282,7 @@
          :as   game} (get-in @world-atom [:rooms room-id :game])
 
         current-card   (:card active-display)
-        active-player? (= active-player uid)
+        active-player? (= (:id active-player) uid)
         valid?         (valid-action? active-player? action)
         next-state     (case action
                          :next-queen     (next-queen game)

@@ -3,6 +3,12 @@
 
 ## Next Steps
 
+Bugfixes:
+
+* Duplicate actions coming in too fast (double click pass)
+* Maybe websocket disconnect that was undetected (I refreshed) - could we make
+  sure a heartbeat is going and at least shows disconnect status?
+
 Code cleanup:
 
 * Reset any current user info on refresh (name)
@@ -13,6 +19,7 @@ Code cleanup:
 
 Optimizations / Quality of Life
 
+* Longer game - 20+ x or 30+ x where X is (rand 1 10)
 * Manual leave
   (boot should soft-ban?)
 * Only host can actually boot
@@ -21,7 +28,7 @@ Optimizations / Quality of Life
 * Cleaner Home Screen
 * Don't broadcast deck / discard?
 * Per-player displays, with personal broadcast, instead of "active/inactive"
-* Clean up memory 
+* Clean up memory
 
 New Features
 

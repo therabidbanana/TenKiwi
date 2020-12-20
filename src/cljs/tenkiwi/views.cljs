@@ -53,7 +53,7 @@
          :as            data
          {:as   room
           :keys [game]} :current-room} @user-data
-        active?                        (= user-id (:active-player game))
+        active?                        (= user-id (:id (:active-player game)))
         queen                          (:queen game)
         display                        (if active?
                                          (:active-display game)

@@ -172,13 +172,14 @@
   (let [players      (get-in @world-atom [:rooms room-id :players])
         first-player (first players)
         next-player  (next-player players (:id first-player))
+        card-count   (+ 21 (rand 10))
         new-game {:player-order     (into [] players)
                   :game             :ftq
                   :state            :intro
                   :discard          []
                   :deck             (into []
                                           (concat (rest intro-cards)
-                                                  (take 20 (shuffle question-cards))
+                                                  (take card-count (shuffle question-cards))
                                                   [queen-attacked]))
                   :active-player    (first players)
                   :queen-deck       (rest queen-images)

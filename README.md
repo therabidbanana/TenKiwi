@@ -12,6 +12,9 @@ Bugfixes:
 Code cleanup:
 
 * Reset any current user info on refresh (name)
+* next-player often gets overridden or stored in gamestate - better naming needed
+* Use vars on buttons / card text + next-player in game state -> rather than
+  having to rewrite the actions / card text on pass
 * Cleaner action text
 * Start game duplication of setup logic
 * Easier way to distinguish outgoing socket events and incoming events
@@ -19,7 +22,7 @@ Code cleanup:
 
 Optimizations / Quality of Life
 
-* Longer game - 20+ x or 30+ x where X is (rand 1 10)
+* Allow game length configuration
 * Manual leave
   (boot should soft-ban?)
 * Only host can actually boot

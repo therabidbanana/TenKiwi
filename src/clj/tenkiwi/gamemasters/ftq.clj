@@ -173,19 +173,19 @@
         first-player (first players)
         next-player  (next-player players (:id first-player))
         card-count   (+ 21 (rand 10))
-        new-game {:player-order     (into [] players)
-                  :game             :ftq
-                  :state            :intro
-                  :discard          []
-                  :deck             (into []
-                                          (concat (rest intro-cards)
-                                                  (take card-count (shuffle question-cards))
-                                                  [queen-attacked]))
-                  :active-player    (first players)
-                  :queen-deck       (rest queen-images)
-                  :queen            (first queen-images)
-                  :active-display   (build-active-card (first intro-cards) first-player next-player)
-                  :inactive-display (build-inactive-card first-player (first intro))}]
+        new-game     {:player-order     (into [] players)
+                      :game-type        :ftq
+                      :state            :intro
+                      :discard          []
+                      :deck             (into []
+                                              (concat (rest intro-cards)
+                                                      (take card-count (shuffle question-cards))
+                                                      [queen-attacked]))
+                      :active-player    (first players)
+                      :queen-deck       (rest queen-images)
+                      :queen            (first queen-images)
+                      :active-display   (build-active-card (first intro-cards) first-player next-player)
+                      :inactive-display (build-inactive-card first-player (first intro))}]
     (doto world-atom
       (swap! update-in [:rooms room-id] assoc :game new-game))))
 

@@ -105,8 +105,7 @@
   (let [world           (:world register)
         player-location (get-player-location world uid)
         room            (get-room world player-location)
-        ;; TODO: weird naming - change the game "game" to "game-type"
-        current-game    (get-in room [:game :game])
+        current-game    (get-in room [:game :game-type])
         action          (assoc action :room-id player-location :uid uid)]
     (println action)
     (cond

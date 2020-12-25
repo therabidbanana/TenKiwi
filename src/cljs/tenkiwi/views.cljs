@@ -42,13 +42,51 @@
       [:button {:on-click #(do
                              (dispatch [:->game/start! :ftq])
                              (.preventDefault %))}
-       "Start FTQ"]]]))
+       "Start FTQ"]
+      [:button {:on-click #(do
+                             (dispatch [:->game/start! :walking-deck])
+                             (.preventDefault %))}
+       "Start Walking Deck"]
+      ]]))
 
 (defn lobby-panel []
   (let [game-data (re-frame/subscribe [:room])]
     [-lobby-panel game-data re-frame/dispatch]))
 
-(defn -game-panel [user-data dispatch]
+(defn -walking-deck-game-panel [user-data dispatch]
+  (let [{user-id        :id
+         :as            data
+         {:as   room
+          :keys [game]} :current-room} @user-data
+        active?                        (= user-id (:id (:active-player game)))
+        queen                          (:queen game)
+        display                        (if active?
+                                         (:active-display game)
+                                         (:inactive-display game))
+        x-carded?                      (:x-card-active? display)]
+    [:div.game-table
+     [:div.current {}
+      [:div.active-area {}
+       [:div.x-card {:class (if x-carded? "active" "inactive")}
+        [:a {:on-click #(dispatch [:->game/action! :x-card])} "X"]]
+       [:div.card {:class (str " "
+                               (if x-carded?
+                                 "x-carded"))}
+          (-> (get-in display [:card :text])
+              (m/md->hiccup)
+              (m/component))]
+         [:div.actions
+          (map (fn [{:keys [action text]}] (with-meta (vector :div.action [:a {:on-click #(dispatch [:->game/action! action])} text]) {:key action}))
+               (get-in display [:actions]))]]
+      ]
+     [:div.extras
+      (map (fn [{conf :confirm
+                 :keys [action class text]}]
+             (with-meta (vector :div.extra-action {:class class} [:a.button {:on-click #(if (or (not conf) (js/confirm "Are you sure?"))
+                                                                                          (dispatch [:->game/action! action]))} text]) {:key action}))
+           (get-in display [:extra-actions]))]]))
+
+(defn -ftq-game-panel [user-data dispatch]
   (let [{user-id        :id
          :as            data
          {:as   room
@@ -85,18 +123,23 @@
 
 (defn game-panel []
   (let [user-data (re-frame/subscribe [:user])
-        room (re-frame/subscribe [:room])]
-    [-game-panel user-data re-frame/dispatch]))
+        room (re-frame/subscribe [:room])
+        game-type (get-in @user-data [:current-room :game :game-type])]
+    (case game-type
+      :ftq
+      [-ftq-game-panel user-data re-frame/dispatch]
+      :walking-deck
+      [-walking-deck-game-panel user-data re-frame/dispatch]
+      )))
 
 (defn -connecting-panel []
   (let []
     [:div "Connecting to server..."]))
 
-;; TODO - doesn't rerender?
 (defn main-panel []
   (let [user (re-frame/subscribe [:user])
         room (re-frame/subscribe [:room])
-        game (get-in @user [:current-room :game])]
+        game (get-in @user [:current-room :game :game-type])]
     [:div {}
      (cond
        game [game-panel]

@@ -1,10 +1,12 @@
 (ns tenkiwi.gamemasters.host
   "The host is in charge of moving users back and forth to rooms"
-  (:require [tenkiwi.gamemasters.ftq :as ftq]))
+  (:require [tenkiwi.gamemasters.ftq :as ftq]
+            [tenkiwi.gamemasters.walking-deck :as walking-deck]
+))
 
 (def home-room :home)
 (defn home-room? [room] (= home-room (or room home-room)))
-(defn valid-game? [type] (#{:ftq} type))
+(defn valid-game? [type] (#{:ftq :walking-deck} type))
 
 (defn ->players [{:keys [chsk-send!]} uids message]
   (doseq [uid uids]
@@ -82,6 +84,12 @@
       (println "send to " player-location)
       (->room system player-location [:room/user-joined! room]))))
 
+(defmacro inspect
+  [expression]
+  (list 'let ['result expression]
+         (list 'println (list 'quote expression) "=>" 'result)
+         'result))
+
 (defn start-game!
   "Called to trigger a game start by host"
   [{:as system :keys [register]} uid game-type]
@@ -94,7 +102,8 @@
       :else
       (do
         (case game-type
-         :ftq (ftq/start-game world player-location)
+          :ftq (ftq/start-game world player-location)
+          :walking-deck (walking-deck/start-game world player-location)
          ;; call game setup
          )
         (->room system player-location [:game/started! (get-room world player-location)])))))
@@ -115,6 +124,7 @@
       (do
         (case current-game
           :ftq (ftq/take-action world action)
+          :walking-deck (walking-deck/take-action world action)
           ;; call game setup
           )
         (->room system player-location [:game/changed! (get-room world player-location)])))))

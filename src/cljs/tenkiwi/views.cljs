@@ -39,10 +39,12 @@
         [:li (:user-name player)
          [:a.boot {:on-click #(dispatch [:->room/boot-player! (:id player)])} "x"]])]
      [:div.actions
-      [:button {:on-click #(do
-                             (dispatch [:->game/start! :ftq])
-                             (.preventDefault %))}
-       "Start FTQ"]
+      ;; Easter Egg - For The Queen
+      (if (= (:room-code game-data) "haslem")
+        [:button {:on-click #(do
+                               (dispatch [:->game/start! :ftq])
+                               (.preventDefault %))}
+         "Start FTQ"])
       [:button {:on-click #(do
                              (dispatch [:->game/start! :walking-deck])
                              (.preventDefault %))}

@@ -44,14 +44,18 @@
                      next-index)]
     (nth player-order next-index)))
 
+(defn interpret-draw [game card]
+  (str "You drew a " card))
+
 (defn build-active-card [{:keys [players-by-rank
                                  act
                                  active-player]
-                          :as game-state}
-                         card]
-  (let [new-card {:state :fun
-                  :color :red
-                  :text  (str "You drew a " card)}]
+                          :as   game-state}
+                         {:keys [text type]
+                          :as   card}]
+  (let [new-card (assoc card
+                        :type (or type :prompt)
+                        :text (or text (interpret-draw game-state card)))]
     {:card          new-card
      :extra-actions [leave-game-action]
      :actions       (case act
@@ -76,7 +80,7 @@
     {:card          waiting
      :extra-actions [leave-game-action]}))
 
-(def card-suits #{:club :heart :spade :diamond})
+(def card-suits #{:clubs :hearts :spades :diamonds})
 
 (def card-ranks #{:ace 2 3 4 5 6 7 8 9 10 :jack :queen :king})
 
@@ -84,22 +88,75 @@
                          suit card-suits]
                      (hash-map :rank rank :suit suit)))
 
+(def characters {:ace   {:title       "The child"
+                         :description "full of hope"}
+                 2      {:title       "The lover"
+                         :description "of another character"}
+                 3      {:title       "The teacher"
+                         :description "building hope"}
+                 4      {:title       "The doctor"
+                         :description "helping others"}
+                 5      {:title       "The soldier"
+                         :description "armed and ready"}
+                 6      {:title       "The scientist"
+                         :description "who knows"}
+                 7      {:title       "The celebrity"
+                         :description "loved by all"}
+                 8      {:title       "The pariah"
+                         :description "hated or feared"}
+                 9      {:title       "The leader"
+                         :description "important to society"}
+                 10     {:title       "The millionaire"
+                         :description "powerful and rich"}
+                 :jack  {:title       "The artist"
+                         :description "who can tell the story"}
+                 :queen {:title       "The average"
+                         :description "an everyday person"}
+                 :king  {:title       "The criminal"
+                         :description "armed and anxious"}})
+
+(def introduction [
+                   "The Walking Deck is a story game played by reading and responding to prompts.\n\nRead these prompts to everyone and when you have added your own details to the story, press \"**Finish Turn**\""
+                   "Each player will be introduced as a character of a group of survivors in a zombie wasteland."
+                   "The exact nature of the disaster is up to the players."])
+
+(def intro-cards (mapv #(hash-map :text % :type :intro) introduction))
+(def padding-card {:text "Finish turn if you are ready to play" :type :intro})
+
+(defn character-card [{:keys [rank] :as card} {:keys [user-name]}]
+  (let [{:keys [title description]} (get characters rank)]
+    (merge card
+          {:text (str user-name " is...\n\n" title "... " description)
+           :type :character})))
+
 (defn start-game [world-atom room-id]
-  (let [players      (get-in @world-atom [:rooms room-id :players])
-        first-player (first players)
-        next-players (rest players)
-        deck         (shuffle playing-cards)
-        new-game     {:players-by-id    (zipmap (map :id players) players)
-                      :players-by-rank  {}
-                      :game-type        :walking-deck
-                      :act              0
-                      :discard          []
-                      :deck             (rest deck)
-                      :active-player    (first players)
-                      :next-players     (rest players)}
-        new-game     (assoc new-game
-                      :active-display   (build-active-card new-game (first deck))
-                      :inactive-display (build-inactive-card new-game "yo"))]
+  (let [players           (get-in @world-atom [:rooms room-id :players])
+        first-player      (first players)
+        next-players      (rest players)
+        player-count      (count players)
+        intro-cards       (->> intro-cards
+                          (partition player-count player-count (cycle [padding-card]))
+                          (apply concat))
+        deck              (shuffle playing-cards)
+        [characters deck] (split-at player-count deck)
+        character-cards   (map character-card characters players)
+        ;; Update the players to assign characters
+        players           (map #(assoc %1 :character %2) players characters)
+        player-ranks      (zipmap (map :rank characters) players)
+
+        deck              (concat intro-cards character-cards deck)
+
+        new-game          {:players-by-id   (zipmap (map :id players) players)
+                           :players-by-rank player-ranks
+                           :game-type       :walking-deck
+                           :act             0
+                           :discard         []
+                           :deck            (rest deck)
+                           :active-player   (first players)
+                           :next-players    (rest players)}
+        new-game          (assoc new-game
+                            :active-display   (build-active-card new-game (first deck))
+                            :inactive-display (build-inactive-card new-game "yo"))]
     (doto world-atom
       (swap! update-in [:rooms room-id] assoc :game new-game))))
 
@@ -111,10 +168,10 @@
                 deck
                 act]} game
         active-card     (get-in game [:active-display :card])
-        next-players    (conj (into [] next-players) active-player)
-        next-up         (first next-players)
+        all-players     (conj (into [] next-players) active-player)
+        next-up         (first all-players)
         ;; This lets us push first player back in the mix (only single player)
-        next-players    (rest next-players)
+        next-players    (rest all-players)
         discard         (cons active-card discard)
         next-card       (first deck)
         deck            (into [] (rest deck))
@@ -137,8 +194,6 @@
                 deck
                 state]} game
         active-card     (get-in game [:active-display :card])
-        next-up         (first next-players)
-        next-players    (conj (into [] (rest next-players)) active-player)
         discard         (cons active-card discard)
         next-card       (first deck)
         deck            (rest deck)
@@ -146,7 +201,6 @@
         next-game       (-> game
                             (assoc-in [:inactive-display :x-card-active?] false)
                             (assoc :deck deck
-                                   :next-players next-players
                                    :discard discard))]
     (-> next-game
         (assoc

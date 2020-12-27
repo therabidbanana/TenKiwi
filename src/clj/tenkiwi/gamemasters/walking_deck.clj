@@ -249,6 +249,11 @@
           {:text (str user-name " is...\n\n" title "... " description)
            :type :character})))
 
+(defn shuffle-discard [discard]
+  (into []
+        (shuffle (filter #(= :prompt (:type %))
+                         discard))))
+
 (defn start-game [world-atom room-id]
   (let [players           (get-in @world-atom [:rooms room-id :players])
         first-player      (first players)
@@ -286,17 +291,18 @@
                 next-players
                 discard
                 deck
-                act]} game
-        active-card     (get-in game [:active-display :card])
-        all-players     (conj (into [] next-players) active-player)
-        next-up         (first all-players)
+                act]}  game
+        active-card    (get-in game [:active-display :card])
+        all-players    (conj (into [] next-players) active-player)
+        next-up        (first all-players)
         ;; This lets us push first player back in the mix (only single player)
-        next-players    (rest all-players)
-        discard         (cons active-card discard)
-        next-card       (first deck)
-        deck            (into [] (rest deck))
-        next-state      0
-        next-game       (assoc game
+        next-players   (rest all-players)
+        next-card      (first deck)
+        [discard deck] (if (empty? (rest deck))
+                                    [[active-card] (shuffle-discard discard)]
+                                    [(cons active-card discard) (into [] (rest deck))])
+        next-state     0
+        next-game      (assoc game
                                :deck deck
                                :next-players next-players
                                :discard discard
@@ -314,9 +320,10 @@
                 deck
                 state]} game
         active-card     (get-in game [:active-display :card])
-        discard         (cons active-card discard)
         next-card       (first deck)
-        deck            (rest deck)
+        [discard deck] (if (empty? (rest deck))
+                         [[active-card] (shuffle-discard discard)]
+                         [(cons active-card discard) (into [] (rest deck))])
         next-state      (:state next-card)
         next-game       (-> game
                             (assoc-in [:inactive-display :x-card-active?] false)

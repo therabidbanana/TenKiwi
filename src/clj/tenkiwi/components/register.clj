@@ -10,8 +10,7 @@
     component)
   (stop [component]
     (println "Closing down rooms, shutting out players...")
-    (-> component :world (reset! {}))
-    component))
+    (-> component :world (reset! {}))))
 
 (defn new-register
   ([] (->Register (atom {})))

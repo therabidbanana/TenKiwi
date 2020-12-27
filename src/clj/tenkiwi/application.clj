@@ -8,10 +8,11 @@
             [system.components.middleware :refer [new-middleware]]
             [system.components.http-kit :refer [new-web-server]]
             [system.components.sente :refer [sente-routes]]
-            [tenkiwi.socket-events :refer [event-msg-handler]]
+            [tenkiwi.socket-events :refer [event-msg-handler tick-fn]]
             [tenkiwi.config :refer [config]]
             [tenkiwi.components.register :refer [new-register]]
             [tenkiwi.components.sente :refer [new-channel-socket-server]]
+            [tenkiwi.components.timekeeper :refer [new-timekeeper]]
             [tenkiwi.routes :refer [home-routes]]))
 
 (defn app-system [config]
@@ -26,6 +27,8 @@
                    (component/using [:sente-endpoint :routes :middleware]))
    :http       (-> (new-web-server (:http-port config))
                    (component/using [:handler]))
+   :clock     (component/using (new-timekeeper tick-fn)
+                               [:sente :register])
    :sente (component/using
            (new-channel-socket-server
             event-msg-handler

@@ -61,13 +61,16 @@
          {:as   room
           :keys [game]} :current-room} @user-data
         active?                        (= user-id (:id (:active-player game)))
-        queen                          (:queen game)
+        {:keys [act
+                act-timer
+                drama-timer]}          game
         display                        (if active?
                                          (:active-display game)
                                          (:inactive-display game))
         x-carded?                      (:x-card-active? display)]
     [:div.game-table
      [:div.current {}
+      [:div.timer {} (str "Act:" act " Time left: " act-timer " seconds")]
       [:div.active-area {}
        [:div.x-card {:class (if x-carded? "active" "inactive")}
         [:a {:on-click #(dispatch [:->game/action! :x-card])} "X"]]
@@ -82,7 +85,7 @@
                (get-in display [:actions]))]]
       ]
      [:div.extras
-      (map (fn [{conf :confirm
+      (map (fn [{conf  :confirm
                  :keys [action class text]}]
              (with-meta (vector :div.extra-action {:class class} [:a.button {:on-click #(if (or (not conf) (js/confirm "Are you sure?"))
                                                                                           (dispatch [:->game/action! action]))} text]) {:key action}))

@@ -6,6 +6,12 @@
 
 ;; (reset! sente/debug-mode?_ true)                            ; Uncomment for extra debug info
 
+;;;; Sente socket tick
+
+(defn tick-fn
+  [system]
+  (future (host/tick-clock! system)))
+
 ;;;; Sente event handlers
 
 (defmulti -event-msg-handler

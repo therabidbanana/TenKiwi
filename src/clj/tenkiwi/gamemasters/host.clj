@@ -108,6 +108,27 @@
          )
         (->room system player-location [:game/started! (get-room world player-location)])))))
 
+(defn tick-clock!
+  "Called by the system to tick all game clocks"
+  [{:as system :keys [register]}]
+  (doseq [room (-> register :world deref :rooms keys)]
+    (let [world        (:world register)
+          current-game (get-in (get-room world room)
+                               [:game :game-type])
+          action       {:room-id room
+                        :action  :tick-clock
+                        :uid     :timekeeper}]
+      (cond
+        (not (valid-game? current-game)) nil
+        :else
+        (do
+          (case current-game
+            :ftq          (ftq/take-action world action)
+            :walking-deck (walking-deck/take-action world action)
+            ;; call game setup
+            )
+          (->room system room [:game/changed! (get-room world room)]))))))
+
 (defn take-action!
   "Called to trigger a game start by host"
   [{:as system :keys [register]} uid action]

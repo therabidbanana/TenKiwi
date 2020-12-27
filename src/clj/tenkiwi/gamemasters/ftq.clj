@@ -292,6 +292,9 @@
                          :x-card         (x-card game)
                          :discard        (discard-card game)
                          :pass           (pass-card game)
+                         ;; TODO - ticking clock probably shouldn't actually
+                         ;; update state, or should do something useful
+                         :tick-clock     game
                          ;; TODO allow players to leave game without ending
                          ;;; change action text
                          :leave-game     (end-game game)

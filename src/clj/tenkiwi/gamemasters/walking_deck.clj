@@ -27,10 +27,15 @@
   {:action  :end-game
    :text    "End the Game"})
 
+(def lose-game-action
+  {:action  :end-game
+   :text    "Everyone died! End Game"})
+
+(def win-game-action
+  {:action  :end-game
+   :text    "Someone made it! End Game"})
 
 ;; TODO: XSS danger?
-
-
 (defn waiting-for
   [{:keys [user-name]}]
   {:id    "waiting"
@@ -170,22 +175,24 @@
   (let [prompt-ideas (lookup-card prompts card)]
     (str "You drew a " card "\n\n" prompt-ideas)))
 
-(defn build-active-card [{:keys [players-by-rank
+(defn build-active-card [{:keys [players-by-id
                                  act
                                  active-player]
                           :as   game-state}
                          {:keys [text type]
                           :as   card}]
-  (let [new-card (assoc card
+  (let [survivors (remove :dead? (vals players-by-id))
+        all-dead? (empty? survivors)
+        new-card (assoc card
                         :type (or type :prompt)
                         :text (or text (interpret-draw game-state card)))]
     {:card          new-card
      :extra-actions [leave-game-action]
-     :actions       (case act
-                      4 [end-game-action]
-                      1 [done-action]
-                      2 [done-action]
-                      3 [done-action])}))
+     :actions       (cond
+                      all-dead? [lose-game-action]
+                      (> act 3) [win-game-action]
+                      :else [done-action]
+                      )}))
 
 (defn build-inactive-card [{:keys [players-by-rank
                                    act
@@ -300,10 +307,20 @@
     (doto world-atom
       (swap! update-in [:rooms room-id] assoc :game new-game))))
 
+(def death-card {:type :death
+                 :text "The zombies attack in overwhelming numbers. **You are now dead (if you weren't already).** Describe the escalating struggles for the remaining players."})
+
+(def end-game-card {:type :win?
+                    :text "After a final climatic attack, any surviving players make it out alive.\n\nAs the credits roll, feel free to describe their fates, or leave it uncertain."})
+
+(def all-dead-card {:type :lose?
+                    :text "Everyone has died."})
+
 (defn finish-card [game]
   (let [{:keys [player-order
                 active-player
                 next-players
+                players-by-id
                 discard
                 deck
                 act]}  game
@@ -312,7 +329,12 @@
         next-up        (first all-players)
         ;; This lets us push first player back in the mix (only single player)
         next-players   (rest all-players)
-        next-card      (first deck)
+        survivors      (remove :dead? (vals players-by-id))
+        all-dead?      (empty? survivors)
+        next-card      (cond
+                         all-dead? all-dead-card
+                         (> act 3) end-game-card
+                         :else (first deck))
         [discard deck] (if (empty? (rest deck))
                          (do
                            (println "Shuffling...")
@@ -362,9 +384,6 @@
 (defn end-game [game]
   nil)
 
-(def death-card {:type :death
-                 :text "The zombies attack in overwhelming numbers. **You are now dead (if you weren't already).** Describe the escalating struggles for the remaining players."})
-
 (defn kill-active-player
   [{:keys [active-player players-by-id] :as game}]
   (let [player-id (:id active-player)]
@@ -381,6 +400,7 @@
                 room-id
                 players-by-id]} game
         player-count            (count players-by-id)
+        survivors               (remove :dead? (vals players-by-id))
         new-act-timer           (if (>= 1 act-timer)
                                   (act-timer! room-id)
                                   (dec act-timer))
@@ -390,6 +410,7 @@
         potential-death?        #(if (or (>= 1 drama-timer) (>= 1 act-timer))
                                    (kill-active-player %)
                                    %)
+        all-dead?               (empty? survivors)
         new-act?                (>= 1 act-timer)
         next-act                (if new-act?
                                   (inc act)
@@ -397,13 +418,14 @@
         prompt-card?            (= :prompt (get-in active-display [:card :type]))
         ]
     (cond
-      (not prompt-card?) game ;; Game not technically started yet
-      (> act 3)          game ;; Game over, stop counting (TODO: probably update display)
+      (not prompt-card?) game ;; Game not technically started yet, or paused
+      (> act 3)          game
+      all-dead?          game
       :else
       (-> game
           (assoc-in [:act-timer] new-act-timer)
           (assoc-in [:act] next-act)
-          (assoc-in [:drama-timer] new-act-timer)
+          (assoc-in [:drama-timer] new-drama-timer)
           potential-death?))))
 
 (defn take-action [world-atom {:keys [uid room-id action]}]

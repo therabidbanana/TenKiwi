@@ -3,6 +3,12 @@
 
 ## Next Steps
 
+Functionality:
+* Player list (better format)
+* Pause
+* Show different prompts based on characters / current gamestate
+* Win / lose dialog at the end
+
 Rules questions:
 * Does person holding deck at end of act 3 die before declaring a win?
 * Should timer restart immediately on death?

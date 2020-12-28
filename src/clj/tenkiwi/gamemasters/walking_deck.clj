@@ -183,7 +183,6 @@
      :extra-actions [leave-game-action]
      :actions       (case act
                       4 [end-game-action]
-                      0 [done-action]
                       1 [done-action]
                       2 [done-action]
                       3 [done-action])}))
@@ -203,7 +202,7 @@
     {:card          waiting
      :extra-actions [leave-game-action]}))
 
-(def characters {:ace   {:title       "The child"
+(def characters-list {:ace   {:title       "The child"
                          :description "full of hope"}
                  2      {:title       "The lover"
                          :description "of another character"}
@@ -238,7 +237,7 @@
 (def padding-card {:text "Finish turn if you are ready to play" :type :intro})
 
 (defn character-card [{:keys [rank] :as card} {:keys [user-name]}]
-  (let [{:keys [title description]} (get characters rank)]
+  (let [{:keys [title description]} (get characters-list rank)]
     (merge card
            {:text (str user-name " is...\n\n" title "... " description)
             :type :character})))
@@ -279,7 +278,7 @@
         [characters deck] (split-at player-count deck)
         character-cards   (map character-card characters players)
         ;; Update the players to assign characters
-        players           (map #(assoc %1 :character %2) players characters)
+        players           (map #(assoc %1 :character (merge %2 (get characters-list (:rank %2)))) players characters)
         player-ranks      (zipmap (map :rank characters) players)
 
         deck              (concat intro-cards character-cards deck)
@@ -363,6 +362,17 @@
 (defn end-game [game]
   nil)
 
+(def death-card {:type :death
+                 :text "The zombies attack in overwhelming numbers. **You are now dead (if you weren't already).** Describe the escalating struggles for the remaining players."})
+
+(defn kill-active-player
+  [{:keys [active-player players-by-id] :as game}]
+  (let [player-id (:id active-player)]
+    (-> game
+        (assoc-in [:players-by-id player-id :dead?] true)
+        (assoc-in [:active-player :dead?] true)
+        (assoc :active-display (build-active-card game death-card)))))
+
 (defn tick-clock [game]
   (let [{:keys [act
                 act-timer
@@ -377,12 +387,15 @@
         new-drama-timer         (if (>= 1 drama-timer)
                                   (drama-timer! room-id player-count)
                                   (dec drama-timer))
-        potential-death?        (or (>= 1 drama-timer) (>= 1 act-timer))
+        potential-death?        #(if (or (>= 1 drama-timer) (>= 1 act-timer))
+                                   (kill-active-player %)
+                                   %)
         new-act?                (>= 1 act-timer)
         next-act                (if new-act?
                                   (inc act)
                                   act)
-        prompt-card?            (= :prompt (get-in active-display [:card :type]))]
+        prompt-card?            (= :prompt (get-in active-display [:card :type]))
+        ]
     (cond
       (not prompt-card?) game ;; Game not technically started yet
       (> act 3)          game ;; Game over, stop counting (TODO: probably update display)
@@ -390,7 +403,8 @@
       (-> game
           (assoc-in [:act-timer] new-act-timer)
           (assoc-in [:act] next-act)
-          (assoc-in [:drama-timer] new-act-timer)))))
+          (assoc-in [:drama-timer] new-act-timer)
+          potential-death?))))
 
 (defn take-action [world-atom {:keys [uid room-id action]}]
   (let [{:keys [player-order

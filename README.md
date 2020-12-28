@@ -3,6 +3,12 @@
 
 ## Next Steps
 
+Rules questions:
+* Does person holding deck at end of act 3 die before declaring a win?
+* Should timer restart immediately on death?
+* Random Encounters - act driven or suit driven? Either?
+* When your card is drawn and you're a zombie, what does other player describe?
+
 Bugfixes:
 
 * Duplicate actions coming in too fast (double click pass)

@@ -63,10 +63,12 @@
         active?                        (= user-id (:id (:active-player game)))
         {:keys [act
                 act-timer
-                drama-timer]}          game
+                drama-timer
+                players-by-id]}        game
         display                        (if active?
                                          (:active-display game)
                                          (:inactive-display game))
+        players                        (vals players-by-id)
         x-carded?                      (:x-card-active? display)]
     [:div.game-table
      [:div.current {}
@@ -85,6 +87,9 @@
                (get-in display [:actions]))]]
       ]
      [:div.extras
+      (map (fn [{:keys [id user-name dead? character]}]
+             (with-meta [:div.player {:title (:description character)} (str (:title character) " (" user-name ")")] {:key id}))
+           players)
       (map (fn [{conf  :confirm
                  :keys [action class text]}]
              (with-meta (vector :div.extra-action {:class class} [:a.button {:on-click #(if (or (not conf) (js/confirm "Are you sure?"))

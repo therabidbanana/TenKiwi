@@ -22,6 +22,7 @@ Code cleanup:
 
 Optimizations / Quality of Life
 
+* 1 second updates of entire gamestate are wasteful. Make gamestate smaller/have partial updates
 * Click effect - color change / something?
 * Turn notification
 * Allow game length configuration

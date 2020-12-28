@@ -250,12 +250,12 @@
        (map #(select-keys % [:rank :suit :type]))
        (into [])))
 
-(defn act-timer [room-id]
+(defn act-timer! [room-id]
   (if (= room-id "fast")
     (* 13 10)
     (* 13 60)))
 
-(defn drama-timer [room-id player-count]
+(defn drama-timer! [room-id player-count]
   (let [ticks (if (= room-id "fast")
                 10
                 60)]
@@ -287,9 +287,10 @@
         new-game          {:players-by-id   (zipmap (map :id players) players)
                            :players-by-rank player-ranks
                            :game-type       :walking-deck
-                           :act             0
-                           :act-timer       (act-timer room-id)
-                           :drama-timer     (drama-timer room-id player-count)
+                           :room-id         room-id
+                           :act             1
+                           :act-timer       (act-timer! room-id)
+                           :drama-timer     (drama-timer! room-id player-count)
                            :discard         []
                            :deck            (rest deck)
                            :active-player   (first players)
@@ -318,7 +319,6 @@
                            (println "Shuffling...")
                            [[active-card] (shuffle-discard discard)])
                          [(cons active-card discard) (into [] (rest deck))])
-        next-state     0
         next-game      (assoc game
                               :deck deck
                               :next-players next-players
@@ -340,7 +340,6 @@
         [discard deck] (if (empty? (rest deck))
                          [[active-card] (shuffle-discard discard)]
                          [(cons active-card discard) (into [] (rest deck))])
-        next-state      (:state next-card)
         next-game       (-> game
                             (assoc-in [:inactive-display :x-card-active?] false)
                             (assoc :deck deck
@@ -365,18 +364,33 @@
   nil)
 
 (defn tick-clock [game]
-  (let [{:keys [act act-timer drama-timer]} game
-        new-act-timer                       (dec act-timer)
-        new-drama-timer                     (dec drama-timer)
-        potential-death?                    (or (>= 1 new-drama-timer) (>= 1 new-act-timer))
-        new-act?                            (>= 1 new-act-timer)
-        next-act (if new-act?
-                   (inc act)
-                   act)]
-    (-> game
-        (assoc-in [:act-timer] new-act-timer)
-        (assoc-in [:act] next-act)
-        (assoc-in [:drama-timer] new-act-timer))))
+  (let [{:keys [act
+                act-timer
+                drama-timer
+                active-display
+                room-id
+                players-by-id]} game
+        player-count            (count players-by-id)
+        new-act-timer           (if (>= 1 act-timer)
+                                  (act-timer! room-id)
+                                  (dec act-timer))
+        new-drama-timer         (if (>= 1 drama-timer)
+                                  (drama-timer! room-id player-count)
+                                  (dec drama-timer))
+        potential-death?        (or (>= 1 drama-timer) (>= 1 act-timer))
+        new-act?                (>= 1 act-timer)
+        next-act                (if new-act?
+                                  (inc act)
+                                  act)
+        prompt-card?            (= :prompt (get-in active-display [:card :type]))]
+    (cond
+      (not prompt-card?) game ;; Game not technically started yet
+      (> act 3)          game ;; Game over, stop counting (TODO: probably update display)
+      :else
+      (-> game
+          (assoc-in [:act-timer] new-act-timer)
+          (assoc-in [:act] next-act)
+          (assoc-in [:drama-timer] new-act-timer)))))
 
 (defn take-action [world-atom {:keys [uid room-id action]}]
   (let [{:keys [player-order

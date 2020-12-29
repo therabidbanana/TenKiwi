@@ -88,7 +88,9 @@
       ]
      [:div.extras
       (map (fn [{:keys [id user-name dead? character]}]
-             (with-meta [:div.player {:title (:description character)} (str (:title character) " (" user-name ")")] {:key id}))
+             (with-meta [:div.player {:title (:description character)}
+                         (str (:title character) " (" user-name ")"
+                              (if dead? "- dead"))] {:key id}))
            players)
       (map (fn [{conf  :confirm
                  :keys [action class text]}]

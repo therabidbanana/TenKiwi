@@ -171,9 +171,28 @@
    [:spades 3]        {:rank 3, :suit :spades, :reflect-on "The End ", :encounter-something "Guts", :establish-something "We Mustn't Trust Others", :the-horde "Ignore the blow", :someone-else "They cause violence and tragedy by accident"},
    [:clubs 7]         {:rank 7, :suit :clubs, :reflect-on "Where I Might Have Been", :encounter-something "Becoming God", :establish-something "We Can't Help Them", :the-horde "Surround us", :someone-else "They deliver violence and tragedy deliberately"}})
 
-(defn interpret-draw [game card]
-  (let [prompt-ideas (lookup-card prompts card)]
-    (str "You drew a " card "\n\n" prompt-ideas)))
+(defn interpret-draw
+  [{:keys [active-player players-by-rank]}
+   {:keys [rank suit] :as card}]
+  (let [{:keys [reflect-on
+                encounter-something
+                establish-something
+                the-horde
+                someone-else]} (lookup-card prompts card)
+        {:keys [dead? id]}     active-player
+
+        {{:keys [title]} :character
+         :as             drawn-char} (get players-by-rank rank active-player)
+        other?                       (not= (:id drawn-char) id)]
+    (cond
+      dead?  (str "You are dead. Describe the ever constant threat to the group. The horde... **" the-horde "**")
+      other? (str "You drew _" title " _. Describe how they... **" someone-else "**")
+      :else
+      (str "Choose one of the following and use it to add to the story:\n\n"
+           "* Reflect on... **" reflect-on "**\n"
+           "* The group encounters... **" encounter-something "**\n"
+           "* Establish important details... **" establish-something "**\n"
+           ))))
 
 (defn build-active-card [{:keys [players-by-id
                                  act
@@ -308,7 +327,7 @@
       (swap! update-in [:rooms room-id] assoc :game new-game))))
 
 (def death-card {:type :death
-                 :text "The zombies attack in overwhelming numbers. **You are now dead (if you weren't already).** Describe the escalating struggles for the remaining players."})
+                 :text "A fatal encounter occurs. **You are now dead (if you weren't already).** Describe the escalating struggles for the remaining players."})
 
 (def end-game-card {:type :win?
                     :text "After a final climatic attack, any surviving players make it out alive.\n\nAs the credits roll, feel free to describe their fates, or leave it uncertain."})

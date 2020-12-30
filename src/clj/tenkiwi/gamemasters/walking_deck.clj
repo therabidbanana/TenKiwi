@@ -277,8 +277,8 @@
 
 (defn act-timer! [room-id]
   (if (= room-id "fast")
-    (* 13 10)
-    (* 13 60)))
+    (* 17 10)
+    (* 17 60)))
 
 (defn drama-timer! [room-id player-count]
   (let [ticks (if (= room-id "fast")
@@ -289,7 +289,7 @@
       (< 3 player-count) (* 6 ticks)
       (< 1 player-count) (* 8 ticks)
       ;; This shouldn't be possible
-      :else (* 5 ticks))
+      :else (* 8 ticks))
     ))
 
 (defn start-game [world-atom room-id]

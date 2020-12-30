@@ -45,6 +45,11 @@
                                (dispatch [:->game/start! :ftq])
                                (.preventDefault %))}
          "Start FTQ"])
+      (if (= (:room-code game-data) "haslem")
+        [:button {:on-click #(do
+                               (dispatch [:->game/start! :debrief])
+                               (.preventDefault %))}
+         "Start Debrief"])
       [:button {:on-click #(do
                              (dispatch [:->game/start! :walking-deck])
                              (.preventDefault %))}
@@ -72,7 +77,9 @@
         x-carded?                      (:x-card-active? display)]
     [:div.game-table
      [:div.current {}
-      [:div.timer {} (str "Act:" act " Time left: " act-timer " seconds")]
+      [:div.timer {} (str "Act:" act
+                          ;;" Time left: " act-timer " seconds"
+                          )]
       [:div.active-area {}
        [:div.x-card {:class (if x-carded? "active" "inactive")}
         [:a {:on-click #(dispatch [:->game/action! :x-card])} "X"]]
@@ -92,6 +99,58 @@
                          (str (:title character) " (" user-name ")"
                               (if dead? "- dead"))] {:key id}))
            players)
+      (map (fn [{conf  :confirm
+                 :keys [action class text]}]
+             (with-meta (vector :div.extra-action {:class class} [:a.button {:on-click #(if (or (not conf) (js/confirm "Are you sure?"))
+                                                                                          (dispatch [:->game/action! action]))} text]) {:key action}))
+           (get-in display [:extra-actions]))]]))
+
+(defn -debrief-game-panel [user-data dispatch]
+  (let [{user-id        :id
+         :as            data
+         {:as   room
+          :keys [game]} :current-room} @user-data
+        active?                        (= user-id (:id (:active-player game)))
+        {:keys [stage
+                all-players
+                player-scores
+                players-by-id]}        game
+        display                        (if active?
+                                         (:active-display game)
+                                         (:inactive-display game))
+        x-carded?                      (:x-card-active? display)]
+    [:div.game-table
+     [:div.current {}
+      [:div.active-area {}
+       [:div.x-card {:class (if x-carded? "active" "inactive")}
+        [:a {:on-click #(dispatch [:->game/action! :x-card])} "X"]]
+       [:div.card {:class (str " "
+                               (if x-carded?
+                                 "x-carded"))}
+          (-> (get-in display [:card :text])
+              (m/md->hiccup)
+              (m/component))]
+         [:div.actions
+          (map (fn [{:keys [action text]}] (with-meta (vector :div.action [:a {:on-click #(dispatch [:->game/action! action])} text]) {:key action}))
+               (get-in display [:actions]))]]
+      ]
+     [:div.extras
+      ;; TODO : allow character names inline
+      (map (fn [{:keys [id user-name dead?]}]
+             (with-meta
+               [:div.player
+                [:div.player-name
+                 (str user-name)]
+                [:div.score-actions
+                 ;; TODO - maybe this logic should come from gamemaster
+                 (if-not (or active? (= id user-id))
+                   [:a.downvote-player {:on-click #(dispatch [:->game/action! :downvote-player {:player-id id}])} " - "])
+                 (str (player-scores id))
+                 (if-not (or active? (= id user-id))
+                   [:a.upvote-player {:on-click #(dispatch [:->game/action! :upvote-player {:player-id id}])} " + "])
+                 ]]
+               {:key id}))
+           all-players)
       (map (fn [{conf  :confirm
                  :keys [action class text]}]
              (with-meta (vector :div.extra-action {:class class} [:a.button {:on-click #(if (or (not conf) (js/confirm "Are you sure?"))
@@ -142,6 +201,8 @@
       [-ftq-game-panel user-data re-frame/dispatch]
       :walking-deck
       [-walking-deck-game-panel user-data re-frame/dispatch]
+      :debrief
+      [-debrief-game-panel user-data re-frame/dispatch]
       )))
 
 (defn -connecting-panel []

@@ -41,9 +41,10 @@
 
 (re-frame/reg-event-fx
  :->game/action!
- (fn [db [_ action]]
+ (fn [db [_ action & params]]
    (let [room-id (get-in db [:user :current-room :id])]
      {:fx [[:websocket [:game/action! {:action  action
+                                       :params  (first params)
                                        :room-id room-id}]]]})))
 
 (re-frame/reg-event-db

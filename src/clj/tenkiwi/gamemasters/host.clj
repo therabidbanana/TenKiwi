@@ -2,11 +2,12 @@
   "The host is in charge of moving users back and forth to rooms"
   (:require [tenkiwi.gamemasters.ftq :as ftq]
             [tenkiwi.gamemasters.walking-deck :as walking-deck]
+            [tenkiwi.gamemasters.debrief :as debrief]
 ))
 
 (def home-room :home)
 (defn home-room? [room] (= home-room (or room home-room)))
-(defn valid-game? [type] (#{:ftq :walking-deck} type))
+(defn valid-game? [type] (#{:ftq :walking-deck :debrief} type))
 
 (defn ->players [{:keys [chsk-send!]} uids message]
   (doseq [uid uids]
@@ -104,6 +105,7 @@
         (case game-type
           :ftq (ftq/start-game world player-location)
           :walking-deck (walking-deck/start-game world player-location)
+          :debrief (debrief/start-game world player-location)
          ;; call game setup
          )
         (->room system player-location [:game/started! (get-room world player-location)])))))
@@ -125,6 +127,7 @@
           (case current-game
             :ftq          (ftq/take-action world action)
             :walking-deck (walking-deck/take-action world action)
+            :debrief (debrief/take-action world action)
             ;; call game setup
             )
           (->room system room [:game/changed! (get-room world room)]))))))
@@ -146,6 +149,7 @@
         (case current-game
           :ftq (ftq/take-action world action)
           :walking-deck (walking-deck/take-action world action)
+          :debrief (debrief/take-action world action)
           ;; call game setup
           )
         (->room system player-location [:game/changed! (get-room world player-location)])))))

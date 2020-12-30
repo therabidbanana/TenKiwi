@@ -3,6 +3,16 @@
 
 ## Next Steps
 
+### The Debrief
+
+* Only allow scoring during rounds
+* Mission generation
+* Character "gen"
+* Act transitions
+* Better looking scoreboard
+
+### Walking Deck
+
 Functionality:
 * Player list (better format)
 * Pause
@@ -14,6 +24,8 @@ Rules questions:
 * Should timer restart immediately on death?
 * Random Encounters - act driven or suit driven? Either?
 * When your card is drawn and you're a zombie, what does other player describe?
+
+### General
 
 Bugfixes:
 

@@ -105,13 +105,13 @@
             ])
 
 (def queen-images [
-             "images/1.jpg"
-             "images/2.jpg"
-             "images/3.jpg"
-             "images/4.jpg"
-             "images/5.jpg"
-             "images/6.jpg"
-             "images/7.jpg"
+             "images/queens/1.jpg"
+             "images/queens/2.jpg"
+             "images/queens/3.jpg"
+             "images/queens/4.jpg"
+             "images/queens/5.jpg"
+             "images/queens/6.jpg"
+             "images/queens/7.jpg"
              ])
 
 (def intro-cards (into []

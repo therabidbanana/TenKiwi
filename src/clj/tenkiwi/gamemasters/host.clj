@@ -99,7 +99,7 @@
       (do
         (case game-type
           :ftq (ftq/start-game world player-location params)
-          :walking-deck (walking-deck/start-game world player-location)
+          :walking-deck (walking-deck/start-game world player-location params)
           :debrief (debrief/start-game world player-location)
          ;; call game setup
          )

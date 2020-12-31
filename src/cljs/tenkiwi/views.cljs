@@ -56,7 +56,7 @@
                                (.preventDefault %))}
          "Start Debrief"])
       [:button {:on-click #(do
-                             (dispatch [:->game/start! :walking-deck])
+                             (dispatch [:->game/start! :walking-deck {:extra-players 0}])
                              (.preventDefault %))}
        "Start Walking Deck"]
       ]]))
@@ -75,11 +75,13 @@
                 act-prompt
                 act-timer
                 drama-timer
-                players-by-id]}        game
+                next-players
+                active-player]}        game
+        players                        (cons (assoc active-player :active? true)
+                                             next-players)
         display                        (if active?
                                          (:active-display game)
                                          (:inactive-display game))
-        players                        (vals players-by-id)
         x-carded?                      (:x-card-active? display)]
     [:div.game-table
      [:div.current {}
@@ -99,19 +101,23 @@
               (m/md->hiccup)
               (m/component))]
          [:div.actions
-          (map (fn [{:keys [action text]}] (with-meta (vector :div.action [:a {:on-click #(dispatch [:->game/action! action])} text]) {:key action}))
+          (map-indexed
+           (fn [idx {:keys [action text]}] (with-meta (vector :div.action [:a {:on-click #(dispatch [:->game/action! action])} text]) {:key idx}))
                (get-in display [:actions]))]]
       ]
      [:div.extras
-      (map (fn [{:keys [id user-name dead? character]}]
-             (with-meta [:div.player {:title (:description character)}
-                         (str (:title character) " (" user-name ")"
-                              (if dead? "- dead"))] {:key id}))
+      (map-indexed (fn [idx {:keys [active? id user-name dead? character]}]
+             (with-meta [:div.player {:class (str (if active? "active"))
+                                      :title (:description character)}
+                         (str
+                          (if active? "* ")
+                          (:title character) " (" user-name ")"
+                              (if dead? "- dead"))] {:key idx}))
            players)
-      (map (fn [{conf  :confirm
-                 :keys [action class text]}]
+      (map-indexed (fn [idx
+                        {conf  :confirm :keys [action class text]}]
              (with-meta (vector :div.extra-action {:class class} [:a.button {:on-click #(if (or (not conf) (js/confirm "Are you sure?"))
-                                                                                          (dispatch [:->game/action! action]))} text]) {:key action}))
+                                                                                          (dispatch [:->game/action! action]))} text]) {:key idx}))
            (get-in display [:extra-actions]))]]))
 
 (defn -debrief-game-panel [user-data dispatch]

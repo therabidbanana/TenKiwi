@@ -185,11 +185,10 @@
         {:keys [dead? id]}     active-player
 
         {{:keys [title]} :character
-         :as             drawn-char} (get players-by-rank rank active-player)
-        other?                       (not= (:id drawn-char) id)]
+         :as             drawn-char} (get players-by-rank rank)]
     (cond
       dead?  (str "You are dead. Describe the ever constant threat to the group. The horde... **" the-horde "**")
-      other? (str "You drew _" title " _. Describe how they... **" someone-else "**")
+      drawn-char (str "You drew _" title " _. Describe how they... **" someone-else "**")
       :else
       (str "Choose one of the following and use it to add to the story:\n\n"
            "* Reflect on... **" reflect-on "**\n"
@@ -197,14 +196,15 @@
            "* Establish important details... **" establish-something "**\n"
            ))))
 
-(defn build-active-card [{:keys [players-by-id
-                                 act
+(defn build-active-card [{:keys [act
                                  paused?
-                                 active-player]
+                                 active-player
+                                 next-players]
                           :as   game-state}
                          {:keys [text type]
                           :as   card}]
-  (let [survivors           (remove :dead? (vals players-by-id))
+  (let [all-players         (cons active-player next-players)
+        survivors           (remove :dead? all-players)
         all-dead?           (empty? survivors)
         active-player-dead? (:dead? active-player)
         new-card            (assoc card
@@ -303,8 +303,11 @@
       :else (* 8 ticks))
     ))
 
-(defn start-game [world-atom room-id]
-  (let [players           (get-in @world-atom [:rooms room-id :players])
+(defn start-game [world-atom room-id params]
+  (let [extra-players     (get params :extra-players 0)
+        original-players  (get-in @world-atom [:rooms room-id :players])
+        players           (inspect (take (+ extra-players (count original-players))
+                                 (cycle original-players)))
         first-player      (first players)
         next-players      (rest players)
         player-count      (count players)
@@ -318,21 +321,20 @@
         players           (map #(assoc %1 :character (merge %2 (get characters-list (:rank %2)))) players characters)
         player-ranks      (zipmap (map :rank characters) players)
 
-        deck              (concat intro-cards character-cards deck)
+        deck (concat intro-cards character-cards deck)
 
-        new-game          {:players-by-id   (zipmap (map :id players) players)
-                           :players-by-rank player-ranks
-                           :game-type       :walking-deck
-                           :room-id         room-id
-                           :act             1
-                           :act-prompt      (act-prompts 1)
-                           :act-timer       (act-timer! room-id)
-                           :drama-timer     (drama-timer! room-id player-count)
-                           :discard         []
-                           :deck            (rest deck)
-                           :active-player   (first players)
-                           :next-players    (rest players)}
-        new-game          (assoc new-game
+        new-game {:players-by-rank player-ranks
+                  :game-type       :walking-deck
+                  :room-id         room-id
+                  :act             1
+                  :act-prompt      (act-prompts 1)
+                  :act-timer       (act-timer! room-id)
+                  :drama-timer     (drama-timer! room-id player-count)
+                  :discard         []
+                  :deck            (rest deck)
+                  :active-player   (first players)
+                  :next-players    (rest players)}
+        new-game (assoc new-game
                                  :active-display   (build-active-card new-game (first deck))
                                  :inactive-display (build-inactive-card new-game nil))]
     (doto world-atom
@@ -354,7 +356,6 @@
   (let [{:keys [player-order
                 active-player
                 next-players
-                players-by-id
                 discard
                 deck
                 act]}      game
@@ -363,7 +364,7 @@
         next-up            (first all-players)
         ;; This lets us push first player back in the mix (only single player)
         next-players       (rest all-players)
-        survivors          (remove :dead? (vals players-by-id))
+        survivors          (remove :dead? all-players)
         all-dead?          (empty? survivors)
         next-player-alive? (:dead? next-up)
         next-card          (cond
@@ -435,9 +436,8 @@
   nil)
 
 (defn kill-active-player?
-  [{:keys [act active-player players-by-id] :as game}]
-  (let [player-id (:id active-player)
-        currently-dead? (:dead? active-player)]
+  [{:keys [act active-player] :as game}]
+  (let [currently-dead? (:dead? active-player)]
     (cond
       (and (> act 3) (not currently-dead?))
       ;; If the current player is alive at end of act 3 (act = 4)
@@ -449,7 +449,6 @@
           (assoc :active-display (build-active-card game dead-end-game-card)))
       :else
       (-> game
-         (assoc-in [:players-by-id player-id :dead?] true)
          (assoc-in [:active-player :dead?] true)
          (assoc :active-display (build-active-card game death-card))))))
 
@@ -458,11 +457,13 @@
                 act-timer
                 drama-timer
                 active-display
+                active-player
+                next-players
                 paused?
-                room-id
-                players-by-id]} game
-        player-count            (count players-by-id)
-        survivors               (remove :dead? (vals players-by-id))
+                room-id]} game
+        all-players             (cons active-player next-players)
+        player-count            (count all-players)
+        survivors               (remove :dead? all-players)
         new-act-timer           (if (>= 1 act-timer)
                                   (act-timer! room-id)
                                   (dec act-timer))

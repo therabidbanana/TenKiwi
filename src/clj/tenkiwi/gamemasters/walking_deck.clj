@@ -308,7 +308,7 @@
       (< 5 player-count) (* 5 ticks)
       (< 3 player-count) (* 6 ticks)
       (< 1 player-count) (* 8 ticks)
-      ;; This shouldn't be possible
+      ;; This shouldn't be possible unless a person is playing alone
       :else (* 8 ticks))
     ))
 

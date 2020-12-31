@@ -57,8 +57,8 @@
 
 (defmethod -event-msg-handler :game/start!
   [system {:as ev-msg :keys [uid event send-fn]}]
-  (let [[_ game-type] event]
-    (host/start-game! system uid game-type)
+  (let [[_ params] event]
+    (host/start-game! system uid params)
     (println "ready to start")))
 
 (defmethod -event-msg-handler :game/action!

@@ -1,6 +1,6 @@
 (ns tenkiwi.gamemasters.walking-deck
   "This game master runs a Walking Deck game"
-  #_(:require))
+  (:require [tenkiwi.util :as util :refer [inspect]]))
 
 (def valid-active-actions #{:pause-game :unpause-game :discard :done :x-card :end-game :leave-game})
 (def valid-inactive-actions #{:pause-game :unpause-game :x-card :leave-game})
@@ -101,21 +101,10 @@
                   :else (clojure.string/lower-case string))]
     (get to-suit input :unknown)))
 
-(defn- normalize-card-info [map]
+(defn- normalize-card-info [row-num map]
   (-> map
       (update :rank normalize-rank)
       (update :suit normalize-suit)))
-
-(defn- read-spreadsheet-data [url]
-  (let [lines
-        (->> (slurp url)
-             (clojure.string/split-lines)
-             (map #(clojure.string/split % #"\t")))
-        header (first lines)
-        rest   (rest lines)
-        keys   (map keyword header)
-        rows   (map #(zipmap keys %) rest)]
-    (map normalize-card-info rows)))
 
 (defn- to-lookup-map [card-rows]
   (into {}
@@ -127,7 +116,9 @@
   ;; Use eval and replace to pull in a published sheet with tsv
   ;; Use :s/, \[/,\n\]/g
   ;; (read-spreadsheet-data url)
-  (to-lookup-map (read-spreadsheet-data "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBY3mq94cg_k3onDKmA1fa_L3AGbKVBfdxxeP04l73QVIXMkD4gEdG-e2ciex2jjTJjaKkdU1Vtaf1/pub?gid=0&single=true&output=tsv")))
+  (to-lookup-map (util/read-spreadsheet-data "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBY3mq94cg_k3onDKmA1fa_L3AGbKVBfdxxeP04l73QVIXMkD4gEdG-e2ciex2jjTJjaKkdU1Vtaf1/pub?gid=0&single=true&output=tsv"
+                                             normalize-card-info)
+                 ))
 
 (def prompts
   {[:clubs :jack]     {:rank :jack, :suit :clubs, :reflect-on "If Someone Else Will Die", :encounter-something "Eternal Purgatory", :establish-something "We Can't Close It", :the-horde "Are a friend", :someone-else "They deliver violence and tragedy deliberately"},

@@ -85,15 +85,10 @@
       (println "send to " player-location)
       (->room system player-location [:room/user-joined! room]))))
 
-(defmacro inspect
-  [expression]
-  (list 'let ['result expression]
-         (list 'println (list 'quote expression) "=>" 'result)
-         'result))
-
 (defn start-game!
   "Called to trigger a game start by host"
-  [{:as system :keys [register]} uid game-type]
+  [{:as system :keys [register]} uid {:keys [game-type
+                                             params]}]
   (let [world           (:world register)
         player-location (get-player-location world uid)
         room            (get-room world player-location)]
@@ -103,7 +98,7 @@
       :else
       (do
         (case game-type
-          :ftq (ftq/start-game world player-location)
+          :ftq (ftq/start-game world player-location params)
           :walking-deck (walking-deck/start-game world player-location)
           :debrief (debrief/start-game world player-location)
          ;; call game setup

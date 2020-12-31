@@ -79,8 +79,9 @@
 
 (re-frame/reg-event-fx
  :->game/start!
- (fn [{:keys [db]} [_ id]]
-   {:fx [[:websocket [:game/start! id]]]}))
+ (fn [{:keys [db]} [_ id & params]]
+   {:fx [[:websocket [:game/start! {:game-type id
+                                    :params    (first params)}]]]}))
 
 (re-frame/reg-event-fx
  :->join/join-room!

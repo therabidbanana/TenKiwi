@@ -1,6 +1,6 @@
 (ns tenkiwi.gamemasters.ftq
-  "The host is in charge of moving users back and forth to rooms"
-  )
+  "FTQ is a gamemaster supporting Descended by the Queen games"
+  (:require [tenkiwi.util :as util :refer [inspect]]))
 
 (def valid-active-actions #{:pass :discard :done :x-card :end-game :next-queen :previous-queen :leave-game})
 (def valid-inactive-actions #{:x-card :undo :leave-game})
@@ -37,7 +37,7 @@
   {:action  :end-game
    :text    "End the Game"})
 
-(def intro [
+#_(def intro [
             "Each player will take turns reading cards aloud, and then hitting **\"Finish Turn\"**."
             "_The land you live in has been at war for as long as any of you have been alive._"
             "_The Queen has decided to undertake a long and perilous journey to broker an alliance with a distant power._"
@@ -56,7 +56,7 @@
             ;; TODO - Whoever wants to can draw the first prompt card.
             ])
 
-(def questions [
+#_(def questions [
                 "The Queen is not your queen.\n\nWhy do you serve her anyway?"
                 "The Queen knows something about you that no one else does.\n\nWhat is it?"
                 "What do you usually do for the royal family?\n\nWhy does that make you an unlikely choice for this journey?"
@@ -104,7 +104,8 @@
                 "What do you do that pleases the Queen on this journey?"
             ])
 
-(def queen-images [
+#_(def queen-images [
+                   "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Ftse2.mm.bing.net%2Fth%3Fid%3DOIP.6JYz-wr2khmwViv4FgpujAHaFj%26pid%3DApi&f=1"
              "images/queens/1.jpg"
              "images/queens/2.jpg"
              "images/queens/3.jpg"
@@ -114,17 +115,42 @@
              "images/queens/7.jpg"
              ])
 
-(def intro-cards (into []
+(defn normalize-twospace [text]
+  (clojure.string/replace text #"\s\s" "\n\n"))
+
+(defn normalize-card [type]
+  (fn [id map]
+    (-> (assoc map :id id :state type)
+        (update :text normalize-twospace))))
+
+(def intro-card (normalize-card :intro))
+(def question-card (normalize-card :question))
+(def end-card (normalize-card :end))
+(def image-card (normalize-card :image))
+
+#_(def intro-cards (into []
                        (map-indexed #(hash-map :state :intro :id %1 :text %2)
                                     intro)))
 
-(def question-cards (into []
+#_(def question-cards (into []
                           (map-indexed #(hash-map :state :question :id %1 :text %2)
                                     questions)))
 
-(def queen-attacked {:id   "attacked"
+#_(def queen-attacked {:id   "attacked"
                      :state :end
                      :text "The queen is under attack.\n\nDo you defend her?"})
+
+(defn normalize-card [index {:keys [type] :as card}]
+  (case type
+    "intro" (intro-card index card)
+    "question" (question-card index card)
+    "image" (image-card index card)
+    "end" (end-card index card)
+    (question-card index card)))
+
+(defn gather-decks [url]
+  (let [cards (util/read-spreadsheet-data url normalize-card)]
+    (group-by :state cards)))
 
 
 ;; TODO: XSS danger?
@@ -168,8 +194,10 @@
     {:card          waiting
      :extra-actions [leave-game-action]}))
 
-(defn start-game [world-atom room-id]
+(defn start-game [world-atom room-id {:keys [game-url]
+                                      :or   {game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=0&single=true&output=tsv"}}]
   (let [players      (get-in @world-atom [:rooms room-id :players])
+        decks        (gather-decks game-url)
         first-player (first players)
         next-player  (next-player players (:id first-player))
         card-count   (+ 21 (rand 10))
@@ -178,14 +206,14 @@
                       :state            :intro
                       :discard          []
                       :deck             (into []
-                                              (concat (rest intro-cards)
-                                                      (take card-count (shuffle question-cards))
-                                                      [queen-attacked]))
+                                              (concat (rest (:intro decks))
+                                                      (take card-count (shuffle (:question decks)))
+                                                      [(first (:end decks))]))
                       :active-player    (first players)
-                      :queen-deck       (rest queen-images)
-                      :queen            (first queen-images)
-                      :active-display   (build-active-card (first intro-cards) first-player next-player)
-                      :inactive-display (build-inactive-card first-player (first intro))}]
+                      :queen-deck       (into [] (rest (:image decks)))
+                      :queen            (first (:image decks))
+                      :active-display   (build-active-card (first (:intro decks)) first-player next-player)
+                      :inactive-display (build-inactive-card first-player (:text (first (:intro decks))))}]
     (doto world-atom
       (swap! update-in [:rooms room-id] assoc :game new-game))))
 
@@ -252,7 +280,7 @@
 (defn pass-card [game]
   (let [{:keys [player-order
                 active-player]} game
-        active-card     (get-in game [:active-display :card])
+        active-card     (inspect (get-in game [:active-display :card]))
         next-up         (next-player player-order active-player)
         next-next       (next-player player-order next-up)]
     (assoc game

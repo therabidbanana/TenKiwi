@@ -44,7 +44,12 @@
         [:button {:on-click #(do
                                (dispatch [:->game/start! :ftq])
                                (.preventDefault %))}
-         "Start FTQ"])
+         "Start FTQ (Original)"])
+      (if (= (:room-code game-data) "haslem")
+        [:button {:on-click #(do
+                               (dispatch [:->game/start! :ftq {:game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=59533190&single=true&output=tsv"}])
+                               (.preventDefault %))}
+         "Start FTQ (The Captain)"])
       (if (= (:room-code game-data) "haslem")
         [:button {:on-click #(do
                                (dispatch [:->game/start! :debrief])
@@ -190,7 +195,7 @@
                (get-in display [:actions]))]]
       ]
      [:div.extras
-      [:img {:src (str "/" queen)}]
+      [:img {:src (str (:text queen))}]
       (map (fn [{conf :confirm
                  :keys [action class text]}]
              (with-meta (vector :div.extra-action {:class class} [:a.button {:on-click #(if (or (not conf) (js/confirm "Are you sure?"))

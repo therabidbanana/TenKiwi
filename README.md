@@ -3,6 +3,10 @@
 
 ## Next Steps
 
+### FTQ
+
+* X card the attack => dead game, no exit
+
 ### The Debrief
 
 * Only allow scoring during rounds

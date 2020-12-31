@@ -142,14 +142,12 @@
         card-count   (+ 21 (rand 10))
         company      {:name   "VISA"
                       :values (take 3 (shuffle company-values))}
-        list (map #(vector (:id %)
-                         (build-starting-scores % players)) all-players)
-        _ (println list)
-        scores       (into {}
-                           list)
         new-game     {:player-order     (into [] players)
-                      :player-scores    scores
-                      :player-ranks     (zipmap (map :id all-players) (cycle [{0 0 1 0 2 0}]))
+                      :player-scores    (into {}
+                                              (map #(vector (:id %)
+                                                            (build-starting-scores % players)) all-players))
+                      :player-ranks     (zipmap [0 1 2]
+                                                (cycle [{1 nil 2 nil 3 nil :unranked (map :id all-players)}]))
                       :all-players      all-players
                       :game-type        :debrief
                       :stage            :intro

@@ -141,19 +141,20 @@
      [:div.extras
       ;; TODO : allow character names inline
       (map (fn [{:keys [id user-name dead?]}]
-             (with-meta
-               [:div.player
-                [:div.player-name
-                 (str user-name)]
-                [:div.score-actions
-                 ;; TODO - maybe this logic should come from gamemaster
-                 (if-not (or active? (= id user-id))
-                   [:a.downvote-player {:on-click #(dispatch [:->game/action! :downvote-player {:player-id id}])} " - "])
-                 (str (get-in player-scores [id user-id]))
-                 (if-not (or active? (= id user-id))
-                   [:a.upvote-player {:on-click #(dispatch [:->game/action! :upvote-player {:player-id id}])} " + "])
-                 ]]
-               {:key id}))
+             (let [total-score (apply + (vals (player-scores id)))]
+               (with-meta
+                [:div.player
+                 [:div.player-name
+                  (str "[ " total-score " ] " user-name)]
+                 [:div.score-actions
+                  ;; TODO - maybe this logic should come from gamemaster
+                  (if-not (or active? (= id user-id))
+                    [:a.downvote-player {:on-click #(dispatch [:->game/action! :downvote-player {:player-id id}])} " - "])
+                  (str (get-in player-scores [id user-id]))
+                  (if-not (or active? (= id user-id))
+                    [:a.upvote-player {:on-click #(dispatch [:->game/action! :upvote-player {:player-id id}])} " + "])
+                  ]]
+                {:key id})))
            all-players)
       (map (fn [{conf  :confirm
                  :keys [action class text]}]

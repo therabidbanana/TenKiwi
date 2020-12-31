@@ -118,15 +118,15 @@
 (defn normalize-twospace [text]
   (clojure.string/replace text #"\s\s" "\n\n"))
 
-(defn normalize-card [type]
+(defn build-normalized-card [type]
   (fn [id map]
     (-> (assoc map :id id :state type)
         (update :text normalize-twospace))))
 
-(def intro-card (normalize-card :intro))
-(def question-card (normalize-card :question))
-(def end-card (normalize-card :end))
-(def image-card (normalize-card :image))
+(def intro-card (build-normalized-card :intro))
+(def question-card (build-normalized-card :question))
+(def end-card (build-normalized-card :end))
+(def image-card (build-normalized-card :image))
 
 #_(def intro-cards (into []
                        (map-indexed #(hash-map :state :intro :id %1 :text %2)

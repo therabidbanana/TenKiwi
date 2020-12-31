@@ -297,12 +297,12 @@
 
 (defn act-timer! [room-id]
   (if (= room-id "fast")
-    (* 17 2)
+    (* 17 6)
     (* 17 60)))
 
 (defn drama-timer! [room-id player-count]
   (let [ticks (if (= room-id "fast")
-                2
+                6
                 60)]
     (cond
       (< 5 player-count) (* 5 ticks)

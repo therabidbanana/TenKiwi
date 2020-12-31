@@ -2,8 +2,8 @@
   "This game master runs a Walking Deck game"
   #_(:require))
 
-(def valid-active-actions #{:discard :done :x-card :end-game :leave-game})
-(def valid-inactive-actions #{:x-card :leave-game})
+(def valid-active-actions #{:pause-game :unpause-game :discard :done :x-card :end-game :leave-game})
+(def valid-inactive-actions #{:pause-game :unpause-game :x-card :leave-game})
 
 (defn valid-action? [active? action]
   (if active?
@@ -18,6 +18,14 @@
   {:action  :leave-game
    :confirm true
    :text    "End Game Now"})
+
+(def pause-game-action
+  {:action  :pause-game
+   :text    "Pause Game"})
+
+(def unpause-game-action
+  {:action  :unpause-game
+   :text    "Unpause Game"})
 
 (def discard-action
   {:action :discard
@@ -60,10 +68,14 @@
                          suit card-suits]
                      (hash-map :rank rank :suit suit)))
 
+(def act-prompts {1 "During this act, focus your story on the past that led us here."
+                  2 "During this act, focus your story on plans for the future, to escape or defeat the horde."
+                  3 "During this act, focus your story on the present and how things are getting worse."})
+
 (defn lookup-card [lookup-map {:keys [rank suit]}]
   (get lookup-map [suit rank]))
 
-(defn normalize-rank [string]
+(defn- normalize-rank [string]
   (let [to-rank (merge {"k" :king
                         "a" :ace
                         "q" :queen
@@ -78,7 +90,7 @@
                   :else (clojure.string/lower-case string))]
     (get to-rank input :unknown)))
 
-(defn normalize-suit [string]
+(defn- normalize-suit [string]
   (let [to-suit
         (zipmap (map #(cond (keyword? %) (name %))
                      card-suits)
@@ -89,12 +101,12 @@
                   :else (clojure.string/lower-case string))]
     (get to-suit input :unknown)))
 
-(defn normalize-card-info [map]
+(defn- normalize-card-info [map]
   (-> map
       (update :rank normalize-rank)
       (update :suit normalize-suit)))
 
-(defn read-spreadsheet-data [url]
+(defn- read-spreadsheet-data [url]
   (let [lines
         (->> (slurp url)
              (clojure.string/split-lines)
@@ -105,7 +117,7 @@
         rows   (map #(zipmap keys %) rest)]
     (map normalize-card-info rows)))
 
-(defn to-lookup-map [card-rows]
+(defn- to-lookup-map [card-rows]
   (into {}
         (for [{:keys [rank suit]
                :as row} card-rows]
@@ -196,25 +208,31 @@
 
 (defn build-active-card [{:keys [players-by-id
                                  act
+                                 paused?
                                  active-player]
                           :as   game-state}
                          {:keys [text type]
                           :as   card}]
-  (let [survivors (remove :dead? (vals players-by-id))
-        all-dead? (empty? survivors)
-        new-card (assoc card
+  (let [survivors           (remove :dead? (vals players-by-id))
+        all-dead?           (empty? survivors)
+        active-player-dead? (:dead? active-player)
+        new-card            (assoc card
                         :type (or type :prompt)
                         :text (or text (interpret-draw game-state card)))]
     {:card          new-card
-     :extra-actions [leave-game-action]
+     :extra-actions [(if paused? unpause-game-action
+                         pause-game-action)
+                     leave-game-action]
      :actions       (cond
-                      all-dead? [lose-game-action]
-                      (> act 3) [win-game-action]
-                      :else [done-action]
+                      all-dead?                           [lose-game-action]
+                      (and (> act 3) active-player-dead?) [lose-game-action]
+                      (> act 3)                           [win-game-action]
+                      :else                               [done-action]
                       )}))
 
 (defn build-inactive-card [{:keys [players-by-rank
                                    act
+                                   paused?
                                    active-player]
                             :as game-state}
                            extra-text]
@@ -226,7 +244,9 @@
                   waiting)]
 
     {:card          waiting
-     :extra-actions [leave-game-action]}))
+     :extra-actions [(if paused? unpause-game-action
+                         pause-game-action)
+                     leave-game-action]}))
 
 (def characters-list {:ace   {:title       "The child"
                          :description "full of hope"}
@@ -277,12 +297,12 @@
 
 (defn act-timer! [room-id]
   (if (= room-id "fast")
-    (* 17 10)
+    (* 17 2)
     (* 17 60)))
 
 (defn drama-timer! [room-id player-count]
   (let [ticks (if (= room-id "fast")
-                10
+                2
                 60)]
     (cond
       (< 5 player-count) (* 5 ticks)
@@ -314,6 +334,7 @@
                            :game-type       :walking-deck
                            :room-id         room-id
                            :act             1
+                           :act-prompt      (act-prompts 1)
                            :act-timer       (act-timer! room-id)
                            :drama-timer     (drama-timer! room-id player-count)
                            :discard         []
@@ -322,7 +343,7 @@
                            :next-players    (rest players)}
         new-game          (assoc new-game
                                  :active-display   (build-active-card new-game (first deck))
-                                 :inactive-display (build-inactive-card new-game "yo"))]
+                                 :inactive-display (build-inactive-card new-game nil))]
     (doto world-atom
       (swap! update-in [:rooms room-id] assoc :game new-game))))
 
@@ -331,6 +352,9 @@
 
 (def end-game-card {:type :win?
                     :text "After a final climatic attack, any surviving players make it out alive.\n\nAs the credits roll, feel free to describe their fates, or leave it uncertain."})
+
+(def dead-end-game-card {:type :lose?
+                    :text "After a final climatic attack, nobody is left standing.\n\nDescribe the last stand of the players as they die"})
 
 (def all-dead-card {:type :lose?
                     :text "Everyone has died."})
@@ -342,28 +366,30 @@
                 players-by-id
                 discard
                 deck
-                act]}  game
-        active-card    (get-in game [:active-display :card])
-        all-players    (conj (into [] next-players) active-player)
-        next-up        (first all-players)
+                act]}      game
+        active-card        (get-in game [:active-display :card])
+        all-players        (conj (into [] next-players) active-player)
+        next-up            (first all-players)
         ;; This lets us push first player back in the mix (only single player)
-        next-players   (rest all-players)
-        survivors      (remove :dead? (vals players-by-id))
-        all-dead?      (empty? survivors)
-        next-card      (cond
-                         all-dead? all-dead-card
-                         (> act 3) end-game-card
-                         :else (first deck))
-        [discard deck] (if (empty? (rest deck))
-                         (do
-                           (println "Shuffling...")
-                           [[active-card] (shuffle-discard discard)])
-                         [(cons active-card discard) (into [] (rest deck))])
-        next-game      (assoc game
-                              :deck deck
-                              :next-players next-players
-                              :discard discard
-                              :active-player next-up)]
+        next-players       (rest all-players)
+        survivors          (remove :dead? (vals players-by-id))
+        all-dead?          (empty? survivors)
+        next-player-alive? (:dead? next-up)
+        next-card          (cond
+                             all-dead?                          all-dead-card
+                             (and (> act 3) next-player-alive?) end-game-card
+                             (> act 3)                          dead-end-game-card
+                             :else                              (first deck))
+        [discard deck]     (if (empty? (rest deck))
+                               (do
+                                 (println "Shuffling...")
+                                 [[active-card] (shuffle-discard discard)])
+                               [(cons active-card discard) (into [] (rest deck))])
+        next-game          (assoc game
+                                    :deck deck
+                                    :next-players next-players
+                                    :discard discard
+                                    :active-player next-up)]
     (assoc next-game
            :active-display (build-active-card next-game next-card)
            :inactive-display (build-inactive-card next-game nil))))
@@ -400,22 +426,48 @@
         (update-in [:active-display :actions] push-uniq discard-action)
         (assoc-in [:inactive-display :x-card-active?] true))))
 
+(defn pause-game [{:keys [:active-display] :as game}]
+  (let [game (assoc game :paused? true)]
+    (-> game
+        (assoc :active-display (build-active-card game (:card active-display)))
+        (assoc :inactive-display (build-inactive-card game nil))
+        )))
+
+(defn unpause-game [{:keys [:active-display] :as game}]
+  (let [game (assoc game :paused? false)]
+    (-> game
+        (assoc :active-display (build-active-card game (:card active-display)))
+        (assoc :inactive-display (build-inactive-card game nil))
+        )))
+
 (defn end-game [game]
   nil)
 
-(defn kill-active-player
-  [{:keys [active-player players-by-id] :as game}]
-  (let [player-id (:id active-player)]
-    (-> game
-        (assoc-in [:players-by-id player-id :dead?] true)
-        (assoc-in [:active-player :dead?] true)
-        (assoc :active-display (build-active-card game death-card)))))
+(defn kill-active-player?
+  [{:keys [act active-player players-by-id] :as game}]
+  (let [player-id (:id active-player)
+        currently-dead? (:dead? active-player)]
+    (cond
+      (and (> act 3) (not currently-dead?))
+      ;; If the current player is alive at end of act 3 (act = 4)
+      (-> game
+          (assoc :active-display (build-active-card game end-game-card)))
+      (> act 3)
+      ;; If the current player is dead at end of act 3 (act = 4)
+      (-> game
+          (assoc :active-display (build-active-card game dead-end-game-card)))
+      :else
+      (-> game
+         (assoc-in [:players-by-id player-id :dead?] true)
+         (assoc-in [:active-player :dead?] true)
+         (assoc :active-display (build-active-card game death-card))))))
 
 (defn tick-clock [game]
   (let [{:keys [act
                 act-timer
                 drama-timer
                 active-display
+                paused?
                 room-id
                 players-by-id]} game
         player-count            (count players-by-id)
@@ -426,24 +478,27 @@
         new-drama-timer         (if (>= 1 drama-timer)
                                   (drama-timer! room-id player-count)
                                   (dec drama-timer))
-        potential-death?        #(if (or (>= 1 drama-timer) (>= 1 act-timer))
-                                   (kill-active-player %)
+        new-act?                (>= 1 act-timer)
+        potential-death?        #(if (or (>= 1 drama-timer) new-act?)
+                                   (kill-active-player? %)
                                    %)
         all-dead?               (empty? survivors)
-        new-act?                (>= 1 act-timer)
         next-act                (if new-act?
                                   (inc act)
                                   act)
-        prompt-card?            (= :prompt (get-in active-display [:card :type]))
+        next-act-prompt         (act-prompts next-act)
+        prompt-card?            (#{:prompt :death} (get-in active-display [:card :type]))
         ]
     (cond
       (not prompt-card?) game ;; Game not technically started yet, or paused
       (> act 3)          game
+      paused?            game
       all-dead?          game
       :else
       (-> game
           (assoc-in [:act-timer] new-act-timer)
           (assoc-in [:act] next-act)
+          (assoc-in [:act-prompt] next-act-prompt)
           (assoc-in [:drama-timer] new-drama-timer)
           potential-death?))))
 
@@ -461,6 +516,8 @@
                          :done           (finish-card game)
                          :x-card         (x-card game)
                          :discard        (discard-card game)
+                         :pause-game     (pause-game game)
+                         :unpause-game   (unpause-game game)
                          :tick-clock     (tick-clock game)
                          ;; TODO allow players to leave game without ending
                          ;;; change action text

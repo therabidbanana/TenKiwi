@@ -14,10 +14,12 @@
 ### Walking Deck
 
 Functionality:
+
+* Better character intros - (drop padding cards)
 * Player list (better format)
-* Pause
 * Show different prompts based on characters / current gamestate
-* Win / lose dialog at the end
+  - Need feedback from steve on exact nature of prompts
+* Improved Win / lose dialog at the end
 
 Rules questions:
 * Does person holding deck at end of act 3 die before declaring a win?

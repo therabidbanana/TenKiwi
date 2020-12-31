@@ -67,6 +67,7 @@
           :keys [game]} :current-room} @user-data
         active?                        (= user-id (:id (:active-player game)))
         {:keys [act
+                act-prompt
                 act-timer
                 drama-timer
                 players-by-id]}        game
@@ -77,9 +78,12 @@
         x-carded?                      (:x-card-active? display)]
     [:div.game-table
      [:div.current {}
-      [:div.timer {} (str "Act:" act
-                          ;;" Time left: " act-timer " seconds"
-                          )]
+      [:div.timer {} (if (> act 3)
+                       (str "End game")
+                       (str "Act:" act
+                           " " act-prompt
+                           ;; " Time left: " act-timer " seconds"
+                           ))]
       [:div.active-area {}
        [:div.x-card {:class (if x-carded? "active" "inactive")}
         [:a {:on-click #(dispatch [:->game/action! :x-card])} "X"]]

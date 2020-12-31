@@ -149,7 +149,7 @@
                  ;; TODO - maybe this logic should come from gamemaster
                  (if-not (or active? (= id user-id))
                    [:a.downvote-player {:on-click #(dispatch [:->game/action! :downvote-player {:player-id id}])} " - "])
-                 (str (player-scores id))
+                 (str (get-in player-scores [id user-id]))
                  (if-not (or active? (= id user-id))
                    [:a.upvote-player {:on-click #(dispatch [:->game/action! :upvote-player {:player-id id}])} " + "])
                  ]]

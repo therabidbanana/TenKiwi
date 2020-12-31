@@ -125,6 +125,10 @@
     {:card          waiting
      :extra-actions [leave-game-action]}))
 
+(defn- build-starting-scores [{:keys [npc? id]} players]
+  (let [ids (remove #(= id %) (map :id players))]
+    (zipmap ids (cycle [5]))))
+
 (defn start-game [world-atom room-id]
   (let [players      (get-in @world-atom [:rooms room-id :players])
         first-player (first players)
@@ -138,8 +142,13 @@
         card-count   (+ 21 (rand 10))
         company      {:name   "VISA"
                       :values (take 3 (shuffle company-values))}
+        list (map #(vector (:id %)
+                         (build-starting-scores % players)) all-players)
+        _ (println list)
+        scores       (into {}
+                           list)
         new-game     {:player-order     (into [] players)
-                      :player-scores    (zipmap (map :id all-players) (cycle [5]))
+                      :player-scores    scores
                       :player-ranks     (zipmap (map :id all-players) (cycle [{0 0 1 0 2 0}]))
                       :all-players      all-players
                       :game-type        :debrief
@@ -217,22 +226,24 @@
 
 (defn upvote-player
   [{:keys [player-scores] :as game}
+   voter-id
    {:keys [player-id]}]
-  (let [current-score (get-in player-scores [player-id])
+  (let [current-score (get-in player-scores [player-id voter-id])
         new-score (min (inc current-score) 10)]
     (if current-score
       (-> game
-         (assoc-in [:player-scores player-id] new-score))
+         (assoc-in [:player-scores player-id voter-id] new-score))
       game)))
 
 (defn downvote-player
   [{:keys [player-scores] :as game}
+   voter-id
    {:keys [player-id]}]
-  (let [current-score (get-in player-scores [player-id])
+  (let [current-score (get-in player-scores [player-id voter-id])
         new-score (max (dec current-score) 0)]
     (if current-score
       (-> game
-          (assoc-in [:player-scores player-id] new-score))
+          (assoc-in [:player-scores player-id voter-id] new-score))
       game)))
 
 (defn x-card [game]
@@ -261,8 +272,8 @@
                          :discard    (discard-card game)
                          :pass       (pass-card game)
                          ;; TODO - work out upvote/downvote UI for players
-                         :upvote-player   (upvote-player game params)
-                         :downvote-player (downvote-player game params)
+                         :upvote-player   (upvote-player game uid params)
+                         :downvote-player (downvote-player game uid params)
                          ;; TODO - ticking clock probably shouldn't actually
                          ;; update state, or should do something useful
                          :tick-clock game

@@ -31,6 +31,10 @@
   {:action :discard
    :text   "[X] Discard this..."})
 
+(def pass-action
+  {:action :done
+   :text   "[Pass] \"Oh my god, we're all going to die!\""})
+
 (def end-game-action
   {:action  :end-game
    :text    "End the Game"})
@@ -208,8 +212,8 @@
         all-dead?           (empty? survivors)
         active-player-dead? (:dead? active-player)
         new-card            (assoc card
-                        :type (or type :prompt)
-                        :text (or text (interpret-draw game-state card)))]
+                                   :type (or type :prompt)
+                                   :text (or text (interpret-draw game-state card)))]
     {:card          new-card
      :extra-actions [(if paused? unpause-game-action
                          pause-game-action)
@@ -218,6 +222,7 @@
                       all-dead?                           [lose-game-action]
                       (and (> act 3) active-player-dead?) [lose-game-action]
                       (> act 3)                           [win-game-action]
+                      (#{:prompt} (:type new-card))       [done-action pass-action]
                       :else                               [done-action]
                       )}))
 

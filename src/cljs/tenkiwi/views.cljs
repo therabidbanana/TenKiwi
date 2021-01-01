@@ -58,7 +58,19 @@
       [:button {:on-click #(do
                              (dispatch [:->game/start! :walking-deck {:extra-players 0}])
                              (.preventDefault %))}
-       "Start Walking Deck"]
+       "Start Walking Deck + 0"]
+      [:button {:on-click #(do
+                             (dispatch [:->game/start! :walking-deck {:extra-players 1}])
+                             (.preventDefault %))}
+       "Start Walking Deck + 1"]
+      [:button {:on-click #(do
+                             (dispatch [:->game/start! :walking-deck {:extra-players 2}])
+                             (.preventDefault %))}
+       "Start Walking Deck + 2"]
+      [:button {:on-click #(do
+                             (dispatch [:->game/start! :walking-deck {:extra-players 3}])
+                             (.preventDefault %))}
+       "Start Walking Deck + 3"]
       ]]))
 
 (defn lobby-panel []

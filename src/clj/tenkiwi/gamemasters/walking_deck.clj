@@ -190,28 +190,35 @@
 
 (defn interpret-draw
   [{:keys [active-player next-players]}
-   {:keys [rank suit] :as card}]
+   {:keys [type rank suit] :as card}]
   (let [{:keys [reflect-on
                 encounter-something
                 establish-something
                 the-horde
+                character
                 character-action]} (lookup-card prompts card)
-        all-players            (cons active-player next-players)
-        {:keys [dead? id]}     active-player
-        matching-players       (keep #(if (= rank (get-in % [:character :rank]))
-                                        %
-                                        nil)
-                                     all-players)
+        all-players                (cons active-player next-players)
+        {:keys [dead? id]}         active-player
+        matching-players           (keep #(if (= rank (get-in % [:character :rank]))
+                                            %
+                                            nil)
+                                         all-players)
 
-        {{:keys [title]} :character
-         :keys           [id]
-         :as             drawn-char} (first matching-players)
+        {{:keys [title description]} :character
+         :keys                       [id]
+         :as                         drawn-char} (first matching-players)
+
         dead-draw?                   (if drawn-char
-                     (:dead? drawn-char)
-                     dead?)
-        card-title (card-name card)
-        ]
+                                       (:dead? drawn-char)
+                                       dead?)
+        character-intro?             (= :character-intro type)
+        card-title                   (card-name card)]
     (cond
+      character-intro?
+      (str "You drew _" (card-name card) "_. "
+           "You are _" character "_.\n\n"
+           "Describe who you are and how you came to be here at the moment they attacked."
+           )
       dead-draw?
       (str "You drew _" (card-name card) "_. "
            "Choose one of the following to add to the story:\n\n"
@@ -250,7 +257,7 @@
                       all-dead?                           [lose-game-action]
                       (and (> act 3) active-player-dead?) [lose-game-action]
                       (> act 3)                           [win-game-action]
-                      (#{:prompt} (:type new-card))       [done-action pass-action]
+                      (#{:prompt} (:type new-card))       [pass-action done-action]
                       :else                               [done-action]
                       )}))
 
@@ -298,18 +305,15 @@
                  :king  {:title       "The criminal"
                          :description "armed and anxious"}})
 
-(def introduction ["The Walking Deck is a story game played by reading and responding to prompts.\n\nRead these prompts to everyone and when you have added your own details to the story, press \"**Finish Turn**\""
-                   "Each player will be introduced as a character of a group of survivors in a zombie wasteland."
-                   "The exact nature of the disaster is up to the players."])
+(def introduction ["The Walking Deck is a story game played by reading and responding to prompts.\n\nRead these prompts and when you have used them to add details to the story, press \"**Finish Turn**\""
+                   "Each player will be introduced as a character of an unlikely band of protagonists about to experience an attack from the (horde kind)."
+                   "All of you are in (location) when all of a sudden hordes of the (horde kind) suddenly attack!"])
 
 (def intro-cards (mapv #(hash-map :text % :type :intro) introduction))
 (def padding-card {:text "Finish turn if you are ready to play" :type :intro})
 
-(defn character-card [{:keys [rank] :as card} {:keys [user-name]}]
-  (let [{:keys [title description]} (get characters-list rank)]
-    (merge card
-           {:text (str user-name " is...\n\n" title "... " description)
-            :type :character})))
+(defn character-card [card]
+  (merge card {:type :character-intro}))
 
 (defn shuffle-discard [discard]
   (->> discard
@@ -335,9 +339,18 @@
       :else (* 8 ticks))
     ))
 
-(defn prepare-deck [count]
-  (let [deck (shuffle playing-cards)]
-    ))
+(defn prepare-deck [player-count]
+  (loop [deck (into [] (shuffle playing-cards))
+         chars []]
+    (if (= (count chars) player-count)
+      [chars deck]
+      (let [next-char (first deck)
+            deck      (into [] (rest deck))]
+        ;; Careful - infinite loop coming if bug
+        (if (and ((set (map :rank chars)) (:rank next-char))
+                 (> 12 (count chars)))
+          (recur (conj deck next-char) chars)
+          (recur deck (conj chars next-char)))))))
 
 (defn start-game [world-atom room-id params]
   (let [extra-players     (get params :extra-players 0)
@@ -347,30 +360,26 @@
         first-player      (first players)
         next-players      (rest players)
         player-count      (count players)
-        intro-cards       (->> intro-cards
-                               (partition player-count player-count (cycle [padding-card]))
-                               (apply concat))
-        deck              (shuffle playing-cards)
-        [characters deck] (split-at player-count deck)
-        character-cards   (map character-card characters players)
+        [characters deck] (prepare-deck player-count)
+        character-info    (map #(merge % (get characters-list (:rank %))) characters)
+        character-cards   (map character-card characters)
         ;; Update the players to assign characters
-        players           (map #(assoc %1 :character (merge %2 (get characters-list (:rank %2)))) players characters)
+        players           (map #(assoc %1 :character %2) players character-info)
+        deck              (concat intro-cards character-cards deck)
 
-        deck (concat intro-cards character-cards deck)
-
-        new-game {:game-type       :walking-deck
-                  :room-id         room-id
-                  :act             1
-                  :act-prompt      (act-prompts 1)
-                  :act-timer       (act-timer! room-id)
-                  :drama-timer     (drama-timer! room-id player-count)
-                  :discard         []
-                  :deck            (rest deck)
-                  :active-player   (first players)
-                  :next-players    (rest players)}
+        new-game {:game-type     :walking-deck
+                  :room-id       room-id
+                  :act           1
+                  :act-prompt    (act-prompts 1)
+                  :act-timer     (act-timer! room-id)
+                  :drama-timer   (drama-timer! room-id player-count)
+                  :discard       []
+                  :deck          (rest deck)
+                  :active-player (first players)
+                  :next-players  (rest players)}
         new-game (assoc new-game
-                                 :active-display   (build-active-card new-game (first deck))
-                                 :inactive-display (build-inactive-card new-game nil))]
+                        :active-display   (build-active-card new-game (first deck))
+                        :inactive-display (build-inactive-card new-game nil))]
     (doto world-atom
       (swap! update-in [:rooms room-id] assoc :game new-game))))
 
@@ -538,21 +547,18 @@
         current-card   (:card active-display)
         active-player? (= (:id active-player) uid)
         valid?         (valid-action? active-player? action)
-        next-state     (case action
-                         :done           (finish-card game)
-                         :x-card         (x-card game)
-                         :discard        (discard-card game)
-                         :pause-game     (pause-game game)
-                         :unpause-game   (unpause-game game)
-                         :tick-clock     (tick-clock game)
-                         ;; TODO allow players to leave game without ending
+        state-mutator (case action
+                        :done           finish-card
+                        :x-card         x-card
+                        :discard        discard-card
+                        :pause-game     pause-game
+                        :unpause-game   unpause-game
+                        :tick-clock     tick-clock
+                        ;; TODO allow players to leave game without ending
                          ;;; change action text
-                         :leave-game     (end-game game)
-                         :end-game       (end-game game))]
-    ;; (println next-state)
-    ;; TODO FIXME: Swapping on update after computing next state lets you do multiple turns
-    ;; Need to compute next state atomically in the swap
-    (swap! world-atom update-in [:rooms room-id] assoc :game next-state)))
+                        :leave-game     end-game
+                        :end-game       end-game)]
+    (swap! world-atom update-in [:rooms room-id :game] state-mutator)))
 
 (comment
   (def fake-state {:rooms {1 {:playes [{:id "a"}]}}})

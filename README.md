@@ -19,17 +19,14 @@
 
 Functionality:
 
-* Better character intros - (drop padding cards)
+* Drop hardcoded characters list (use prompt lookup instead)
 * Player list (better format)
 * Show different prompts based on characters / current gamestate
   - Need feedback from steve on exact nature of prompts
 * Improved Win / lose dialog at the end
 
 Rules questions:
-* Does person holding deck at end of act 3 die before declaring a win?
 * Should timer restart immediately on death?
-* Random Encounters - act driven or suit driven? Either?
-* When your card is drawn and you're a zombie, what does other player describe?
 
 ### General
 

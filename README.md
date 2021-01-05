@@ -9,9 +9,11 @@
 
 ### The Debrief
 
-* Only allow scoring during rounds
 * Mission generation
 * Character "gen"
+  - Allow updating names (and/or regenerating?)
+  - Finish turn should make "official"
+
 * Act transitions
 * Better looking scoreboard
 

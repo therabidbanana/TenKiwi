@@ -142,6 +142,9 @@
                 all-players
                 player-scores
                 players-by-id]}        game
+        voting-active?                 (if-not (#{:intro} stage)
+                                         true
+                                         false)
         display                        (if active?
                                          (:active-display game)
                                          (:inactive-display game))
@@ -156,29 +159,35 @@
                                  "x-carded"))}
           (-> (get-in display [:card :text])
               (m/md->hiccup)
-              (m/component))]
+              (m/component))
+        (map (fn [{:keys [name value label]}]
+               (with-meta
+                 [:input {:name name :value value}]
+                 {:id name}))
+             (get-in display [:card :inputs]))]
          [:div.actions
           (map (fn [{:keys [action text]}] (with-meta (vector :div.action [:a {:on-click #(dispatch [:->game/action! action])} text]) {:key action}))
                (get-in display [:actions]))]]
       ]
      [:div.extras
       ;; TODO : allow character names inline
-      (map (fn [{:keys [id user-name dead?]}]
-             (let [total-score (apply + (vals (player-scores id)))]
-               (with-meta
-                [:div.player
-                 [:div.player-name
-                  (str "[ " total-score " ] " user-name)]
-                 [:div.score-actions
-                  ;; TODO - maybe this logic should come from gamemaster
-                  (if-not (or active? (= id user-id))
-                    [:a.downvote-player {:on-click #(dispatch [:->game/action! :downvote-player {:player-id id}])} " - "])
-                  (str (get-in player-scores [id user-id]))
-                  (if-not (or active? (= id user-id))
-                    [:a.upvote-player {:on-click #(dispatch [:->game/action! :upvote-player {:player-id id}])} " + "])
-                  ]]
-                {:key id})))
-           all-players)
+      (if voting-active?
+        (map (fn [{:keys [id user-name dead?]}]
+               (let [total-score (apply + (vals (player-scores id)))]
+                 (with-meta
+                   [:div.player
+                    [:div.player-name
+                     (str "[ " total-score " ] " user-name)]
+                    [:div.score-actions
+                     ;; TODO - maybe this logic should come from gamemaster
+                     (if-not (or active? (= id user-id))
+                       [:a.downvote-player {:on-click #(dispatch [:->game/action! :downvote-player {:player-id id}])} " - "])
+                     (str (get-in player-scores [id user-id]))
+                     (if-not (or active? (= id user-id))
+                       [:a.upvote-player {:on-click #(dispatch [:->game/action! :upvote-player {:player-id id}])} " + "])
+                     ]]
+                   {:key id})))
+             all-players))
       (map (fn [{conf  :confirm
                  :keys [action class text]}]
              (with-meta (vector :div.extra-action {:class class} [:a.button {:on-click #(if (or (not conf) (js/confirm "Are you sure?"))

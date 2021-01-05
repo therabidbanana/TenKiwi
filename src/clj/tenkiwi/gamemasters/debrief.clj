@@ -2,7 +2,7 @@
   "This is the game logic for debrief game"
   )
 
-(def valid-active-actions #{:pass :discard :done :x-card :end-game :leave-game})
+(def valid-active-actions #{:regen :pass :discard :done :x-card :end-game :leave-game})
 (def valid-inactive-actions #{:x-card :undo :leave-game :upvote-player :downvote-player})
 
 (defn valid-action? [active? action]
@@ -66,6 +66,38 @@
    :text (str "Always remember our organization's core values:\n\n* "
               (clojure.string/join "\n* " values))})
 
+;; TODO: Finish up agent intros
+(def agent-first-names
+  ["Carl" "Johann" "Steven" "Roger" "Sean" "Julia" "Alice" "Carol" "Pam" "James"])
+
+(def agent-last-names
+  ["Gutenberg" "Farmer" "Moore" "Connery" "Applegate" "Coolidge" "Rockefeller" "Smith" "Bond"])
+
+(def code-names
+  ["Green" "Orange" "Rabbit" "Tinman" "Carrots" "lol" "Eggplant" "Crying Face" "Salsa" "Cricket" "Lion"])
+
+(def team-skills
+  ["Driver" "Demolitions" "Disguise" "Forgery" "Close Combat" "Archery" "Hacking" "Interpersonal Skills"
+   "Hairdresser" "Intern" "Coop Student" "Artist" "Chef" "Janitorial Services"])
+
+(defn dossier-card [{:keys []}]
+  (let [random-name     (str (rand-nth agent-first-names) " " (rand-nth agent-last-names))
+        random-codename (rand-nth code-names)
+        random-skill    (rand-nth team-skills)]
+    {:id     :player-dossier
+     :stage  :dossier
+     :text   (str "Introduce your agent. Tell us their name, codename, team contribution and a fun fact about them.")
+     :inputs [{:name  "agent-name"
+               :label "Agent Name"
+               :value random-name}
+              {:name  "agent-codename"
+               :label "Agent Codename"
+               :value random-codename}
+              {:name  "agent-role"
+               :label "Team Role"
+               :value random-skill}]}))
+
+
 (def missions [
                ])
 
@@ -108,10 +140,12 @@
      :extra-actions (case next-stage
                       :end      [leave-game-action]
                       :intro    [leave-game-action]
+                      :dossier  [leave-game-action]
                       :question [leave-game-action])
      :actions       (case next-stage
                       :end      [pass end-game-action]
                       :intro    [done-action pass]
+                      :dossier  [done-action pass]
                       :question [done-action pass])}))
 
 (defn build-inactive-card [active-player extra-text]
@@ -156,6 +190,7 @@
                       :deck             (into []
                                               (concat (rest intro-cards)
                                                       [(company-values-card company)]
+                                                      (map dossier-card players)
                                                       (take card-count (shuffle question-cards))
                                                       []))
                       :active-player    (first players)

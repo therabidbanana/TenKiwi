@@ -3,11 +3,20 @@
 
 ## Next Steps
 
-### FTQ
-
-* X card the attack => dead game, no exit
 
 ### The Debrief
+
+Debrief structure:
+
+1. intro / dossier
+2. On the Case
+  (Vote)
+3. Getting In
+  (Vote)
+4. Getting Out
+  (Vote)
+5. Final thoughts
+
 
 * Mission generation
 * Character "gen"
@@ -17,24 +26,10 @@
 * Act transitions
 * Better looking scoreboard
 
-### Walking Deck
-
-Functionality:
-
-* Drop hardcoded characters list (use prompt lookup instead)
-* Player list (better format)
-* Show different prompts based on characters / current gamestate
-  - Need feedback from steve on exact nature of prompts
-* Improved Win / lose dialog at the end
-
-Rules questions:
-* Should timer restart immediately on death?
-
 ### General
 
 Bugfixes:
 
-* Duplicate actions coming in too fast (double click pass)
 * Maybe websocket disconnect that was undetected (I refreshed) - could we make
   sure a heartbeat is going and at least shows disconnect status?
 

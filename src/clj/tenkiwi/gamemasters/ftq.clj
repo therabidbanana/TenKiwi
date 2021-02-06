@@ -268,13 +268,16 @@
         next-card       (first deck)
         deck            (rest deck)
         next-state      (:state next-card)]
-    (-> game
-        (assoc-in [:inactive-display :x-card-active?] false)
-        (assoc :deck deck
-               :state next-state
-               :discard discard)
-        (assoc
-         :active-display (build-active-card next-card active-player next-up)))))
+    (if next-card
+      (-> game
+         (assoc-in [:inactive-display :x-card-active?] false)
+         (assoc :deck deck
+                :state next-state
+                :discard discard)
+         (assoc
+          :active-display (build-active-card next-card active-player next-up)))
+      ;; Don't allow discard if deck empty
+      game)))
 
 
 (defn pass-card [game]
@@ -303,6 +306,10 @@
 (defn end-game [game]
   nil)
 
+(defn tick-clock [game]
+  ;; No-op
+  game)
+
 (defn take-action [world-atom {:keys [uid room-id action]}]
   (let [{:keys [player-order
                 active-player
@@ -313,22 +320,20 @@
         current-card   (:card active-display)
         active-player? (= (:id active-player) uid)
         valid?         (valid-action? active-player? action)
-        next-state     (case action
-                         :next-queen     (next-queen game)
-                         :previous-queen (previous-queen game)
-                         :done           (finish-card game)
-                         :x-card         (x-card game)
-                         :discard        (discard-card game)
-                         :pass           (pass-card game)
-                         ;; TODO - ticking clock probably shouldn't actually
-                         ;; update state, or should do something useful
-                         :tick-clock     game
+        do-next-state  (case action
+                         :next-queen     next-queen
+                         :previous-queen previous-queen
+                         :done           finish-card
+                         :x-card         x-card
+                         :discard        discard-card
+                         :pass           pass-card
+                         :tick-clock     tick-clock
                          ;; TODO allow players to leave game without ending
                          ;;; change action text
-                         :leave-game     (end-game game)
-                         :end-game       (end-game game))]
+                         :leave-game     end-game
+                         :end-game       end-game)]
     ;; (println next-state)
-    (swap! world-atom update-in [:rooms room-id] assoc :game next-state)))
+    (swap! world-atom update-in [:rooms room-id :game] do-next-state)))
 
 (comment
   (def fake-state {:rooms {1 {:playes [{:id "a"}]}}})

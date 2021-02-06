@@ -39,98 +39,23 @@
         [:li (:user-name player)
          [:a.boot {:on-click #(dispatch [:->room/boot-player! (:id player)])} "x"]])]
      [:div.actions
-      ;; Easter Egg - For The Queen
-      (if (= (:room-code game-data) "haslem")
-        [:button {:on-click #(do
-                               (dispatch [:->game/start! :ftq])
-                               (.preventDefault %))}
-         "Start FTQ (Original)"])
-      (if (= (:room-code game-data) "haslem")
-        [:button {:on-click #(do
-                               (dispatch [:->game/start! :ftq {:game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=59533190&single=true&output=tsv"}])
-                               (.preventDefault %))}
-         "Start FTQ (The Captain)"])
-      (if (= (:room-code game-data) "haslem")
-        [:button {:on-click #(do
-                               (dispatch [:->game/start! :debrief])
-                               (.preventDefault %))}
-         "Start Debrief"])
       [:button {:on-click #(do
-                             (dispatch [:->game/start! :walking-deck {:extra-players 0}])
+                             (dispatch [:->game/start! :ftq])
                              (.preventDefault %))}
-       "Start Walking Deck + 0"]
+       "Start FTQ (Original)"]
       [:button {:on-click #(do
-                             (dispatch [:->game/start! :walking-deck {:extra-players 1}])
+                             (dispatch [:->game/start! :ftq {:game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=59533190&single=true&output=tsv"}])
                              (.preventDefault %))}
-       "Start Walking Deck + 1"]
+       "Start FTQ (The Captain)"]
       [:button {:on-click #(do
-                             (dispatch [:->game/start! :walking-deck {:extra-players 2}])
+                             (dispatch [:->game/start! :debrief])
                              (.preventDefault %))}
-       "Start Walking Deck + 2"]
-      [:button {:on-click #(do
-                             (dispatch [:->game/start! :walking-deck {:extra-players 3}])
-                             (.preventDefault %))}
-       "Start Walking Deck + 3"]
+       "Start Debrief"]
       ]]))
 
 (defn lobby-panel []
   (let [game-data (re-frame/subscribe [:room])]
     [-lobby-panel game-data re-frame/dispatch]))
-
-(defn -walking-deck-game-panel [user-data dispatch]
-  (let [{user-id        :id
-         :as            data
-         {:as   room
-          :keys [game]} :current-room} @user-data
-        active?                        (= user-id (:id (:active-player game)))
-        {:keys [act
-                act-prompt
-                act-timer
-                drama-timer
-                next-players
-                active-player]}        game
-        players                        (cons (assoc active-player :active? true)
-                                             next-players)
-        display                        (if active?
-                                         (:active-display game)
-                                         (:inactive-display game))
-        x-carded?                      (:x-card-active? display)]
-    [:div.game-table
-     [:div.current {}
-      [:div.timer {} (if (> act 3)
-                       (str "End game")
-                       (str "Act:" act
-                           " " act-prompt
-                           ;; " Time left: " act-timer " seconds"
-                           ))]
-      [:div.active-area {}
-       [:div.x-card {:class (if x-carded? "active" "inactive")}
-        [:a {:on-click #(dispatch [:->game/action! :x-card])} "X"]]
-       [:div.card {:class (str " "
-                               (if x-carded?
-                                 "x-carded"))}
-          (-> (get-in display [:card :text])
-              (m/md->hiccup)
-              (m/component))]
-         [:div.actions
-          (map-indexed
-           (fn [idx {:keys [action text]}] (with-meta (vector :div.action [:a {:on-click #(dispatch [:->game/action! action])} text]) {:key idx}))
-               (get-in display [:actions]))]]
-      ]
-     [:div.extras
-      (map-indexed (fn [idx {:keys [active? id user-name dead? character]}]
-             (with-meta [:div.player {:class (str (if active? "active"))
-                                      :title (:description character)}
-                         (str
-                          (if active? "* ")
-                          (:title character) " (" user-name ")"
-                              (if dead? "- dead"))] {:key idx}))
-           players)
-      (map-indexed (fn [idx
-                        {conf  :confirm :keys [action class text]}]
-             (with-meta (vector :div.extra-action {:class class} [:a.button {:on-click #(if (or (not conf) (js/confirm "Are you sure?"))
-                                                                                          (dispatch [:->game/action! action]))} text]) {:key idx}))
-           (get-in display [:extra-actions]))]]))
 
 (defn -debrief-game-panel [user-data dispatch]
   (let [{user-id        :id
@@ -180,10 +105,10 @@
                      (str "[ " total-score " ] " user-name)]
                     [:div.score-actions
                      ;; TODO - maybe this logic should come from gamemaster
-                     (if-not (or active? (= id user-id))
+                     (if-not (= id user-id)
                        [:a.downvote-player {:on-click #(dispatch [:->game/action! :downvote-player {:player-id id}])} " - "])
                      (str (get-in player-scores [id user-id]))
-                     (if-not (or active? (= id user-id))
+                     (if-not (= id user-id)
                        [:a.upvote-player {:on-click #(dispatch [:->game/action! :upvote-player {:player-id id}])} " + "])
                      ]]
                    {:key id})))
@@ -236,8 +161,6 @@
     (case game-type
       :ftq
       [-ftq-game-panel user-data re-frame/dispatch]
-      :walking-deck
-      [-walking-deck-game-panel user-data re-frame/dispatch]
       :debrief
       [-debrief-game-panel user-data re-frame/dispatch]
       )))

@@ -258,9 +258,9 @@
     (into [item] coll)))
 
 (defn upvote-player
-  [{:keys [player-scores] :as game}
-   voter-id
-   {:keys [player-id]}]
+  [voter-id
+   {:keys [player-id]}
+   {:keys [player-scores] :as game}]
   (let [current-score (get-in player-scores [player-id voter-id])
         new-score (min (inc current-score) 10)]
     (if current-score
@@ -269,9 +269,9 @@
       game)))
 
 (defn downvote-player
-  [{:keys [player-scores] :as game}
-   voter-id
-   {:keys [player-id]}]
+  [voter-id
+   {:keys [player-id]}
+   {:keys [player-scores] :as game}]
   (let [current-score (get-in player-scores [player-id voter-id])
         new-score (max (dec current-score) 0)]
     (if current-score
@@ -289,6 +289,10 @@
 (defn end-game [game]
   nil)
 
+(defn tick-clock [game]
+  ;; Nothing
+  game)
+
 (defn take-action [world-atom {:keys [uid room-id action params]}]
   (let [{:keys [player-order
                 active-player
@@ -299,23 +303,21 @@
         current-card   (:card active-display)
         active-player? (= (:id active-player) uid)
         valid?         (valid-action? active-player? action)
-        next-state     (case action
-                         :done       (finish-card game)
-                         :x-card     (x-card game)
-                         :discard    (discard-card game)
-                         :pass       (pass-card game)
+        do-next-state  (case action
+                         :done            finish-card
+                         :x-card          x-card
+                         :discard         discard-card
+                         :pass            pass-card
                          ;; TODO - work out upvote/downvote UI for players
-                         :upvote-player   (upvote-player game uid params)
-                         :downvote-player (downvote-player game uid params)
-                         ;; TODO - ticking clock probably shouldn't actually
-                         ;; update state, or should do something useful
-                         :tick-clock game
+                         :upvote-player   (partial upvote-player uid params)
+                         :downvote-player (partial downvote-player uid params)
+                         :tick-clock      tick-clock
                          ;; TODO allow players to leave game without ending
                          ;;; change action text
-                         :leave-game (end-game game)
-                         :end-game   (end-game game))]
+                         :leave-game      end-game
+                         :end-game        end-game)]
     ;; (println next-state)
-    (swap! world-atom update-in [:rooms room-id] assoc :game next-state)))
+    (swap! world-atom update-in [:rooms room-id :game] do-next-state)))
 
 (comment
   (def fake-state {:rooms {1 {:playes [{:id "a"}]}}})

@@ -1,13 +1,12 @@
 (ns tenkiwi.gamemasters.host
   "The host is in charge of moving users back and forth to rooms"
   (:require [tenkiwi.gamemasters.ftq :as ftq]
-            [tenkiwi.gamemasters.walking-deck :as walking-deck]
             [tenkiwi.gamemasters.debrief :as debrief]
 ))
 
 (def home-room :home)
 (defn home-room? [room] (= home-room (or room home-room)))
-(defn valid-game? [type] (#{:ftq :walking-deck :debrief} type))
+(defn valid-game? [type] (#{:ftq :debrief} type))
 
 (defn ->players [{:keys [chsk-send!]} uids message]
   (doseq [uid uids]
@@ -99,7 +98,6 @@
       (do
         (case game-type
           :ftq (ftq/start-game world player-location params)
-          :walking-deck (walking-deck/start-game world player-location params)
           :debrief (debrief/start-game world player-location)
          ;; call game setup
          )
@@ -118,10 +116,10 @@
       (cond
         (not (valid-game? current-game)) nil
         :else
-        (do
+        true ;; Nothing ticks right now
+        #_(do
           (case current-game
-            :ftq          (ftq/take-action world action)
-            :walking-deck (walking-deck/take-action world action)
+            ;; :ftq          (ftq/take-action world action)
             :debrief (debrief/take-action world action)
             ;; call game setup
             )
@@ -143,7 +141,6 @@
       (do
         (case current-game
           :ftq (ftq/take-action world action)
-          :walking-deck (walking-deck/take-action world action)
           :debrief (debrief/take-action world action)
           ;; call game setup
           )

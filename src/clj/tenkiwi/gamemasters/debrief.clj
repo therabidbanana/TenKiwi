@@ -1,6 +1,6 @@
 (ns tenkiwi.gamemasters.debrief
   "This is the game logic for debrief game"
-  )
+  (:require [tenkiwi.tables.debrief :as tables]))
 
 (def valid-active-actions #{:regen :pass :discard :done :x-card :end-game :leave-game})
 (def valid-inactive-actions #{:x-card :undo :leave-game :upvote-player :downvote-player})
@@ -13,6 +13,10 @@
 (def done-action
   {:action :done
    :text   "Finish Turn"})
+
+(def regen-action
+  {:action :regen
+   :text   "Shuffle"})
 
 (def leave-game-action
   {:action  :leave-game
@@ -28,7 +32,7 @@
    :text    "End the Game"})
 
 (def intro [
-            "Each player will take turns reading cards aloud, and then hitting **\"Finish Turn\"**."
+            "It is your turn, read the following. Each player will take turns reading cards aloud, and then hitting **\"Finish Turn\"**."
             "_You are all members of an elite organization known as VISA (Very Interesting Spy Agency)._"
             "_You were tasked with a mission of utmost importance, and have acheived your primary objective._"
             "_This acheivement did not come without cost - your team leader is now dead, and several secondary objectives were missed._"
@@ -47,56 +51,33 @@
             "Throughout the game, you will be able to upvote or downvote a player for their Overall Contribution."
             "Before we begin, we will review the mission and reacquaint ourselves with the surviving agents."])
 
-(def company-values ["Ruthless Compassion"
-                     "Methodical Efficiency"
-                     "Explosive Calm"
-                     "Paranoid Cleanliness"
-                     "Extreme Moderation"
-                     "Overconfident Humility"
-                     "Gracious Cynicism"
-                     "Overt Guile"
-                     "Careful Hyperactivity"
-                     "Joyful Seriousness"
-                     "Respectful Disagreement"
-                     "Cautious Optimism"])
-
 (defn company-values-card [{:keys [values]}]
   {:id :values
    :stage :intro
    :text (str "Always remember our organization's core values:\n\n* "
               (clojure.string/join "\n* " values))})
 
-;; TODO: Finish up agent intros
-(def agent-first-names
-  ["Carl" "Johann" "Steven" "Roger" "Sean" "Julia" "Alice" "Carol" "Pam" "James"])
-
-(def agent-last-names
-  ["Gutenberg" "Farmer" "Moore" "Connery" "Applegate" "Coolidge" "Rockefeller" "Smith" "Bond"])
-
-(def code-names
-  ["Green" "Orange" "Rabbit" "Tinman" "Carrots" "lol" "Eggplant" "Crying Face" "Salsa" "Cricket" "Lion"])
-
-(def team-skills
-  ["Driver" "Demolitions" "Disguise" "Forgery" "Close Combat" "Archery" "Hacking" "Interpersonal Skills"
-   "Hairdresser" "Intern" "Coop Student" "Artist" "Chef" "Janitorial Services"])
-
 (defn dossier-card [{:keys []}]
-  (let [random-name     (str (rand-nth agent-first-names) " " (rand-nth agent-last-names))
-        random-codename (rand-nth code-names)
-        random-skill    (rand-nth team-skills)]
+  (let [random-name     (tables/random-name)
+        random-codename (tables/random-codename)
+        random-skill    (tables/random-skill)]
     {:id     :player-dossier
      :stage  :dossier
      :text   (str "Introduce your agent. Tell us their name, codename, team contribution and a fun fact about them.")
-     :inputs [{:name  "agent-name"
-               :label "Agent Name"
-               :value random-name}
-              {:name  "agent-codename"
-               :label "Agent Codename"
-               :value random-codename}
-              {:name  "agent-role"
-               :label "Team Role"
-               :value random-skill}]}))
-
+     :inputs [{:name      "agent-name"
+               :label     "Agent Name"
+               :value     random-name
+               :generator :name
+               }
+              {:name      "agent-codename"
+               :label     "Agent Codename"
+               :value     random-codename
+               :generator :codename
+               }
+              {:name      "agent-role"
+               :label     "Team Role"
+               :value     random-skill
+               :generator :skill}]}))
 
 (def missions [
                ])
@@ -145,7 +126,7 @@
      :actions       (case next-stage
                       :end      [pass end-game-action]
                       :intro    [done-action pass]
-                      :dossier  [done-action pass]
+                      :dossier  [regen-action done-action]
                       :question [done-action pass])}))
 
 (defn build-inactive-card [active-player extra-text]
@@ -167,45 +148,59 @@
   (let [players      (get-in @world-atom [:rooms room-id :players])
         first-player (first players)
         next-player  (next-player players (:id first-player))
-        npcs         [{:user-name "Agent Pickles (The Leader)"
+        npcs         [{:user-name "NPC"
                        :id        :leader
                        :dead?     true
                        :npc?      true}]
-        all-players  (concat (into [] players)
+        dossiers     {:leader {:agent-name     (tables/random-name)
+                               :agent-codename "Agent Pickles"
+                               :agent-role     "Mission Leader"}}
+
+        all-players (concat (into [] players)
                              npcs)
-        card-count   (+ 21 (rand 10))
-        company      {:name   "VISA"
-                      :values (take 3 (shuffle company-values))}
-        new-game     {:player-order     (into [] players)
-                      :player-scores    (into {}
-                                              (map #(vector (:id %)
-                                                            (build-starting-scores % players)) all-players))
-                      :player-ranks     (zipmap [0 1 2]
-                                                (cycle [{1 nil 2 nil 3 nil :unranked (map :id all-players)}]))
-                      :all-players      all-players
-                      :game-type        :debrief
-                      :stage            :intro
-                      :discard          []
-                      :company          company
-                      :deck             (into []
-                                              (concat (rest intro-cards)
-                                                      [(company-values-card company)]
-                                                      (map dossier-card players)
-                                                      (take card-count (shuffle question-cards))
-                                                      []))
-                      :active-player    (first players)
-                      :active-display   (build-active-card (first intro-cards) first-player next-player)
-                      :inactive-display (build-inactive-card first-player (first intro))}]
+        card-count  (+ 21 (rand 10))
+        company     {:name   "VISA"
+                     :values (take 3 (shuffle tables/company-values))}
+        new-game    {:player-order     (into [] players)
+                     :player-scores    (into {}
+                                             (map #(vector (:id %)
+                                                           (build-starting-scores % players)) all-players))
+                     :player-ranks     (zipmap [0 1 2]
+                                               (cycle [{1 nil 2 nil 3 nil :unranked (map :id all-players)}]))
+                     :all-players      all-players
+                     :game-type        :debrief
+                     :stage            :intro
+                     :dossiers         dossiers
+                     :discard          []
+                     :company          company
+                     :deck             (into []
+                                             (concat (rest intro-cards)
+                                                     [(company-values-card company)]
+                                                     (map dossier-card players)
+                                                     (take card-count (shuffle question-cards))
+                                                     []))
+                     :active-player    (first players)
+                     :active-display   (build-active-card (first intro-cards) first-player next-player)
+                     :inactive-display (build-inactive-card first-player (first intro))}]
     (doto world-atom
       (swap! update-in [:rooms room-id] assoc :game new-game))))
+
+(defn extract-dossier [{:keys [inputs]}]
+  (zipmap (map keyword (map :name inputs))
+          (map :value inputs)))
 
 (defn finish-card [game]
   (let [{:keys [player-order
                 active-player
+                dossiers
                 discard
                 deck
                 stage]} game
         active-card     (get-in game [:active-display :card])
+        dossiers        (if (#{:player-dossier} (:id active-card))
+                          (assoc dossiers (:id active-player)
+                                 (extract-dossier active-card))
+                          dossiers)
         next-up         (next-player player-order active-player)
         discard         (cons active-card discard)
         next-card       (first deck)
@@ -215,6 +210,7 @@
     (assoc game
            :deck deck
            :stage next-stage
+           :dossiers dossiers
            :discard discard
            :active-player next-up
            :active-display (build-active-card next-card next-up next-next)
@@ -293,6 +289,19 @@
   ;; Nothing
   game)
 
+(defn regen-card [{:keys [active-player player-order stage]
+                   :as   game}]
+  (let [next-up      (next-player player-order active-player)
+        next-dossier (build-active-card (dossier-card active-player)
+                                        active-player
+                                        next-up)]
+    (cond
+      (#{:dossier} stage)
+      (-> game
+          (assoc :active-display next-dossier))
+      :else
+      game)))
+
 (defn take-action [world-atom {:keys [uid room-id action params]}]
   (let [{:keys [player-order
                 active-player
@@ -308,6 +317,7 @@
                          :x-card          x-card
                          :discard         discard-card
                          :pass            pass-card
+                         :regen           regen-card
                          ;; TODO - work out upvote/downvote UI for players
                          :upvote-player   (partial upvote-player uid params)
                          :downvote-player (partial downvote-player uid params)

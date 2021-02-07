@@ -66,14 +66,20 @@
         {:keys [stage
                 all-players
                 player-scores
-                players-by-id]}        game
-        voting-active?                 (if-not (#{:intro} stage)
+                players-by-id
+                dossiers]}        game
+
+        all-players    (map #(merge % (get dossiers (:id %) {}))
+                                            all-players)
+        voting-active? (if-not (#{:intro} stage)
                                          true
                                          false)
-        display                        (if active?
+        display        (if active?
                                          (:active-display game)
                                          (:inactive-display game))
-        x-carded?                      (:x-card-active? display)]
+        x-carded?      (:x-card-active? display)
+
+        ]
     [:div.game-table
      [:div.current {}
       [:div.active-area {}
@@ -85,10 +91,13 @@
           (-> (get-in display [:card :text])
               (m/md->hiccup)
               (m/component))
-        (map (fn [{:keys [name value label]}]
+        (map (fn [{:keys [name value label generator]}]
                (with-meta
-                 [:input {:name name :value value}]
-                 {:id name}))
+                 [:div.user-input
+                  [:label label]
+                  [:br]
+                  [:input {:name name :value value}]]
+                 {:key name}))
              (get-in display [:card :inputs]))]
          [:div.actions
           (map (fn [{:keys [action text]}] (with-meta (vector :div.action [:a {:on-click #(dispatch [:->game/action! action])} text]) {:key action}))
@@ -97,12 +106,14 @@
      [:div.extras
       ;; TODO : allow character names inline
       (if voting-active?
-        (map (fn [{:keys [id user-name dead?]}]
+        (map (fn [{:keys [id user-name dead? agent-name agent-codename agent-role]}]
                (let [total-score (apply + (vals (player-scores id)))]
                  (with-meta
                    [:div.player
                     [:div.player-name
-                     (str "[ " total-score " ] " user-name)]
+                     {:title (if agent-name
+                               (str "Real Name: " agent-name))}
+                     (str "[ " total-score " ] " (if agent-name (str agent-codename ", " agent-role " ")) " (" user-name ")")]
                     [:div.score-actions
                      ;; TODO - maybe this logic should come from gamemaster
                      (if-not (= id user-id)

@@ -82,6 +82,7 @@
                :box-shadow    "2px 2px 4px #123"}
      [:&.disabled {:opacity "0.7"
                    :cursor  'unset}]
+     [:&.hidden {:display 'none}]
      [:a {:display "block"
           :padding "1rem"}]]
     [:.card {:background-color "#efefef"

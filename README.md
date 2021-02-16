@@ -18,13 +18,13 @@ Debrief structure:
 5. Final thoughts
 
 
-* Act transitions - stage name / value
 * Pull prompts
 * Mission generation
+* Final scoring
+
 * Character "gen"
   - Allow updating names
 * Better looking scoreboard
-* Final scoring
 
 ### General
 

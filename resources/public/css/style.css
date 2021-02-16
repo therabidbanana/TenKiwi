@@ -154,6 +154,10 @@ body {
   cursor: unset;
 }
 
+.game-table .action.hidden {
+  display: none;
+}
+
 .game-table .action a {
   display: block;
   padding: 1rem;

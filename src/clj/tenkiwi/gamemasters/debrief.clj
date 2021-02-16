@@ -61,25 +61,29 @@
                      :as   game}]
   (let [next-player (:id (next-player player-order active-player))
         prev-player (:id (previous-player player-order active-player))
-        values (:values company)]
-    {:leader-name (get-in game [:dossiers :leader :agent-codename] "")
-     :player-left (get-in game [:dossiers prev-player :agent-codename] "")
+        values      (:values company)]
+    {:leader-name  (get-in game [:dossiers :leader :agent-codename] "")
+     :player-left  (get-in game [:dossiers prev-player :agent-codename] "")
      :player-right (get-in game [:dossiers next-player :agent-codename] "")
-     :value-0 (nth values 0)
-     :value-1 (nth values 1)
-     :value-2 (nth values 2)}))
+     :value-0      (nth values 0)
+     :value-1      (nth values 1)
+     :value-2      (nth values 2)}))
 
 (defn replace-vars [game str-or-card]
-  (let [text                  (if (string? str-or-card)
-                                str-or-card
-                                (:text str-or-card))
+  (let [text      (if (string? str-or-card)
+                    str-or-card
+                    (:text str-or-card))
         game-vars (extract-vars game)
-        replaced              (-> text
-                                  (clojure.string/replace #"\{(.+)\}" #(get game-vars (keyword (nth % 1))
-                                                                            (nth % 1))))]
-    (if (string? str-or-card)
+        replaced  (clojure.string/replace (or text "")
+                                          #"\{(.+)\}"
+                                          #(get game-vars (keyword (nth % 1))
+                                                (nth % 1)))]
+    (cond
+      (string? str-or-card)
       replaced
-      (assoc str-or-card :text replaced))))
+      (map? str-or-card)
+      (assoc str-or-card :text replaced)
+      :else str-or-card)))
 
 (defn dossier-card [{:keys []}]
   (let [random-name     (tables/random-name)
@@ -102,6 +106,18 @@
                :label     "Team Role"
                :value     random-skill
                :generator :skill}]}))
+
+(def round-texts
+  [
+   "**On the Case**\n\nPlease respond to the following prompts regarding this phase of the mission, paying special attention to actions exemplifying or counter to our company value {value-0}"
+   "**Getting In**\n\nPlease respond to the following prompts regarding this phase of the mission, paying special attention to actions exemplifying or counter to our company value {value-1}"
+   "**Getting Out**\n\nPlease respond to the following prompts regarding this phase of the mission, paying special attention to actions exemplifying or counter to our company value {value-2}"
+   ])
+
+(defn stage-card [round]
+  {:id :act-transition
+   :stage :transition
+   :text (nth round-texts round)})
 
 (defn best-voting-round-card [round]
   {:id    (str "upvoting-" round)
@@ -176,20 +192,15 @@
      {:card          (replace-vars game card)
       :extra-actions (case next-stage
                        :end        [leave-game-action]
-                       :upvoting   [leave-game-action]
-                       :downvoting [leave-game-action]
-                       :intro      [leave-game-action]
-                       :dossier    [leave-game-action]
-                       :question   [leave-game-action])
+                       [leave-game-action])
       :actions       (case next-stage
                        :end        [pass end-game-action]
                        :upvoting   (mapv (partial player-button game {:rank :best
                                                                       :round round}) all-players)
                        :downvoting (mapv (partial player-button game {:rank :worst
                                                                       :round round}) all-players)
-                       :intro      [done-action pass]
                        :dossier    [regen-action done-action]
-                       :question   [done-action pass])}))
+                       [done-action pass])}))
   ([card active-player next-player]
    (build-active-card {} card active-player next-player)))
 
@@ -247,11 +258,17 @@
                                              (concat (rest intro-cards)
                                                      [(company-values-card company)]
                                                      (map dossier-card players)
+                                                     [(stage-card 0)]
                                                      (take card-count (shuffle question-cards))
                                                      [(best-voting-round-card 0) (worst-voting-round-card 0)]
+                                                     [(stage-card 1)]
+                                                     (take card-count (shuffle question-cards))
                                                      [(best-voting-round-card 1) (worst-voting-round-card 1)]
+                                                     [(stage-card 2)]
+                                                     (take card-count (shuffle question-cards))
                                                      [(best-voting-round-card 2) (worst-voting-round-card 2)]
-                                                     []))
+                                                     [{:stage :end
+                                                       :text "TODO - finish"}]))
                      :active-player    (first players)
                      :active-display   (build-active-card (first intro-cards) first-player next-player)
                      :inactive-display (build-inactive-card first-player (first intro))}]

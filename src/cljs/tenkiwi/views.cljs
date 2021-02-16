@@ -81,6 +81,11 @@
                          (:inactive-display game))
         x-carded?      (:x-card-active? display)
 
+        self-vote?    (fn [{:keys                   [action params]
+                            {:keys [id rank round]} :params
+                            :as                     button}]
+                        (and (#{:rank-player} action)
+                             (= user-id id)))
         valid-button? (fn [{:keys                   [action params]
                             {:keys [id rank round]} :params
                             :as                     button}]
@@ -118,7 +123,8 @@
                  :or      {params {}}
                  :as      button}]
              (with-meta
-               [:div.action {:class    (if-not (valid-button? button) "disabled")
+               [:div.action {:class    (str (if-not (valid-button? button) " disabled")
+                                            (if (self-vote? button) " hidden"))
                              :on-click #(if (and
                                              (valid-button? button)
                                              (or (not confirm?) (js/confirm "Are you sure?")))

@@ -65,20 +65,32 @@
         active?                        (= user-id (:id (:active-player game)))
         {:keys [stage
                 all-players
+                player-ranks
                 player-scores
+                company
                 players-by-id
-                dossiers]}        game
+                dossiers]}             game
 
         all-players    (map #(merge % (get dossiers (:id %) {}))
-                                            all-players)
+                            all-players)
         voting-active? (if-not (#{:intro} stage)
-                                         true
-                                         false)
+                         true
+                         false)
         display        (if active?
-                                         (:active-display game)
-                                         (:inactive-display game))
+                         (:active-display game)
+                         (:inactive-display game))
         x-carded?      (:x-card-active? display)
 
+        valid-button? (fn [{:keys                   [action params]
+                            {:keys [id rank round]} :params
+                            :as                     button}]
+                        (cond
+                          (#{:rank-player} action)
+                          (and
+                           (not= user-id id)
+                           (nil? (get-in player-ranks [user-id round rank]))
+                           (not= id (get-in player-ranks [user-id round :best])))
+                          :else true))
         ]
     [:div.game-table
      [:div.current {}
@@ -100,11 +112,28 @@
                  {:key name}))
              (get-in display [:card :inputs]))]
          [:div.actions
-          (map (fn [{:keys [action text]}] (with-meta (vector :div.action [:a {:on-click #(dispatch [:->game/action! action])} text]) {:key action}))
-               (get-in display [:actions]))]]
+          (map
+           (fn [{:keys    [action text params]
+                 confirm? :confirm
+                 :or      {params {}}
+                 :as      button}]
+             (with-meta
+               [:div.action {:class    (if-not (valid-button? button) "disabled")
+                             :on-click #(if (and
+                                             (valid-button? button)
+                                             (or (not confirm?) (js/confirm "Are you sure?")))
+                                          (dispatch [:->game/action! action params])) }
+                [:a {} text]]
+               {:key (str action params)}))
+           (get-in display [:actions]))]]
       ]
      [:div.extras
-      ;; TODO : allow character names inline
+      [:div.company
+       [:h2 (str (:name company) " Values:")]
+       [:ul
+        (map
+         (fn [val] (with-meta [:li val] {:key val}))
+         (:values company))]]
       (if voting-active?
         (map (fn [{:keys [id user-name dead? agent-name agent-codename agent-role]}]
                (let [total-score (apply + (vals (player-scores id)))]

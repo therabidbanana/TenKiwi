@@ -57,6 +57,30 @@
    :text (str "Always remember our organization's core values:\n\n* "
               (clojure.string/join "\n* " values))})
 
+(defn extract-vars [{:keys [active-player player-order company]
+                     :as   game}]
+  (let [next-player (:id (next-player player-order active-player))
+        prev-player (:id (previous-player player-order active-player))
+        values (:values company)]
+    {:leader-name (get-in game [:dossiers :leader :agent-codename] "")
+     :player-left (get-in game [:dossiers prev-player :agent-codename] "")
+     :player-right (get-in game [:dossiers next-player :agent-codename] "")
+     :value-0 (nth values 0)
+     :value-1 (nth values 1)
+     :value-2 (nth values 2)}))
+
+(defn replace-vars [game str-or-card]
+  (let [text                  (if (string? str-or-card)
+                                str-or-card
+                                (:text str-or-card))
+        game-vars (extract-vars game)
+        replaced              (-> text
+                                  (clojure.string/replace #"\{(.+)\}" #(get game-vars (keyword (nth % 1))
+                                                                            (nth % 1))))]
+    (if (string? str-or-card)
+      replaced
+      (assoc str-or-card :text replaced))))
+
 (defn dossier-card [{:keys []}]
   (let [random-name     (tables/random-name)
         random-codename (tables/random-codename)
@@ -79,11 +103,25 @@
                :value     random-skill
                :generator :skill}]}))
 
+(defn best-voting-round-card [round]
+  {:id    (str "upvoting-" round)
+   :round round
+   :stage :upvoting
+   :text  (-> "Which agent best exemplified the company value of VALUE during the mission?"
+              (clojure.string/replace #"VALUE" (str "{value-" round "}")))})
+
+(defn worst-voting-round-card [round]
+  {:id    (str "downvoting-" round)
+   :round round
+   :stage :downvoting
+   :text  (-> "Which agent least exemplified the company value of VALUE during the mission?"
+              (clojure.string/replace #"VALUE" (str "{value-" round "}")))})
+
 (def missions [
                ])
 
 (def questions [
-                "What was the one thing {leader} told you to pack for this mission?"
+                "What was the one thing {leader-name} told you to pack for this mission?"
                 "How do you know {player-left} failed to read the briefing?"
                 "What insight did {player-right} have that proved most valuable during the mission?"
             ])
@@ -104,6 +142,15 @@
    :stage :inactive
    :text  (str "It is " user-name "'s turn...")})
 
+(defn previous-player [player-order current-player]
+  (let [curr-id    (:id current-player)
+        curr-index (.indexOf (mapv :id player-order) curr-id)
+        prev-index (dec curr-index)
+        prev-index (if (> 0 prev-index)
+                     (dec (count player-order))
+                     prev-index)]
+    (nth player-order prev-index)))
+
 (defn next-player [player-order current-player]
   (let [curr-id    (:id current-player)
         curr-index (.indexOf (mapv :id player-order) curr-id)
@@ -113,21 +160,42 @@
                      next-index)]
     (nth player-order next-index)))
 
-(defn build-active-card [card active-player next-player]
-  (let [next-stage (or (:stage card) :intro)
-        pass       {:action :pass
-                    :text   (str "Pass card to " (:user-name next-player))}]
-    {:card          card
-     :extra-actions (case next-stage
-                      :end      [leave-game-action]
-                      :intro    [leave-game-action]
-                      :dossier  [leave-game-action]
-                      :question [leave-game-action])
-     :actions       (case next-stage
-                      :end      [pass end-game-action]
-                      :intro    [done-action pass]
-                      :dossier  [regen-action done-action]
-                      :question [done-action pass])}))
+(defn player-button [{:keys [dossiers]} params {:keys [id user-name]}]
+  {:action  :rank-player
+   :params  (merge params {:id id})
+   :confirm true
+   :text    (str (get-in dossiers [id :agent-codename] user-name))})
+
+(defn build-active-card
+  ([game card active-player next-player]
+   (let [{:keys [all-players]} game
+         round                 (:round card)
+         next-stage            (or (:stage card) :intro)
+         pass                  {:action :pass
+                                :text   (str "Pass card to " (:user-name next-player))}]
+     {:card          (replace-vars game card)
+      :extra-actions (case next-stage
+                       :end        [leave-game-action]
+                       :upvoting   [leave-game-action]
+                       :downvoting [leave-game-action]
+                       :intro      [leave-game-action]
+                       :dossier    [leave-game-action]
+                       :question   [leave-game-action])
+      :actions       (case next-stage
+                       :end        [pass end-game-action]
+                       :upvoting   (mapv (partial player-button game {:rank :best
+                                                                      :round round}) all-players)
+                       :downvoting (mapv (partial player-button game {:rank :worst
+                                                                      :round round}) all-players)
+                       :intro      [done-action pass]
+                       :dossier    [regen-action done-action]
+                       :question   [done-action pass])}))
+  ([card active-player next-player]
+   (build-active-card {} card active-player next-player)))
+
+(defn build-inactive-version [game active-display]
+  (let []
+    active-display))
 
 (defn build-inactive-card [active-player extra-text]
   (let [waiting (waiting-for active-player)
@@ -165,8 +233,10 @@
                      :player-scores    (into {}
                                              (map #(vector (:id %)
                                                            (build-starting-scores % players)) all-players))
-                     :player-ranks     (zipmap [0 1 2]
-                                               (cycle [{1 nil 2 nil 3 nil :unranked (map :id all-players)}]))
+                     :player-ranks     (zipmap
+                                        (map :id players)
+                                        (cycle [(zipmap [0 1 2]
+                                                        (cycle [{:best nil :worst nil}]))]))
                      :all-players      all-players
                      :game-type        :debrief
                      :stage            :intro
@@ -178,6 +248,9 @@
                                                      [(company-values-card company)]
                                                      (map dossier-card players)
                                                      (take card-count (shuffle question-cards))
+                                                     [(best-voting-round-card 0) (worst-voting-round-card 0)]
+                                                     [(best-voting-round-card 1) (worst-voting-round-card 1)]
+                                                     [(best-voting-round-card 2) (worst-voting-round-card 2)]
                                                      []))
                      :active-player    (first players)
                      :active-display   (build-active-card (first intro-cards) first-player next-player)
@@ -206,15 +279,19 @@
         next-card       (first deck)
         deck            (into [] (rest deck))
         next-stage      (:stage next-card)
-        next-next       (next-player player-order next-up)]
-    (assoc game
-           :deck deck
-           :stage next-stage
-           :dossiers dossiers
-           :discard discard
-           :active-player next-up
-           :active-display (build-active-card next-card next-up next-next)
-           :inactive-display (build-inactive-card next-up nil))))
+        next-next       (next-player player-order next-up)
+
+        next-game          (assoc game
+                               :deck deck
+                               :stage next-stage
+                               :dossiers dossiers
+                               :discard discard
+                               :active-player next-up)
+        new-active-display (build-active-card next-game next-card next-up next-next)]
+    (-> next-game
+        (assoc
+         :active-display new-active-display
+         :inactive-display (build-inactive-version next-game new-active-display)))))
 
 (defn discard-card [game]
   (let [{:keys [player-order
@@ -227,31 +304,52 @@
         discard         (cons active-card discard)
         next-card       (first deck)
         deck            (rest deck)
-        next-stage      (:stage next-card)]
-    (-> game
-        (assoc-in [:inactive-display :x-card-active?] false)
-        (assoc :deck deck
-               :stage next-stage
-               :discard discard)
-        (assoc
-         :active-display (build-active-card next-card active-player next-up)))))
+        next-stage      (:stage next-card)
+
+        next-game          (-> game
+                            (assoc-in [:inactive-display :x-card-active?] false)
+                            (assoc :deck deck
+                                   :stage next-stage
+                                   :discard discard))
+        new-active-display (build-active-card next-game next-card active-player next-up)]
+    (assoc next-game
+           :active-display new-active-display)))
 
 
 (defn pass-card [game]
   (let [{:keys [player-order
                 active-player]} game
-        active-card     (get-in game [:active-display :card])
-        next-up         (next-player player-order active-player)
-        next-next       (next-player player-order next-up)]
-    (assoc game
-           :active-player next-up
-           :inactive-display (build-inactive-card next-up nil)
-           :active-display (build-active-card active-card next-up next-next))))
+        active-card             (get-in game [:active-display :card])
+        next-up                 (next-player player-order active-player)
+        next-next               (next-player player-order next-up)
+        next-game               (assoc game :active-player next-up)
+        new-active-display      (build-active-card next-game active-card next-up next-next)]
+    (assoc next-game
+           :inactive-display (build-inactive-version next-game new-active-display)
+           :active-display new-active-display)))
 
 (defn push-uniq [coll item]
   (if (some #(= % item) coll)
     coll
     (into [item] coll)))
+
+(defn rank-player
+  [voter-id
+   {:keys [id rank round]}
+   {:keys [player-ranks] :as game}]
+  (let [votes-remaining? (fn [x]
+                           (let [ranks (get x :player-ranks)]
+                            (some nil? (map #(get-in ranks [% round rank])
+                                            (keys ranks)))))
+        maybe-finish     #(if (votes-remaining? %)
+                            %
+                            (finish-card %))]
+    (if (and (not= id voter-id)
+            (nil? (get-in player-ranks [voter-id round rank])))
+     (-> game
+         (assoc-in [:player-ranks voter-id round rank] id)
+         maybe-finish)
+     game)))
 
 (defn upvote-player
   [voter-id
@@ -292,7 +390,8 @@
 (defn regen-card [{:keys [active-player player-order stage]
                    :as   game}]
   (let [next-up      (next-player player-order active-player)
-        next-dossier (build-active-card (dossier-card active-player)
+        next-dossier (build-active-card game
+                                        (dossier-card active-player)
                                         active-player
                                         next-up)]
     (cond
@@ -321,12 +420,15 @@
                          ;; TODO - work out upvote/downvote UI for players
                          :upvote-player   (partial upvote-player uid params)
                          :downvote-player (partial downvote-player uid params)
+                         :rank-player     (partial rank-player uid params)
                          :tick-clock      tick-clock
                          ;; TODO allow players to leave game without ending
                          ;;; change action text
                          :leave-game      end-game
                          :end-game        end-game)]
-    ;; (println next-state)
+    (try
+      (do-next-state game)
+      (catch Exception e (println e)))
     (swap! world-atom update-in [:rooms room-id :game] do-next-state)))
 
 (comment

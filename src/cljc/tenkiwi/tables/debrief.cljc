@@ -93,7 +93,7 @@
    "Red"
    "Purple"
    "Magenta"
-   "Fuschia"
+   "Fuchsia"
    "Mauve"
    "Rabbit"
    "Tinman"

@@ -80,6 +80,8 @@
                :margin        "1rem auto"
                :border-radius "0.2rem"
                :box-shadow    "2px 2px 4px #123"}
+     [:&.disabled {:opacity "0.7"
+                   :cursor  'unset}]
      [:a {:display "block"
           :padding "1rem"}]]
     [:.card {:background-color "#efefef"

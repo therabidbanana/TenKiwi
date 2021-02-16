@@ -18,13 +18,13 @@ Debrief structure:
 5. Final thoughts
 
 
+* Act transitions - stage name / value
+* Pull prompts
 * Mission generation
 * Character "gen"
-  - Allow updating names (and/or regenerating?)
-  - Finish turn should make "official"
-
-* Act transitions
+  - Allow updating names
 * Better looking scoreboard
+* Final scoring
 
 ### General
 
@@ -32,6 +32,7 @@ Bugfixes:
 
 * Maybe websocket disconnect that was undetected (I refreshed) - could we make
   sure a heartbeat is going and at least shows disconnect status?
+* Log exceptions (right now dropped silently)
 
 Code cleanup:
 

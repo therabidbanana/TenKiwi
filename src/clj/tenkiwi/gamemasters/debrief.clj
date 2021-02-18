@@ -10,6 +10,24 @@
     (valid-active-actions action)
     (valid-inactive-actions action)))
 
+(defn previous-player [player-order current-player]
+  (let [curr-id    (:id current-player)
+        curr-index (.indexOf (mapv :id player-order) curr-id)
+        prev-index (dec curr-index)
+        prev-index (if (> 0 prev-index)
+                     (dec (count player-order))
+                     prev-index)]
+    (nth player-order prev-index)))
+
+(defn next-player [player-order current-player]
+  (let [curr-id    (:id current-player)
+        curr-index (.indexOf (mapv :id player-order) curr-id)
+        next-index (inc curr-index)
+        next-index (if (>= next-index (count player-order))
+                     0
+                     next-index)]
+    (nth player-order next-index)))
+
 (def done-action
   {:action :done
    :text   "Finish Turn"})
@@ -157,24 +175,6 @@
   {:id    "waiting"
    :stage :inactive
    :text  (str "It is " user-name "'s turn...")})
-
-(defn previous-player [player-order current-player]
-  (let [curr-id    (:id current-player)
-        curr-index (.indexOf (mapv :id player-order) curr-id)
-        prev-index (dec curr-index)
-        prev-index (if (> 0 prev-index)
-                     (dec (count player-order))
-                     prev-index)]
-    (nth player-order prev-index)))
-
-(defn next-player [player-order current-player]
-  (let [curr-id    (:id current-player)
-        curr-index (.indexOf (mapv :id player-order) curr-id)
-        next-index (inc curr-index)
-        next-index (if (>= next-index (count player-order))
-                     0
-                     next-index)]
-    (nth player-order next-index)))
 
 (defn player-button [{:keys [dossiers]} params {:keys [id user-name]}]
   {:action  :rank-player

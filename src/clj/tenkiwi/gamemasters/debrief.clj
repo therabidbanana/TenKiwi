@@ -242,7 +242,7 @@
                                                        :text "TODO - finish"}]))
                      :active-player    (first players)
                      :active-display   (build-active-card (first intro-cards) first-player next-player)
-                     :inactive-display (build-inactive-card first-player (first intro))}]
+                     :inactive-display (build-inactive-card first-player (:text (first intro-cards)))}]
     (doto world-atom
       (swap! update-in [:rooms room-id] assoc :game new-game))))
 

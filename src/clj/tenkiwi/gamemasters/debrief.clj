@@ -1,6 +1,7 @@
 (ns tenkiwi.gamemasters.debrief
   "This is the game logic for debrief game"
-  (:require [tenkiwi.tables.debrief :as tables]))
+  (:require [tenkiwi.tables.debrief :as tables]
+            [tenkiwi.util :as util :refer [inspect]]))
 
 (def valid-active-actions #{:regen :pass :discard :done :x-card :end-game :leave-game})
 (def valid-inactive-actions #{:x-card :undo :leave-game :upvote-player :downvote-player})
@@ -49,29 +50,9 @@
   {:action  :end-game
    :text    "End the Game"})
 
-(def intro [
-            "It is your turn, read the following. Each player will take turns reading cards aloud, and then hitting **\"Finish Turn\"**."
-            "_You are all members of an elite organization known as VISA (Very Interesting Spy Agency)._"
-            "_You were tasked with a mission of utmost importance, and have acheived your primary objective._"
-            "_This acheivement did not come without cost - your team leader is now dead, and several secondary objectives were missed._"
-            "_The **DUMBASS** System (Decisive Unilateral Mission Blame Assignment Software System) will now be used to evaluate your mission performance._"
-            "_Please answer the prompts truthfully and to the best of your ability so that we may improve as a team for further missions._"
-            ;; TODO: Handle mixed phases
-            "When you have completed the introduction cards, take turns reading the prompts out loud. Interpret these questions and answer them, however you wish."
-            "Other players may ask you questions or add clarifications on your turn, but how you respond is up to you."
-            "The X option is available to all players at all times."
-            "If you encounter a prompt, or an answer, that you don't want to be included in the game, use the 'X'. That content should be considered removed from the game."
-            "If you draw a card that is removed this way, the border will be red. Simply \"Discard this\" to draw another card. You may 'X' a card you drew yourself."
-            "You can also pass on your turn. To do so, use the pass button and say: \"I think you would be the best person to ask about this\""
-            "A prompt can be passed around until someone applies the 'X' to it."
-            "Continue answering, passing and X-ing questions until the end of each phase."
-            "After each phase, agents will be asked to rank their peers on a key organizational value."
-            "Throughout the game, you will be able to upvote or downvote a player for their Overall Contribution."
-            "Before we begin, we will review the mission and reacquaint ourselves with the surviving agents."])
-
 (defn company-values-card [{:keys [values]}]
   {:id :values
-   :stage :intro
+   :type :intro
    :text (str "Always remember our organization's core values:\n\n* "
               (clojure.string/join "\n* " values))})
 
@@ -108,7 +89,7 @@
         random-codename (tables/random-codename)
         random-skill    (tables/random-skill)]
     {:id     :player-dossier
-     :stage  :dossier
+     :type  :dossier
      :text   (str "Introduce your agent. Tell us their name, codename, team contribution and a fun fact about them.")
      :inputs [{:name      "agent-name"
                :label     "Agent Name"
@@ -134,46 +115,31 @@
 
 (defn stage-card [round]
   {:id :act-transition
-   :stage :transition
+   :type :transition
    :text (nth round-texts round)})
 
 (defn best-voting-round-card [round]
   {:id    (str "upvoting-" round)
    :round round
-   :stage :upvoting
+   :type :upvoting
    :text  (-> "Which agent best exemplified the company value of VALUE during the mission?"
               (clojure.string/replace #"VALUE" (str "{value-" round "}")))})
 
 (defn worst-voting-round-card [round]
   {:id    (str "downvoting-" round)
    :round round
-   :stage :downvoting
+   :type :downvoting
    :text  (-> "Which agent least exemplified the company value of VALUE during the mission?"
               (clojure.string/replace #"VALUE" (str "{value-" round "}")))})
 
 (def missions [
                ])
 
-(def questions [
-                "What was the one thing {leader-name} told you to pack for this mission?"
-                "How do you know {player-left} failed to read the briefing?"
-                "What insight did {player-right} have that proved most valuable during the mission?"
-            ])
-
-(def intro-cards (into []
-                       (map-indexed #(hash-map :stage :intro :id %1 :text %2)
-                                    intro)))
-
-(def question-cards (into []
-                          (map-indexed #(hash-map :stage :question :id %1 :text %2)
-                                    questions)))
-
-
 ;; TODO: XSS danger?
 (defn waiting-for
   [{:keys [user-name]}]
   {:id    "waiting"
-   :stage :inactive
+   :type :inactive
    :text  (str "It is " user-name "'s turn...")})
 
 (defn player-button [{:keys [dossiers]} params {:keys [id user-name]}]
@@ -186,7 +152,7 @@
   ([game card active-player next-player]
    (let [{:keys [all-players]} game
          round                 (:round card)
-         next-stage            (or (:stage card) :intro)
+         next-stage            (or (:type card) :intro)
          pass                  {:action :pass
                                 :text   (str "Pass card to " (:user-name next-player))}]
      {:card          (replace-vars game card)
@@ -235,8 +201,13 @@
                                :agent-codename "Agent Pickles"
                                :agent-role     "Mission Leader"}}
 
+        {intro-cards :intro
+         questions   :question
+         :as         decks} (util/gather-decks "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=1113383423&single=true&output=tsv")
+        question-decks      (group-by :stage questions)
+
         all-players (concat (into [] players)
-                             npcs)
+                            npcs)
         card-count  (+ 21 (rand 10))
         company     {:name   "VISA"
                      :values (take 3 (shuffle tables/company-values))}
@@ -259,15 +230,15 @@
                                                      [(company-values-card company)]
                                                      (map dossier-card players)
                                                      [(stage-card 0)]
-                                                     (take card-count (shuffle question-cards))
+                                                     (take card-count (shuffle (question-decks "0")))
                                                      [(best-voting-round-card 0) (worst-voting-round-card 0)]
                                                      [(stage-card 1)]
-                                                     (take card-count (shuffle question-cards))
+                                                     (take card-count (shuffle (question-decks "1")))
                                                      [(best-voting-round-card 1) (worst-voting-round-card 1)]
                                                      [(stage-card 2)]
-                                                     (take card-count (shuffle question-cards))
+                                                     (take card-count (shuffle (question-decks "2")))
                                                      [(best-voting-round-card 2) (worst-voting-round-card 2)]
-                                                     [{:stage :end
+                                                     [{:type :end
                                                        :text "TODO - finish"}]))
                      :active-player    (first players)
                      :active-display   (build-active-card (first intro-cards) first-player next-player)
@@ -295,7 +266,7 @@
         discard         (cons active-card discard)
         next-card       (first deck)
         deck            (into [] (rest deck))
-        next-stage      (:stage next-card)
+        next-stage      (:type next-card)
         next-next       (next-player player-order next-up)
 
         next-game          (assoc game
@@ -321,7 +292,7 @@
         discard         (cons active-card discard)
         next-card       (first deck)
         deck            (rest deck)
-        next-stage      (:stage next-card)
+        next-stage      (:type next-card)
 
         next-game          (-> game
                             (assoc-in [:inactive-display :x-card-active?] false)

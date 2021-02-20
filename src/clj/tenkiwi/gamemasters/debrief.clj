@@ -56,14 +56,51 @@
    :text (str "Always remember our organization's core values:\n\n* "
               (clojure.string/join "\n* " values))})
 
-(defn extract-vars [{:keys [active-player player-order company]
+(defn score-ranks
+  "Finds scores for player id based on best/worst ranking from each other player
+  / round."
+  ([player-id ranks]
+   (score-ranks player-id ranks [0 1 2]))
+  ([player-id ranks stages]
+   (apply +
+          (for [stage stages
+                rater (remove #{player-id} (keys ranks))]
+            (cond
+              (#{player-id} (get-in ranks [rater stage :best]))
+              10
+              (#{player-id} (get-in ranks [rater stage :worst]))
+              3
+              :else
+              6)))))
+
+
+
+(defn score-players [{:keys [dossiers player-ranks player-scores]}]
+  (let [sum-scores  #(apply + (vals %))
+        base-scores (zipmap (keys player-scores)
+                            (map sum-scores (vals player-scores)))
+        final-scores (reduce #(update %1 %2 + (score-ranks %2 player-ranks))
+                             base-scores
+                             (keys base-scores))]
+    final-scores))
+
+(defn extract-vars [{:keys [active-player player-order company
+                            dossiers]
                      :as   game}]
   (let [next-player (:id (next-player player-order active-player))
         prev-player (:id (previous-player player-order active-player))
+        scores      (score-players game)
         values      (:values company)]
     {:leader-name  (get-in game [:dossiers :leader :agent-codename] "")
      :player-left  (get-in game [:dossiers prev-player :agent-codename] "")
      :player-right (get-in game [:dossiers next-player :agent-codename] "")
+     :scoreboard   (clojure.string/join "\n"
+                                        (map #(str
+                                               "* "
+                                               (:agent-codename (second %))
+                                                   " - "
+                                                   (scores (first %)))
+                                             dossiers))
      :value-0      (nth values 0)
      :value-1      (nth values 1)
      :value-2      (nth values 2)}))
@@ -208,7 +245,7 @@
 
         all-players (concat (into [] players)
                             npcs)
-        card-count  (+ 21 (rand 10))
+        card-count  11
         company     {:name   "VISA"
                      :values (take 3 (shuffle tables/company-values))}
         new-game    {:player-order     (into [] players)
@@ -239,7 +276,7 @@
                                                      (take card-count (shuffle (question-decks "2")))
                                                      [(best-voting-round-card 2) (worst-voting-round-card 2)]
                                                      [{:type :end
-                                                       :text "TODO - finish"}]))
+                                                       :text "{scoreboard}"}]))
                      :active-player    (first players)
                      :active-display   (build-active-card (first intro-cards) first-player next-player)
                      :inactive-display (build-inactive-card first-player (:text (first intro-cards)))}]

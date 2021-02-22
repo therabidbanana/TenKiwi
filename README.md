@@ -18,9 +18,11 @@ Debrief structure:
 5. Final thoughts
 
 
-* Mission generation
 * Final scoring presentation
-*
+  - Should always try to move Agent Pickles to the middle via last minute vote
+    changes from Pickles' perspective (as simulated by the software). If put in
+    first place, Agent Pickles will not be "promoted", and removed from final
+    score.
 
 * Character "gen"
   - Allow updating names

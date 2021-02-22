@@ -86,7 +86,7 @@
                             :as                     button}]
                         (and (#{:rank-player} action)
                              (= user-id id)))
-        valid-button? (fn [{:keys                   [action params]
+        valid-button? (fn [{:keys                   [action params disabled?]
                             {:keys [id rank round]} :params
                             :as                     button}]
                         (cond
@@ -95,7 +95,8 @@
                            (not= user-id id)
                            (nil? (get-in player-ranks [user-id round rank]))
                            (not= id (get-in player-ranks [user-id round :best])))
-                          :else true))
+                          :else
+                          (not disabled?)))
         ]
     [:div.game-table
      [:div.current {}

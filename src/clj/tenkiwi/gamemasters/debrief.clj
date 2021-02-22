@@ -5,8 +5,8 @@
    [tenkiwi.tables.debrief :as tables]
    [tenkiwi.util :as util :refer [inspect]]))
 
-(def valid-active-actions #{:regen :pass :discard :done :x-card :end-game :leave-game})
-(def valid-inactive-actions #{:x-card :undo :leave-game :upvote-player :downvote-player})
+(def valid-active-actions #{:rank-player :regen :pass :discard :done :x-card :end-game :leave-game})
+(def valid-inactive-actions #{:rank-player :x-card :undo :leave-game :upvote-player :downvote-player})
 
 (defn valid-action? [active? action]
   (if active?
@@ -139,7 +139,7 @@
         random-skill    (tables/random-skill)]
     {:id     :player-dossier
      :type  :dossier
-     :text   (str "Introduce your agent. Tell us their name, codename, team contribution and a fun fact about them.")
+     :text   (str "Take a moment to introduce your agent to the rest of the group. Tell us their name, codename, team contribution and add in a fun fact about them.")
      :inputs [{:name      "agent-name"
                :label     "Agent Name"
                :value     random-name
@@ -171,14 +171,14 @@
   {:id    (str "upvoting-" round)
    :round round
    :type :upvoting
-   :text  (-> "Which agent best exemplified the company value of VALUE during the mission?"
+   :text  (-> "Which agent best exemplified the company value of VALUE during the mission? Take some time to discuss, then pick one of the options."
               (string/replace #"VALUE" (str "{value-" round "}")))})
 
 (defn worst-voting-round-card [round]
   {:id    (str "downvoting-" round)
    :round round
    :type :downvoting
-   :text  (-> "Which agent least exemplified the company value of VALUE during the mission?"
+   :text  (-> "Which agent least exemplified the company value of VALUE during the mission? Take some time to discuss, then pick one of the options."
               (string/replace #"VALUE" (str "{value-" round "}")))})
 
 (def missions [
@@ -219,9 +219,19 @@
   ([card active-player next-player]
    (build-active-card {} card active-player next-player)))
 
-(defn build-inactive-version [game active-display]
-  (let []
-    active-display))
+(defn build-inactive-version [{:keys [active-player] :as game}
+                              {{:keys [type]} :card
+                               :as            active-display}]
+  (let [disabled-actions [{:text      (:text (waiting-for active-player))
+                           :disabled? true}]]
+    (cond
+      (#{:transition :question :intro :mission-briefing} type)
+      (-> active-display
+          (assoc :actions disabled-actions))
+      (#{:dossier} type)
+      (build-inactive-card active-player "Introductions are being made.")
+      :else
+      active-display)))
 
 (defn build-inactive-card [active-player extra-text]
   (let [waiting (waiting-for active-player)
@@ -402,7 +412,7 @@
                             %
                             (finish-card %))]
     (if (and (not= id voter-id)
-            (nil? (get-in player-ranks [voter-id round rank])))
+             (nil? (get-in player-ranks [voter-id round rank])))
      (-> game
          (assoc-in [:player-ranks voter-id round rank] id)
          maybe-finish)
@@ -458,34 +468,36 @@
       :else
       game)))
 
-(defn take-action [world-atom {:keys [uid room-id action params]}]
-  (let [{:keys [player-order
-                active-player
-                active-display
-                stage]
-         :as   game} (get-in @world-atom [:rooms room-id :game])
+(defn if-active-> [uid action do-next-state]
+  (fn [{:keys [active-player]
+        :as game}]
+    (let [active-player? (= (:id active-player) uid)]
+      (if (valid-action? active-player? action)
+        (do-next-state game)
+        game))))
 
-        active-player? (= (:id active-player) uid)
-        valid?         (valid-action? active-player? action)
-        do-next-state  (case action
-                         :done            finish-card
-                         :x-card          x-card
-                         :discard         discard-card
-                         :pass            pass-card
-                         :regen           regen-card
-                         ;; TODO - work out upvote/downvote UI for players
-                         :upvote-player   (partial upvote-player uid params)
-                         :downvote-player (partial downvote-player uid params)
-                         :rank-player     (partial rank-player uid params)
-                         :tick-clock      tick-clock
-                         ;; TODO allow players to leave game without ending
+(defn take-action [world-atom {:keys [uid room-id action params]}]
+  (let [game          (get-in @world-atom [:rooms room-id :game])
+        do-next-state (case action
+                        :done            finish-card
+                        :x-card          x-card
+                        :discard         discard-card
+                        :pass            pass-card
+                        :regen           regen-card
+                        ;; TODO - work out upvote/downvote UI for players
+                        :upvote-player   (partial upvote-player uid params)
+                        :downvote-player (partial downvote-player uid params)
+                        :rank-player     (partial rank-player uid params)
+                        :tick-clock      tick-clock
+                        ;; TODO allow players to leave game without ending
                          ;;; change action text
-                         :leave-game      end-game
-                         :end-game        end-game)]
+                        :leave-game      end-game
+                        :end-game        end-game)
+        execute       (if-active-> uid action do-next-state)]
     (try
-      (do-next-state game)
+      (execute game)
       (catch Exception e (println e)))
-    (swap! world-atom update-in [:rooms room-id :game] do-next-state)))
+    (swap! world-atom update-in [:rooms room-id :game] execute)))
 
 (comment
   (def fake-state {:rooms {1 {:playes [{:id "a"}]}}})

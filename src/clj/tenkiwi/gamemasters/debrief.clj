@@ -283,45 +283,46 @@
         question-decks      (group-by :stage questions)
         mission-details     (build-mission-details (first (shuffle missions)))
 
-        all-players (concat (into [] players)
+        all-players    (concat (into [] players)
                             npcs)
-        card-count  11
-        company     {:name   "VISA"
-                     :values (take 3 (shuffle tables/company-values))}
-        new-game    {:player-order     (into [] players)
-                     :player-scores    (into {}
-                                             (map #(vector (:id %)
-                                                           (build-starting-scores % players)) all-players))
-                     :player-ranks     (zipmap
-                                        (map :id players)
-                                        (cycle [(zipmap [0 1 2]
-                                                        (cycle [{:best nil :worst nil}]))]))
-                     :all-players      all-players
-                     :game-type        :debrief
-                     :stage            :intro
-                     :dossiers         dossiers
-                     :mission          mission-details
-                     :discard          []
-                     :company          company
-                     :deck             (into []
-                                             (concat (rest intro-cards)
-                                                     [(company-values-card company)]
-                                                     (map dossier-card players)
-                                                     (:briefing-cards mission-details)
-                                                     [(stage-card 0)]
-                                                     (take card-count (shuffle (question-decks "0")))
-                                                     [(best-voting-round-card 0) (worst-voting-round-card 0)]
-                                                     [(stage-card 1)]
-                                                     (take card-count (shuffle (question-decks "1")))
-                                                     [(best-voting-round-card 1) (worst-voting-round-card 1)]
-                                                     [(stage-card 2)]
-                                                     (take card-count (shuffle (question-decks "2")))
-                                                     [(best-voting-round-card 2) (worst-voting-round-card 2)]
-                                                     [{:type :end
-                                                       :text "{scoreboard}"}]))
-                     :active-player    (first players)
-                     :active-display   (build-active-card (first intro-cards) first-player next-player)
-                     :inactive-display (build-inactive-card first-player (:text (first intro-cards)))}]
+        card-count     11
+        company        {:name   "VISA"
+                        :values (take 3 (shuffle tables/company-values))}
+        active-display (build-active-card (first intro-cards) first-player next-player)
+        new-game       {:player-order     (into [] players)
+                        :player-scores    (into {}
+                                                (map #(vector (:id %)
+                                                              (build-starting-scores % players)) all-players))
+                        :player-ranks     (zipmap
+                                           (map :id players)
+                                           (cycle [(zipmap [0 1 2]
+                                                           (cycle [{:best nil :worst nil}]))]))
+                        :all-players      all-players
+                        :game-type        :debrief
+                        :stage            :intro
+                        :dossiers         dossiers
+                        :mission          mission-details
+                        :discard          []
+                        :company          company
+                        :deck             (into []
+                                                (concat (rest intro-cards)
+                                                        [(company-values-card company)]
+                                                        (map dossier-card players)
+                                                        (:briefing-cards mission-details)
+                                                        [(stage-card 0)]
+                                                        (take card-count (shuffle (question-decks "0")))
+                                                        [(best-voting-round-card 0) (worst-voting-round-card 0)]
+                                                        [(stage-card 1)]
+                                                        (take card-count (shuffle (question-decks "1")))
+                                                        [(best-voting-round-card 1) (worst-voting-round-card 1)]
+                                                        [(stage-card 2)]
+                                                        (take card-count (shuffle (question-decks "2")))
+                                                        [(best-voting-round-card 2) (worst-voting-round-card 2)]
+                                                        [{:type :end
+                                                          :text "{scoreboard}"}]))
+                        :active-player    (first players)
+                        :active-display   active-display
+                        :inactive-display (build-inactive-version {:active-player (first players)} active-display)}]
     (doto world-atom
       (swap! update-in [:rooms room-id] assoc :game new-game))))
 

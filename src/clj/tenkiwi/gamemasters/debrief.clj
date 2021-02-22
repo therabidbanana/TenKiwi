@@ -219,6 +219,17 @@
   ([card active-player next-player]
    (build-active-card {} card active-player next-player)))
 
+(defn build-inactive-card [active-player extra-text]
+  (let [waiting (waiting-for active-player)
+        waiting (if extra-text
+                  (update waiting
+                          :text
+                          (partial str extra-text "\n\n"))
+                  waiting)]
+
+    {:card          waiting
+     :extra-actions [leave-game-action]}))
+
 (defn build-inactive-version [{:keys [active-player] :as game}
                               {{:keys [type]} :card
                                :as            active-display}]
@@ -232,17 +243,6 @@
       (build-inactive-card active-player "Introductions are being made.")
       :else
       active-display)))
-
-(defn build-inactive-card [active-player extra-text]
-  (let [waiting (waiting-for active-player)
-        waiting (if extra-text
-                        (update waiting
-                               :text
-                               (partial str extra-text "\n\n"))
-                        waiting)]
-
-    {:card          waiting
-     :extra-actions [leave-game-action]}))
 
 (defn- build-starting-scores [{:keys [npc? id]} players]
   (let [ids (remove #(= id %) (map :id players))]

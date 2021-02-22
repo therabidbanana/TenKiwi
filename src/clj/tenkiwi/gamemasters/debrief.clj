@@ -1,7 +1,9 @@
 (ns tenkiwi.gamemasters.debrief
   "This is the game logic for debrief game"
-  (:require [tenkiwi.tables.debrief :as tables]
-            [tenkiwi.util :as util :refer [inspect]]))
+  (:require
+   [clojure.string :as string]
+   [tenkiwi.tables.debrief :as tables]
+   [tenkiwi.util :as util :refer [inspect]]))
 
 (def valid-active-actions #{:regen :pass :discard :done :x-card :end-game :leave-game})
 (def valid-inactive-actions #{:x-card :undo :leave-game :upvote-player :downvote-player})
@@ -85,16 +87,17 @@
     final-scores))
 
 (defn extract-vars [{:keys [active-player player-order company
-                            dossiers]
+                            dossiers mission]
                      :as   game}]
   (let [next-player (:id (next-player player-order active-player))
         prev-player (:id (previous-player player-order active-player))
+        secondaries (:secondary-objectives mission [])
         scores      (score-players game)
         values      (:values company)]
     {:leader-name  (get-in game [:dossiers :leader :agent-codename] "")
      :player-left  (get-in game [:dossiers prev-player :agent-codename] "")
      :player-right (get-in game [:dossiers next-player :agent-codename] "")
-     :scoreboard   (clojure.string/join "\n"
+     :scoreboard   (string/join "\n"
                                         (map #(str
                                                "* "
                                                (:agent-codename (second %))
@@ -103,14 +106,23 @@
                                              dossiers))
      :value-0      (nth values 0)
      :value-1      (nth values 1)
-     :value-2      (nth values 2)}))
+     :value-2      (nth values 2)
+     :primary      (:primary-objective mission)
+     :secondary    (first (shuffle secondaries))
+     ;; :secondary-0  (nth secondaries 0)
+     ;; :secondary-1  (nth secondaries 1)
+     ;; :secondary-2  (nth secondaries 2)
+     ;; :secondary-3  (nth secondaries 3)
+     ;; :secondary-4  (nth secondaries 4)
+     ;; :secondary-5  (nth secondaries 5)
+     }))
 
 (defn replace-vars [game str-or-card]
   (let [text      (if (string? str-or-card)
                     str-or-card
                     (:text str-or-card))
         game-vars (extract-vars game)
-        replaced  (clojure.string/replace (or text "")
+        replaced  (string/replace (or text "")
                                           #"\{(.+)\}"
                                           #(get game-vars (keyword (nth % 1))
                                                 (nth % 1)))]
@@ -160,14 +172,14 @@
    :round round
    :type :upvoting
    :text  (-> "Which agent best exemplified the company value of VALUE during the mission?"
-              (clojure.string/replace #"VALUE" (str "{value-" round "}")))})
+              (string/replace #"VALUE" (str "{value-" round "}")))})
 
 (defn worst-voting-round-card [round]
   {:id    (str "downvoting-" round)
    :round round
    :type :downvoting
    :text  (-> "Which agent least exemplified the company value of VALUE during the mission?"
-              (clojure.string/replace #"VALUE" (str "{value-" round "}")))})
+              (string/replace #"VALUE" (str "{value-" round "}")))})
 
 (def missions [
                ])
@@ -226,6 +238,22 @@
   (let [ids (remove #(= id %) (map :id players))]
     (zipmap ids (cycle [5]))))
 
+(def mission-briefing
+  [{:type :mission-briefing
+    :text "Let's take a moment to review the mission you were sent on. Please continue to read aloud."}])
+
+(def protocol-reminder
+  [{:type :mission-briefing
+    :text "As you remember from training, all covert operations can be divided into three basic stages:\n\n1. *On the case* - getting prepared and into position.\n2. *Getting in* - infiltration and achievement of main objective.\n3. *Getting out* - removing yourself from the situation without a trace."}])
+
+(defn build-mission-details [{:keys [text secondary-objectives complications]
+                        :as card}]
+  (let [briefing (->> (string/split text #"\n\n")
+                      (map #(hash-map :text % :type :mission-briefing)))]
+    (-> card
+        (assoc :briefing-cards (concat mission-briefing briefing protocol-reminder))
+        (update :secondary-objectives #(string/split % #"\s\s")))))
+
 (defn start-game [world-atom room-id]
   (let [players      (get-in @world-atom [:rooms room-id :players])
         first-player (first players)
@@ -240,8 +268,10 @@
 
         {intro-cards :intro
          questions   :question
+         missions    :mission
          :as         decks} (util/gather-decks "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=1113383423&single=true&output=tsv")
         question-decks      (group-by :stage questions)
+        mission-details     (build-mission-details (first (shuffle missions)))
 
         all-players (concat (into [] players)
                             npcs)
@@ -260,12 +290,14 @@
                      :game-type        :debrief
                      :stage            :intro
                      :dossiers         dossiers
+                     :mission          mission-details
                      :discard          []
                      :company          company
                      :deck             (into []
                                              (concat (rest intro-cards)
                                                      [(company-values-card company)]
                                                      (map dossier-card players)
+                                                     (:briefing-cards mission-details)
                                                      [(stage-card 0)]
                                                      (take card-count (shuffle (question-decks "0")))
                                                      [(best-voting-round-card 0) (worst-voting-round-card 0)]
@@ -433,7 +465,6 @@
                 stage]
          :as   game} (get-in @world-atom [:rooms room-id :game])
 
-        current-card   (:card active-display)
         active-player? (= (:id active-player) uid)
         valid?         (valid-action? active-player? action)
         do-next-state  (case action

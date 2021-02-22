@@ -4,7 +4,8 @@
 (defmacro inspect
   [expression]
   (list 'let ['result expression]
-        (list 'println (list 'quote expression) "=>" 'result)
+        (list 'pr (list 'quote expression) "=>" 'result)
+        (list 'print "\n")
         'result))
 
 (defn read-spreadsheet-data

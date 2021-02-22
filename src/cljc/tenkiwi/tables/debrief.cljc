@@ -8,10 +8,11 @@
                      "Extreme Moderation"
                      "Overconfident Humility"
                      "Gracious Cynicism"
-                     "Overt Guile"
+                     "Obvious Covertness"
                      "Careful Hyperactivity"
                      "Joyful Seriousness"
-                     "Respectful Disagreement"
+                     "Aggressive Passivity"
+                     "Disrespectful Agreement"
                      "Cautious Optimism"])
 
 (def value-modifiers

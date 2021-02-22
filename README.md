@@ -18,12 +18,13 @@ Debrief structure:
 5. Final thoughts
 
 
-* Pull prompts
 * Mission generation
-* Final scoring
+* Final scoring presentation
+*
 
 * Character "gen"
   - Allow updating names
+  - what if Paranoia? (Let users pick features for each other)
 * Better looking scoreboard
 
 ### General

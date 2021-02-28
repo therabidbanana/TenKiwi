@@ -163,6 +163,22 @@ body {
   padding: 1rem;
 }
 
+.game-table .voting-area .player {
+  padding: 0.3rem;
+  border: 1px solid #efefef;
+}
+
+.game-table .voting-area .player .score-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.game-table .voting-area .player .score-actions .button {
+  text-align: center;
+  max-width: 3rem;
+}
+
 .game-table .card {
   font-family: Georgia;
   margin: 0.5rem;

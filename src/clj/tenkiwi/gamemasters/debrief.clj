@@ -5,7 +5,7 @@
    [tenkiwi.tables.debrief :as tables]
    [tenkiwi.util :as util :refer [inspect]]))
 
-(def valid-active-actions #{:rank-player :regen :pass :discard :done :x-card :end-game :leave-game})
+(def valid-active-actions #{:rank-player :regen :pass :discard :done :x-card :end-game :upvote-player :downvote-player :leave-game})
 (def valid-inactive-actions #{:rank-player :x-card :undo :leave-game :upvote-player :downvote-player})
 
 (defn valid-action? [active? action]
@@ -162,9 +162,10 @@
    "**Getting Out**\n\nPlease respond to the following prompts regarding this phase of the mission, paying special attention to actions exemplifying or counter to our company value {value-2}"
    ])
 
-(defn stage-card [round]
+(defn act-card [round]
   {:id :act-transition
    :type :transition
+   :act round
    :text (nth round-texts round)})
 
 (defn best-voting-round-card [round]
@@ -280,7 +281,7 @@
          questions   :question
          missions    :mission
          :as         decks} (util/gather-decks "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=1113383423&single=true&output=tsv")
-        question-decks      (group-by :stage questions)
+        question-decks      (group-by :act questions)
         mission-details     (build-mission-details (first (shuffle missions)))
 
         all-players    (concat (into [] players)
@@ -299,7 +300,19 @@
                                                            (cycle [{:best nil :worst nil}]))]))
                         :all-players      all-players
                         :game-type        :debrief
+                        :stage-names      {:intro "Introduction"
+                                           :mission-briefing "Mission Briefing"
+                                           :dossier "Character Intros"
+                                           :question "{act-name}"
+                                           :transition "{act-name}"
+                                           :downvoting "{act-name} (Voting)"
+                                           :upvoting "{act-name} (Voting)"}
+                        :act-names        {"0" "Act 1 - On the case"
+                                           "1" "Act 2 - Getting in"
+                                           "2" "Act 3 - Getting out"}
                         :stage            :intro
+                        :stage-name       "Introduction"
+                        :stage-focus      ""
                         :dossiers         dossiers
                         :mission          mission-details
                         :discard          []
@@ -309,13 +322,13 @@
                                                         [(company-values-card company)]
                                                         (map dossier-card players)
                                                         (:briefing-cards mission-details)
-                                                        [(stage-card 0)]
+                                                        [(act-card "0")]
                                                         (take card-count (shuffle (question-decks "0")))
                                                         [(best-voting-round-card 0) (worst-voting-round-card 0)]
-                                                        [(stage-card 1)]
+                                                        [(act-card "1")]
                                                         (take card-count (shuffle (question-decks "1")))
                                                         [(best-voting-round-card 1) (worst-voting-round-card 1)]
-                                                        [(stage-card 2)]
+                                                        [(act-card "2")]
                                                         (take card-count (shuffle (question-decks "2")))
                                                         [(best-voting-round-card 2) (worst-voting-round-card 2)]
                                                         [{:type :end
@@ -330,33 +343,46 @@
   (zipmap (map keyword (map :name inputs))
           (map :value inputs)))
 
+(defn get-stage-info [{:keys [company act-names stage-names]} next-card]
+  (let [next-stage (get next-card :type :intro)
+        next-act   (str (get next-card :act "0"))
+        next-stage-name  (-> (get stage-names next-stage "Introduction")
+                             (clojure.string/replace #"\{act-name\}" (get act-names next-act)))
+
+        next-stage-focus (cond (#{:question :transition} next-stage)
+                               (nth (:values company) (Integer/parseInt next-act) )
+                               :else "")]
+    {:stage next-stage
+     :stage-name next-stage-name
+     :stage-focus next-stage-focus}))
+
 (defn finish-card [game]
   (let [{:keys [player-order
                 active-player
                 dossiers
                 discard
                 deck
-                stage]} game
-        active-card     (get-in game [:active-display :card])
-        dossiers        (if (#{:player-dossier} (:id active-card))
+                stage]}  game
+        active-card      (get-in game [:active-display :card])
+        dossiers         (if (#{:player-dossier} (:id active-card))
                           (assoc dossiers (:id active-player)
                                  (extract-dossier active-card))
                           dossiers)
-        next-up         (next-player player-order active-player)
-        discard         (cons active-card discard)
-        next-card       (first deck)
-        deck            (into [] (rest deck))
-        next-stage      (:type next-card)
-        next-next       (next-player player-order next-up)
+        next-up          (next-player player-order active-player)
+        discard          (cons active-card discard)
+        next-card        (first deck)
+        deck             (into [] (rest deck))
+        stage-info       (get-stage-info game next-card)
+        next-next        (next-player player-order next-up)
 
         next-game          (assoc game
-                               :deck deck
-                               :stage next-stage
-                               :dossiers dossiers
-                               :discard discard
-                               :active-player next-up)
+                                  :deck deck
+                                  :dossiers dossiers
+                                  :discard discard
+                                  :active-player next-up)
         new-active-display (build-active-card next-game next-card next-up next-next)]
     (-> next-game
+        (merge stage-info)
         (assoc
          :active-display new-active-display
          :inactive-display (build-inactive-version next-game new-active-display)))))
@@ -372,15 +398,14 @@
         discard         (cons active-card discard)
         next-card       (first deck)
         deck            (rest deck)
-        next-stage      (:type next-card)
+        stage-info      (get-stage-info game next-card)
 
         next-game          (-> game
                             (assoc-in [:inactive-display :x-card-active?] false)
                             (assoc :deck deck
-                                   :stage next-stage
                                    :discard discard))
         new-active-display (build-active-card next-game next-card active-player next-up)]
-    (assoc next-game
+    (assoc (merge next-game stage-info)
            :active-display new-active-display)))
 
 

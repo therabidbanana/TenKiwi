@@ -85,6 +85,16 @@
      [:&.hidden {:display 'none}]
      [:a {:display "block"
           :padding "1rem"}]]
+    [:.voting-area
+     [:.player
+      {:padding "0.3rem"
+       :border  "1px solid #efefef"}
+      [:.score-actions {:display         'flex
+                        :align-items     'center
+                        :justify-content 'space-between}
+       [:.button {:text-align 'center
+                  :max-width  "3rem"}]]]
+     ]
     [:.card {:background-color "#efefef"
              :padding          "2.2rem 1.2rem"
              :margin           "0.5rem"

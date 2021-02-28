@@ -64,11 +64,14 @@
           :keys [game]} :current-room} @user-data
         active?                        (= user-id (:id (:active-player game)))
         {:keys [stage
+                stage-name
+                stage-focus
                 all-players
                 player-ranks
                 player-scores
                 company
                 players-by-id
+                mission
                 dossiers]}             game
 
         all-players    (map #(merge % (get dossiers (:id %) {}))
@@ -101,6 +104,9 @@
     [:div.game-table
      [:div.current {}
       [:div.active-area {}
+       [:div.stage-info {}
+        [:div.stage-name (str stage-name)]
+        [:div.stage-focus (str stage-focus)]]
        [:div.x-card {:class (if x-carded? "active" "inactive")}
         [:a {:on-click #(dispatch [:->game/action! :x-card])} "X"]]
        [:div.card {:class (str " "
@@ -135,6 +141,26 @@
            (get-in display [:actions]))]]
       ]
      [:div.extras
+      [:div.voting-area
+       (if voting-active?
+         (map (fn [{:keys [id user-name dead? agent-name agent-codename agent-role]}]
+                (let [total-score (apply + (vals (player-scores id)))]
+                  (with-meta
+                    [:div.player
+                     [:div.player-name
+                      {:title (if agent-name
+                                (str "Real Name: " agent-name))}
+                      (str "[ " total-score " ] " (if agent-name (str agent-codename ", " agent-role " ")) " (" user-name ")")]
+                     [:div.score-actions
+                      ;; TODO - maybe this logic should come from gamemaster
+                      (if-not (= id user-id)
+                        [:a.downvote-player.button {:on-click #(dispatch [:->game/action! :downvote-player {:player-id id}])} " - "])
+                      [:div.score (str (get-in player-scores [id user-id]))]
+                      (if-not (= id user-id)
+                        [:a.upvote-player.button {:on-click #(dispatch [:->game/action! :upvote-player {:player-id id}])} " + "])
+                      ]]
+                    {:key id})))
+              all-players))]
       [:div.company
        [:h2 (str (:name company) " Values:")]
        [:ul
@@ -142,24 +168,9 @@
          (fn [val] (with-meta [:li val] {:key val}))
          (:values company))]]
       (if voting-active?
-        (map (fn [{:keys [id user-name dead? agent-name agent-codename agent-role]}]
-               (let [total-score (apply + (vals (player-scores id)))]
-                 (with-meta
-                   [:div.player
-                    [:div.player-name
-                     {:title (if agent-name
-                               (str "Real Name: " agent-name))}
-                     (str "[ " total-score " ] " (if agent-name (str agent-codename ", " agent-role " ")) " (" user-name ")")]
-                    [:div.score-actions
-                     ;; TODO - maybe this logic should come from gamemaster
-                     (if-not (= id user-id)
-                       [:a.downvote-player {:on-click #(dispatch [:->game/action! :downvote-player {:player-id id}])} " - "])
-                     (str (get-in player-scores [id user-id]))
-                     (if-not (= id user-id)
-                       [:a.upvote-player {:on-click #(dispatch [:->game/action! :upvote-player {:player-id id}])} " + "])
-                     ]]
-                   {:key id})))
-             all-players))
+        [:div.mission-details
+         [:h2 "Mission Briefing"]
+         [:p (str (:text mission))]])
       (map (fn [{conf  :confirm
                  :keys [action class text]}]
              (with-meta (vector :div.extra-action {:class class} [:a.button {:on-click #(if (or (not conf) (js/confirm "Are you sure?"))

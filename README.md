@@ -23,7 +23,7 @@ Debrief structure:
     changes from Pickles' perspective (as simulated by the software). If put in
     first place, Agent Pickles will not be "promoted", and removed from final
     score.
-
+* allow multiple settings
 * Character "gen"
   - Allow updating names
   - what if Paranoia? (Let users pick features for each other)

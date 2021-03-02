@@ -85,19 +85,19 @@
         x-carded?      (:x-card-active? display)
 
         self-vote?    (fn [{:keys                   [action params]
-                            {:keys [id rank round]} :params
+                            {:keys [id rank act]} :params
                             :as                     button}]
                         (and (#{:rank-player} action)
                              (= user-id id)))
         valid-button? (fn [{:keys                   [action params disabled?]
-                            {:keys [id rank round]} :params
+                            {:keys [id rank act]} :params
                             :as                     button}]
                         (cond
                           (#{:rank-player} action)
                           (and
                            (not= user-id id)
-                           (nil? (get-in player-ranks [user-id round rank]))
-                           (not= id (get-in player-ranks [user-id round :best])))
+                           (nil? (get-in player-ranks [user-id act rank]))
+                           (not= id (get-in player-ranks [user-id act :best])))
                           :else
                           (not disabled?)))
         ]

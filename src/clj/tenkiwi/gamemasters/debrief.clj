@@ -98,12 +98,12 @@
      :player-left  (get-in game [:dossiers prev-player :agent-codename] "")
      :player-right (get-in game [:dossiers next-player :agent-codename] "")
      :scoreboard   (string/join "\n"
-                                        (map #(str
-                                               "* "
-                                               (:agent-codename (second %))
-                                                   " - "
-                                                   (scores (first %)))
-                                             dossiers))
+                                (map #(str
+                                       "* "
+                                       (:agent-codename (second %))
+                                       " - "
+                                       (scores (first %)))
+                                     dossiers))
      :value-0      (nth values 0)
      :value-1      (nth values 1)
      :value-2      (nth values 2)
@@ -138,52 +138,34 @@
         random-codename (tables/random-codename)
         random-skill    (tables/random-skill)]
     {:id     :player-dossier
-     :type  :dossier
-     :text   (str "Take a moment to introduce your agent to the rest of the group. Tell us their name, codename, team contribution and add in a fun fact about them.")
+     :type   :dossier
+     :text   "Take a moment to introduce your character to the rest of the group.  Tell us their name, specialty and maybe add in a fun fact about them."
      :inputs [{:name      "agent-name"
                :label     "Agent Name"
                :value     random-name
-               :generator :name
-               }
+               :generator :name}
               {:name      "agent-codename"
                :label     "Agent Codename"
                :value     random-codename
-               :generator :codename
-               }
+               :generator :codename}
               {:name      "agent-role"
                :label     "Team Role"
                :value     random-skill
                :generator :skill}]}))
 
-(def round-texts
-  [
-   "**On the Case**\n\nPlease respond to the following prompts regarding this phase of the mission, paying special attention to actions exemplifying or counter to our company value {value-0}"
-   "**Getting In**\n\nPlease respond to the following prompts regarding this phase of the mission, paying special attention to actions exemplifying or counter to our company value {value-1}"
-   "**Getting Out**\n\nPlease respond to the following prompts regarding this phase of the mission, paying special attention to actions exemplifying or counter to our company value {value-2}"
-   ])
-
-(defn act-card [round]
-  {:id :act-transition
-   :type :transition
-   :act round
-   :text (nth round-texts round)})
-
-(defn best-voting-round-card [round]
-  {:id    (str "upvoting-" round)
-   :round round
+(defn best-voting-round-card [act]
+  {:id   (str "upvoting-" act)
+   :act  act
    :type :upvoting
-   :text  (-> "Which agent best exemplified the company value of VALUE during the mission? Take some time to discuss, then pick one of the options."
-              (string/replace #"VALUE" (str "{value-" round "}")))})
+   :text (-> "Which agent best exemplified the company value of VALUE during the mission? Take some time to discuss, then pick one of the options."
+              (string/replace #"VALUE" (str "{value-" act "}")))})
 
-(defn worst-voting-round-card [round]
-  {:id    (str "downvoting-" round)
-   :round round
+(defn worst-voting-round-card [act]
+  {:id   (str "downvoting-" act)
+   :act  act
    :type :downvoting
-   :text  (-> "Which agent least exemplified the company value of VALUE during the mission? Take some time to discuss, then pick one of the options."
-              (string/replace #"VALUE" (str "{value-" round "}")))})
-
-(def missions [
-               ])
+   :text (-> "Which agent least exemplified the company value of VALUE during the mission? Take some time to discuss, then pick one of the options."
+              (string/replace #"VALUE" (str "{value-" act "}")))})
 
 ;; TODO: XSS danger?
 (defn waiting-for
@@ -201,7 +183,7 @@
 (defn build-active-card
   ([game card active-player next-player]
    (let [{:keys [all-players]} game
-         round                 (:round card)
+         act                   (:act card)
          next-stage            (or (:type card) :intro)
          pass                  {:action :pass
                                 :text   (str "Pass card to " (:user-name next-player))}]
@@ -212,9 +194,9 @@
       :actions       (case next-stage
                        :end        [pass end-game-action]
                        :upvoting   (mapv (partial player-button game {:rank :best
-                                                                      :round round}) all-players)
+                                                                      :act  act}) all-players)
                        :downvoting (mapv (partial player-button game {:rank :worst
-                                                                      :round round}) all-players)
+                                                                      :act  act}) all-players)
                        :dossier    [regen-action done-action]
                        [done-action pass])}))
   ([card active-player next-player]
@@ -237,7 +219,7 @@
   (let [disabled-actions [{:text      (:text (waiting-for active-player))
                            :disabled? true}]]
     (cond
-      (#{:transition :question :intro :mission-briefing} type)
+      (#{:act-start :question :intro :mission-briefing} type)
       (-> active-display
           (assoc :actions disabled-actions))
       (#{:dossier} type)
@@ -265,6 +247,16 @@
         (assoc :briefing-cards (concat mission-briefing briefing protocol-reminder))
         (update :secondary-objectives #(string/split % #"\s\s")))))
 
+(defn one-per-act
+  ([act-collection]
+   (let [grouped (group-by :act act-collection)]
+     (zipmap (keys grouped)
+             (map first (vals grouped)))))
+  ([act-collection func]
+   (let [grouped (group-by :act act-collection)]
+     (zipmap (keys grouped)
+             (map #(-> % first func) (vals grouped))))))
+
 (defn start-game [world-atom room-id]
   (let [players      (get-in @world-atom [:rooms room-id :players])
         first-player (first players)
@@ -282,10 +274,14 @@
          missions    :mission
          :as         decks} (util/gather-decks "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=1113383423&single=true&output=tsv")
         question-decks      (group-by :act questions)
+        act-names           (-> decks :act-name (one-per-act :text))
+        act-starts          (-> decks :act-start one-per-act)
+        upvoting            (-> decks :upvoting one-per-act)
+        downvoting          (-> decks :downvoting one-per-act)
         mission-details     (build-mission-details (first (shuffle missions)))
 
         all-players    (concat (into [] players)
-                            npcs)
+                               npcs)
         card-count     11
         company        {:name   "VISA"
                         :values (take 3 (shuffle tables/company-values))}
@@ -296,20 +292,18 @@
                                                               (build-starting-scores % players)) all-players))
                         :player-ranks     (zipmap
                                            (map :id players)
-                                           (cycle [(zipmap [0 1 2]
+                                           (cycle [(zipmap (keys act-names)
                                                            (cycle [{:best nil :worst nil}]))]))
                         :all-players      all-players
                         :game-type        :debrief
-                        :stage-names      {:intro "Introduction"
+                        :stage-names      {:intro            "Introduction"
                                            :mission-briefing "Mission Briefing"
-                                           :dossier "Character Intros"
-                                           :question "{act-name}"
-                                           :transition "{act-name}"
-                                           :downvoting "{act-name} (Voting)"
-                                           :upvoting "{act-name} (Voting)"}
-                        :act-names        {"0" "Act 1 - On the case"
-                                           "1" "Act 2 - Getting in"
-                                           "2" "Act 3 - Getting out"}
+                                           :dossier          "Character Intros"
+                                           :question         "{act-name}"
+                                           :act-start        "{act-name}"
+                                           :downvoting       "{act-name} (Voting)"
+                                           :upvoting         "{act-name} (Voting)"}
+                        :act-names        act-names
                         :stage            :intro
                         :stage-name       "Introduction"
                         :stage-focus      ""
@@ -322,15 +316,15 @@
                                                         [(company-values-card company)]
                                                         (map dossier-card players)
                                                         (:briefing-cards mission-details)
-                                                        [(act-card "0")]
+                                                        [(get act-starts "0")]
                                                         (take card-count (shuffle (question-decks "0")))
-                                                        [(best-voting-round-card 0) (worst-voting-round-card 0)]
-                                                        [(act-card "1")]
+                                                        [(get upvoting "0") (get downvoting "0")]
+                                                        [(get act-starts "1")]
                                                         (take card-count (shuffle (question-decks "1")))
-                                                        [(best-voting-round-card 1) (worst-voting-round-card 1)]
-                                                        [(act-card "2")]
+                                                        [(get upvoting "1") (get downvoting "1")]
+                                                        [(get act-starts "2")]
                                                         (take card-count (shuffle (question-decks "2")))
-                                                        [(best-voting-round-card 2) (worst-voting-round-card 2)]
+                                                        [(get upvoting "2") (get downvoting "2")]
                                                         [{:type :end
                                                           :text "{scoreboard}"}]))
                         :active-player    (first players)
@@ -344,16 +338,16 @@
           (map :value inputs)))
 
 (defn get-stage-info [{:keys [company act-names stage-names]} next-card]
-  (let [next-stage (get next-card :type :intro)
-        next-act   (str (get next-card :act "0"))
-        next-stage-name  (-> (get stage-names next-stage "Introduction")
-                             (clojure.string/replace #"\{act-name\}" (get act-names next-act)))
+  (let [next-stage      (get next-card :type :intro)
+        next-act        (str (get next-card :act "0"))
+        next-stage-name (-> (get stage-names next-stage "Introduction")
+                            (clojure.string/replace #"\{act-name\}" (get act-names next-act)))
 
-        next-stage-focus (cond (#{:question :transition} next-stage)
+        next-stage-focus (cond (#{:question :act-start} next-stage)
                                (nth (:values company) (Integer/parseInt next-act) )
                                :else "")]
-    {:stage next-stage
-     :stage-name next-stage-name
+    {:stage       next-stage
+     :stage-name  next-stage-name
      :stage-focus next-stage-focus}))
 
 (defn finish-card [game]
@@ -419,7 +413,7 @@
         new-active-display      (build-active-card next-game active-card next-up next-next)]
     (assoc next-game
            :inactive-display (build-inactive-version next-game new-active-display)
-           :active-display new-active-display)))
+           :active-display (inspect new-active-display))))
 
 (defn push-uniq [coll item]
   (if (some #(= % item) coll)
@@ -428,19 +422,19 @@
 
 (defn rank-player
   [voter-id
-   {:keys [id rank round]}
+   {:keys [id rank act]}
    {:keys [player-ranks] :as game}]
   (let [votes-remaining? (fn [x]
                            (let [ranks (get x :player-ranks)]
-                            (some nil? (map #(get-in ranks [% round rank])
+                            (some nil? (map #(get-in ranks [% act rank])
                                             (keys ranks)))))
         maybe-finish     #(if (votes-remaining? %)
                             %
                             (finish-card %))]
     (if (and (not= id voter-id)
-             (nil? (get-in player-ranks [voter-id round rank])))
+             (nil? (get-in player-ranks [voter-id act rank])))
      (-> game
-         (assoc-in [:player-ranks voter-id round rank] id)
+         (assoc-in [:player-ranks voter-id act rank] id)
          maybe-finish)
      game)))
 

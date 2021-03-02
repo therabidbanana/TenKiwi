@@ -96,11 +96,13 @@
       (not (valid-game? game-type)) nil
       :else
       (do
-        (case game-type
-          :ftq (ftq/start-game world player-location params)
-          :debrief (debrief/start-game world player-location)
-         ;; call game setup
-         )
+        (try
+          (case game-type
+            :ftq (ftq/start-game world player-location params)
+            :debrief (debrief/start-game world player-location)
+            ;; call game setup
+            )
+          (catch Exception e (println e)))
         (->room system player-location [:game/started! (get-room world player-location)])))))
 
 (defn tick-clock!

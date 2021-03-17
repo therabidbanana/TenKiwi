@@ -224,6 +224,16 @@
       [-debrief-game-panel user-data re-frame/dispatch]
       )))
 
+(defn layout [body]
+  [:div.page {}
+   [:header
+    {}
+    #_[:h1 "Tenkiwi"]]
+   [:article {} body]
+   [:footer {}
+    "This work is based on For the Queen (found at http://www.forthequeengame.com/), product of Alex Roberts and Evil Hat Productions, and licensed for our use under the Creative Commons Attribution 3.0 Unported license (http://creativecommons.org/licenses/by/3.0/)."
+    ]])
+
 (defn -connecting-panel []
   (let []
     [:div "Connecting to server..."]))
@@ -232,10 +242,9 @@
   (let [user (re-frame/subscribe [:user])
         room (re-frame/subscribe [:room])
         game (get-in @user [:current-room :game :game-type])]
-    [:div {}
+    (layout
      (cond
        game [game-panel]
        (get @user :current-room) [lobby-panel]
        (get @user :connected?) [join-panel]
-       :else [-connecting-panel])
-     ]))
+       :else [-connecting-panel]))))

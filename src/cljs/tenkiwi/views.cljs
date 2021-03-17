@@ -43,15 +43,15 @@
         [:button {:on-click #(do
                                (dispatch [:->game/start! :ftq])
                                (.preventDefault %))}
-         "Start FTQ (Original)"])
+         "Start: FTQ (Original)"])
       [:button {:on-click #(do
                              (dispatch [:->game/start! :ftq {:game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=59533190&single=true&output=tsv"}])
                              (.preventDefault %))}
-       "Start FTQ (The Captain)"]
+       "Start: For The Captain"]
       [:button {:on-click #(do
                              (dispatch [:->game/start! :debrief])
                              (.preventDefault %))}
-       "Start Debrief"]
+       "Start: The Debrief"]
       ]]))
 
 (defn lobby-panel []

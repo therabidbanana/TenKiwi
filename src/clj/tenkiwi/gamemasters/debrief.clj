@@ -153,20 +153,6 @@
                :value     random-skill
                :generator :skill}]}))
 
-(defn best-voting-round-card [act]
-  {:id   (str "upvoting-" act)
-   :act  act
-   :type :upvoting
-   :text (-> "Which agent best exemplified the company value of VALUE during the mission? Take some time to discuss, then pick one of the options."
-              (string/replace #"VALUE" (str "{value-" act "}")))})
-
-(defn worst-voting-round-card [act]
-  {:id   (str "downvoting-" act)
-   :act  act
-   :type :downvoting
-   :text (-> "Which agent least exemplified the company value of VALUE during the mission? Take some time to discuss, then pick one of the options."
-              (string/replace #"VALUE" (str "{value-" act "}")))})
-
 ;; TODO: XSS danger?
 (defn waiting-for
   [{:keys [user-name]}]
@@ -231,20 +217,14 @@
   (let [ids (remove #(= id %) (map :id players))]
     (zipmap ids (cycle [5]))))
 
-(def mission-briefing
-  [{:type :mission-briefing
-    :text "Let's take a moment to review the mission you were sent on. Please continue to read aloud."}])
-
-(def protocol-reminder
-  [{:type :mission-briefing
-    :text "As you remember from training, all covert operations can be divided into three basic stages:\n\n1. *On the case* - getting prepared and into position.\n2. *Getting in* - infiltration and achievement of main objective.\n3. *Getting out* - removing yourself from the situation without a trace."}])
-
-(defn build-mission-details [{:keys [text secondary-objectives complications]
-                        :as card}]
-  (let [briefing (->> (string/split text #"\n\n")
-                      (map #(hash-map :text % :type :mission-briefing)))]
+(defn build-mission-details [mission-briefing-cards
+                             {:keys [text secondary-objectives complications] :as card}]
+  (let [briefing       (->> (string/split text #"\n\n")
+                      (map #(hash-map :text % :type :mission-briefing)))
+        mission-open   (get mission-briefing-cards "0")
+        mission-wrapup (get mission-briefing-cards "2")]
     (-> card
-        (assoc :briefing-cards (concat mission-briefing briefing protocol-reminder))
+        (assoc :briefing-cards (concat mission-open briefing mission-wrapup))
         (update :secondary-objectives #(string/split % #"\s\s")))))
 
 (defn one-per-act
@@ -276,9 +256,10 @@
         question-decks      (group-by :act questions)
         act-names           (-> decks :act-name (one-per-act :text))
         act-starts          (-> decks :act-start one-per-act)
+        mission-briefing    (->> decks :mission-briefing (group-by :act))
         upvoting            (-> decks :upvoting one-per-act)
         downvoting          (-> decks :downvoting one-per-act)
-        mission-details     (build-mission-details (first (shuffle missions)))
+        mission-details     (build-mission-details mission-briefing (first (shuffle missions)))
 
         all-players    (concat (into [] players)
                                npcs)

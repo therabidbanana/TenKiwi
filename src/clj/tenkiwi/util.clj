@@ -19,7 +19,8 @@
          header (first lines)
          rest   (rest lines)
          keys   (map keyword header)
-         rows   (map #(zipmap keys %) rest)]
+         rows   (->> (map #(zipmap keys %) rest)
+                     (filter :type))]
      (map-indexed parser rows))))
 
 (defn normalize-twospace [text]

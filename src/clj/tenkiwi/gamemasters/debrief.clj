@@ -133,25 +133,22 @@
       (assoc str-or-card :text replaced)
       :else str-or-card)))
 
-(defn dossier-card [{:keys []}]
-  (let [random-name     (tables/random-name)
-        random-codename (tables/random-codename)
-        random-skill    (tables/random-skill)]
-    {:id     :player-dossier
-     :type   :dossier
-     :text   "Take a moment to introduce your character to the rest of the group.  Tell us their name, specialty and maybe add in a fun fact about them."
-     :inputs [{:name      "agent-name"
-               :label     "Agent Name"
-               :value     random-name
-               :generator :name}
-              {:name      "agent-codename"
-               :label     "Agent Codename"
-               :value     random-codename
-               :generator :codename}
-              {:name      "agent-role"
-               :label     "Team Role"
-               :value     random-skill
-               :generator :skill}]}))
+(defn dossier-card [dossier-template generators {:keys []}]
+  (let [generator-list (->> (clojure.string/split (:inputs dossier-template) #"\s\s")
+                            (map #(clojure.string/split % #":"))
+                            (into {}))
+        pluck-value    (fn [keyname]
+                         (-> generators
+                             (get keyname [{:text "unknown"}])
+                             shuffle
+                             first
+                             :text))]
+    (merge dossier-template
+           {:id     :player-dossier
+            :inputs (mapv #(hash-map :name (first %)
+                                    :label (last %)
+                                    :value (pluck-value (first %)))
+                          generator-list)})))
 
 ;; TODO: XSS danger?
 (defn waiting-for
@@ -257,6 +254,8 @@
         act-names           (-> decks :act-name (one-per-act :text))
         act-starts          (-> decks :act-start one-per-act)
         mission-briefing    (->> decks :mission-briefing (group-by :act))
+        generators          (->> decks :generator (group-by :act))
+        dossier-template    (->> decks :dossier first)
         upvoting            (-> decks :upvoting one-per-act)
         downvoting          (-> decks :downvoting one-per-act)
         mission-details     (build-mission-details mission-briefing (first (shuffle missions)))
@@ -292,10 +291,12 @@
                         :mission          mission-details
                         :discard          []
                         :company          company
+                        :dossier-template dossier-template
+                        :generators       generators
                         :deck             (into []
                                                 (concat (rest intro-cards)
                                                         [(company-values-card company)]
-                                                        (map dossier-card players)
+                                                        (map (partial dossier-card dossier-template generators) players)
                                                         (:briefing-cards mission-details)
                                                         [(get act-starts "0")]
                                                         (take card-count (shuffle (question-decks "0")))
@@ -455,11 +456,11 @@
   ;; Nothing
   game)
 
-(defn regen-card [{:keys [active-player player-order stage]
+(defn regen-card [{:keys [generators dossier-template active-player player-order stage]
                    :as   game}]
   (let [next-up      (next-player player-order active-player)
         next-dossier (build-active-card game
-                                        (dossier-card active-player)
+                                        (dossier-card dossier-template generators active-player)
                                         active-player
                                         next-up)]
     (cond

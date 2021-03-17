@@ -39,10 +39,11 @@
         [:li (:user-name player)
          [:a.boot {:on-click #(dispatch [:->room/boot-player! (:id player)])} "x"]])]
      [:div.actions
-      [:button {:on-click #(do
-                             (dispatch [:->game/start! :ftq])
-                             (.preventDefault %))}
-       "Start FTQ (Original)"]
+      (if (= (:room-code game-data) "haslem")
+        [:button {:on-click #(do
+                               (dispatch [:->game/start! :ftq])
+                               (.preventDefault %))}
+         "Start FTQ (Original)"])
       [:button {:on-click #(do
                              (dispatch [:->game/start! :ftq {:game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=59533190&single=true&output=tsv"}])
                              (.preventDefault %))}

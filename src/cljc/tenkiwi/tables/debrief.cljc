@@ -1,7 +1,8 @@
 (ns tenkiwi.tables.debrief
   )
 
-(def company-values ["Ruthless Compassion"
+(def company-values [
+                     "Ruthless Compassion"
                      "Methodical Efficiency"
                      "Explosive Calm"
                      "Paranoid Cleanliness"
@@ -13,7 +14,8 @@
                      "Joyful Seriousness"
                      "Aggressive Passivity"
                      "Disrespectful Agreement"
-                     "Cautious Optimism"])
+                     "Cautious Optimism"
+                     ])
 
 (def value-modifiers
   ["Ruthless"

@@ -234,7 +234,8 @@
      (zipmap (keys grouped)
              (map #(-> % first func) (vals grouped))))))
 
-(defn start-game [world-atom room-id]
+(defn start-game [world-atom room-id {:keys [game-url]
+                                      :or   {game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=1113383423&single=true&output=tsv"}}]
   (let [players      (get-in @world-atom [:rooms room-id :players])
         first-player (first players)
         next-player  (next-player players (:id first-player))
@@ -249,7 +250,7 @@
         {intro-cards :intro
          questions   :question
          missions    :mission
-         :as         decks} (util/gather-decks "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=1113383423&single=true&output=tsv")
+         :as         decks} (util/gather-decks game-url)
         question-decks      (group-by :act questions)
         act-names           (-> decks :act-name (one-per-act :text))
         act-starts          (-> decks :act-start one-per-act)
@@ -263,8 +264,8 @@
         all-players    (concat (into [] players)
                                npcs)
         card-count     11
-        company        {:name   "VISA"
-                        :values (take 3 (shuffle tables/company-values))}
+        company        {:name   (first (shuffle (:company generators)))
+                        :values (take 3 (shuffle (:value generators)))}
         active-display (build-active-card (first intro-cards) first-player next-player)
         new-game       {:player-order     (into [] players)
                         :player-scores    (into {}

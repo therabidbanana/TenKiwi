@@ -99,7 +99,7 @@
         (try
           (case game-type
             :ftq (ftq/start-game world player-location params)
-            :debrief (debrief/start-game world player-location)
+            :debrief (debrief/start-game world player-location params)
             ;; call game setup
             )
           (catch Exception e (println e)))

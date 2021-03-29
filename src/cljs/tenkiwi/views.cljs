@@ -49,9 +49,13 @@
                              (.preventDefault %))}
        "Start: For The Captain"]
       [:button {:on-click #(do
-                             (dispatch [:->game/start! :debrief])
+                             (dispatch [:->game/start! :debrief {:game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=1113383423&single=true&output=tsv"}])
                              (.preventDefault %))}
        "Start: The Debrief"]
+      [:button {:on-click #(do
+                             (dispatch [:->game/start! :debrief {:game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=599053556&single=true&output=tsv"}])
+                             (.preventDefault %))}
+       "Start: The Culinary Contest"]
       ]]))
 
 (defn lobby-panel []

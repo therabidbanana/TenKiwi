@@ -264,8 +264,8 @@
         all-players    (concat (into [] players)
                                npcs)
         card-count     11
-        company        {:name   (first (shuffle (:company generators)))
-                        :values (take 3 (shuffle (:value generators)))}
+        company        {:name   (:text (first (shuffle (get generators "company" [{:text "Foo"}]))))
+                        :values (map :text (take 3 (shuffle (get generators "value" [{:text "Testing"}]))))}
         active-display (build-active-card (first intro-cards) first-player next-player)
         new-game       {:player-order     (into [] players)
                         :player-scores    (into {}

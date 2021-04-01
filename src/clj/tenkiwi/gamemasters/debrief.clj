@@ -123,7 +123,7 @@
                     (:text str-or-card))
         game-vars (extract-vars game)
         replaced  (string/replace (or text "")
-                                          #"\{(.+)\}"
+                                          #"\{([^\}]+)\}"
                                           #(get game-vars (keyword (nth % 1))
                                                 (nth % 1)))]
     (cond

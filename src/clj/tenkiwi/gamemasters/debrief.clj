@@ -52,12 +52,6 @@
   {:action  :end-game
    :text    "End the Game"})
 
-(defn company-values-card [{:keys [values]}]
-  {:id :values
-   :type :intro
-   :text (str "Always remember our organization's core values:\n\n* "
-              (clojure.string/join "\n* " values))})
-
 (defn score-ranks
   "Finds scores for player id based on best/worst ranking from each other player
   / round."
@@ -296,7 +290,6 @@
                         :generators       generators
                         :deck             (into []
                                                 (concat (rest intro-cards)
-                                                        [(company-values-card company)]
                                                         (map (partial dossier-card dossier-template generators) players)
                                                         (:briefing-cards mission-details)
                                                         [(get act-starts "0")]

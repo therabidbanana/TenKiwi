@@ -69,8 +69,6 @@
               :else
               6)))))
 
-
-
 (defn score-players [{:keys [dossiers player-ranks player-scores]}]
   (let [sum-scores  #(apply + (vals %))
         base-scores (zipmap (keys player-scores)
@@ -127,6 +125,13 @@
       (assoc str-or-card :text replaced)
       :else str-or-card)))
 
+(defn extract-generator-list [str]
+  (->> (clojure.string/split str #"\s\s")
+       (map #(clojure.string/split % #":\s+"))
+       (map #(hash-map :name (first %)
+                       :label (last %)))))
+
+;; TODO: Use above thing
 (defn dossier-card [dossier-template generators {:keys []}]
   (let [generator-list (->> (clojure.string/split (:inputs dossier-template) #"\s\s")
                             (map #(clojure.string/split % #":"))
@@ -159,12 +164,19 @@
 
 (defn build-active-card
   ([game card active-player next-player]
-   (let [{:keys [all-players]} game
+   (let [{:keys [all-players
+                 mission
+                 generators]}  game
+         story-details         (extract-generator-list (:story-details mission ""))
          act                   (:act card)
          next-stage            (or (:type card) :intro)
          pass                  {:action :pass
                                 :text   (str "Pass card to " (:user-name next-player))}]
      {:card          (replace-vars game card)
+      :extra-details (map #(hash-map :title (:label %)
+                                     :name (:name %)
+                                     :items (take 3 (shuffle (mapv :text (get generators (:name %) [])))))
+                          story-details)
       :extra-actions (case next-stage
                        :end        [leave-game-action]
                        [leave-game-action])
@@ -209,7 +221,7 @@
     (zipmap ids (cycle [5]))))
 
 (defn build-mission-details [mission-briefing-cards
-                             {:keys [text secondary-objectives complications] :as card}]
+                             {:keys [text secondary-objectives complications story-details] :as card}]
   (let [briefing       (->> (string/split text #"\n\n")
                       (map #(hash-map :text % :type :mission-briefing)))
         mission-open   (get mission-briefing-cards "0")
@@ -238,8 +250,8 @@
                        :dead?     true
                        :npc?      true}]
         dossiers     {:leader {:agent-name     (tables/random-name)
-                               :agent-codename "Agent Pickles"
-                               :agent-role     "Mission Leader"}}
+                               :agent-codename "Mr. Pickles"
+                               :agent-role     "Pickling"}}
 
         {intro-cards :intro
          questions   :question

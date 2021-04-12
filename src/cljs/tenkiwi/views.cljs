@@ -84,19 +84,21 @@
         voting-active? (if-not (#{:intro} stage)
                          true
                          false)
-        display        (if active?
-                         (:active-display game)
-                         (:inactive-display game))
-        x-carded?      (:x-card-active? display)
 
-        self-vote?    (fn [{:keys                   [action params]
+        {:keys [extra-details]
+         :as   display} (if active?
+                           (:active-display game)
+                           (:inactive-display game))
+        x-carded?       (:x-card-active? display)
+
+        self-vote?    (fn [{:keys                 [action params]
                             {:keys [id rank act]} :params
-                            :as                     button}]
+                            :as                   button}]
                         (and (#{:rank-player} action)
                              (= user-id id)))
-        valid-button? (fn [{:keys                   [action params disabled?]
+        valid-button? (fn [{:keys                 [action params disabled?]
                             {:keys [id rank act]} :params
-                            :as                     button}]
+                            :as                   button}]
                         (cond
                           (#{:rank-player} action)
                           (and
@@ -106,6 +108,7 @@
                           :else
                           (not disabled?)))
         ]
+    (println extra-details)
     [:div.game-table
      [:div.current {}
       [:div.active-area {}
@@ -153,8 +156,7 @@
                   (with-meta
                     [:div.player
                      [:div.player-name
-                      {:title (if agent-name
-                                (str "Real Name: " agent-name))}
+                      {:title agent-name}
                       (str "[ " total-score " ] " (if agent-name (str agent-codename ", " agent-role " ")) " (" user-name ")")]
                      [:div.score-actions
                       ;; TODO - maybe this logic should come from gamemaster
@@ -167,15 +169,26 @@
                     {:key id})))
               all-players))]
       [:div.company
-       [:h2 (str (:name company) " Values:")]
+       [:h2 "Round Themes"]
        [:ul
         (map
          (fn [val] (with-meta [:li val] {:key val}))
          (:values company))]]
       (if voting-active?
         [:div.mission-details
-         [:h2 "Mission Briefing"]
+         [:h2 "More Details"]
          [:p (str (:text mission))]])
+      (if (and voting-active? extra-details)
+        [:div.extra-details
+         (map (fn [{:keys [title items]}]
+                 (with-meta
+                   [:div.detail
+                    [:h2 title]
+                    [:ul
+                     (map #(with-meta [:li %] {:key %}) items)]]
+                   {:key title}))
+               extra-details
+               )])
       (map (fn [{conf  :confirm
                  :keys [action class text]}]
              (with-meta (vector :div.extra-action {:class class} [:a.button {:on-click #(if (or (not conf) (js/confirm "Are you sure?"))

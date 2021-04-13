@@ -248,7 +248,13 @@
     #_[:h1 "Tenkiwi"]]
    [:article {} body]
    [:footer {}
-    "This work is based on For the Queen (found at http://www.forthequeengame.com/), product of Alex Roberts and Evil Hat Productions, and licensed for our use under the Creative Commons Attribution 3.0 Unported license (http://creativecommons.org/licenses/by/3.0/)."
+    [:p "This work is based on "
+     [:a {:href "http://www.forthequeengame.com/"}
+      "For the Queen"]
+     ", product of Alex Roberts and Evil Hat Productions, and licensed for our use under the "
+     [:a {:href "http://creativecommons.org/licenses/by/3.0/"}
+      "Creative Commons Attribution 3.0 Unported license"]
+     ]
     ]])
 
 (defn -connecting-panel []

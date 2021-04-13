@@ -11,6 +11,10 @@
            :margin "0 auto"
            :padding "1rem"}]
    [:button {:font-size "2rem"}]
+   [:footer {:font-size "0.9rem"
+             :text-align 'center
+             :color "#bbb"}
+    [:a {:color "#bbb"}]]
    [:body {:color "#eeeef0"
            :font-size "1.2rem"
            :font-family "Tahoma"

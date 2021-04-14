@@ -126,9 +126,11 @@
         (map (fn [{:keys [name value label generator]}]
                (with-meta
                  [:div.user-input
-                  [:label label]
+                  [:label [:strong label]]
                   [:br]
-                  [:input {:name name :value value}]]
+                  [:p [:em value]]
+                  ;; [:input {:name name :value value}]
+                  ]
                  {:key name}))
              (get-in display [:card :inputs]))]
          [:div.actions

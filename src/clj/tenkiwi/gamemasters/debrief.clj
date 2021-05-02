@@ -240,6 +240,25 @@
      (zipmap (keys grouped)
              (map #(-> % first func) (vals grouped))))))
 
+(defn build-round [round card-count {:keys [question act-start upvoting downvoting]
+                                     :as   decks}]
+  (let [round          (if (string? round) round (str round))
+        questions      (group-by :act question)
+        act-starts     (one-per-act act-start)
+        upvoting       (one-per-act upvoting)
+        downvoting     (one-per-act downvoting)
+        round-start-qs (get questions (str "^" round) [])
+        round-end-qs   (get questions (str round "$") [])
+        remainder      (- card-count (+ (count round-start-qs)
+                                        (count round-end-qs)))]
+    (into []
+          (concat
+           [(get act-starts round)]
+           round-start-qs
+           (take remainder (shuffle (questions round)))
+           round-end-qs
+           [(get upvoting round) (get downvoting round)]))))
+
 (defn start-game [world-atom room-id {:keys [game-url]
                                       :or   {game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=1113383423&single=true&output=tsv"}}]
   (let [players      (get-in @world-atom [:rooms room-id :players])
@@ -257,14 +276,10 @@
          questions   :question
          missions    :mission
          :as         decks} (util/gather-decks game-url)
-        question-decks      (group-by :act questions)
         act-names           (-> decks :act-name (one-per-act :text))
-        act-starts          (-> decks :act-start one-per-act)
         mission-briefing    (->> decks :mission-briefing (group-by :act))
         generators          (->> decks :generator (group-by :act))
         dossier-template    (->> decks :dossier first)
-        upvoting            (-> decks :upvoting one-per-act)
-        downvoting          (-> decks :downvoting one-per-act)
         mission-details     (build-mission-details mission-briefing (first (shuffle missions)))
 
         all-players    (concat (into [] players)
@@ -304,15 +319,8 @@
                                                 (concat (rest intro-cards)
                                                         (map (partial dossier-card dossier-template generators) players)
                                                         (:briefing-cards mission-details)
-                                                        [(get act-starts "0")]
-                                                        (take card-count (shuffle (question-decks "0")))
-                                                        [(get upvoting "0") (get downvoting "0")]
-                                                        [(get act-starts "1")]
-                                                        (take card-count (shuffle (question-decks "1")))
-                                                        [(get upvoting "1") (get downvoting "1")]
-                                                        [(get act-starts "2")]
-                                                        (take card-count (shuffle (question-decks "2")))
-                                                        [(get upvoting "2") (get downvoting "2")]
+                                                        (mapcat #(build-round % card-count decks)
+                                                                (keys act-names))
                                                         [{:type :end
                                                           :text "{scoreboard}"}]))
                         :active-player    (first players)
@@ -327,7 +335,9 @@
 
 (defn get-stage-info [{:keys [company act-names stage-names]} next-card]
   (let [next-stage      (get next-card :type :intro)
-        next-act        (str (get next-card :act "0"))
+        next-act        (clojure.string/replace (str (get next-card :act "0"))
+                                                #"[^\d]"
+                                                "")
         next-stage-name (-> (get stage-names next-stage "Introduction")
                             (clojure.string/replace #"\{act-name\}" (get act-names next-act)))
 

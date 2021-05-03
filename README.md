@@ -24,6 +24,7 @@ Debrief structure:
     first place, Agent Pickles will not be "promoted", and removed from final
     score.
 * allow multiple settings
+  - fix character display (name / vs codename / etc)
 * Character "gen"
   - Allow updating names
   - what if Paranoia? (Let users pick features for each other)

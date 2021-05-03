@@ -96,14 +96,14 @@
                                        " - "
                                        (scores (first %)))
                                      dossiers))
-     :value-0      (nth values 0)
-     :value-1      (nth values 1)
-     :value-2      (nth values 2)
+     :value-0      (nth values 0 "unknown")
+     :value-1      (nth values 1 "unknown")
+     :value-2      (nth values 2 "unknown")
      :primary      (:primary-objective mission)
      :secondary    (first (shuffle secondaries))
-     ;; :secondary-0  (nth secondaries 0)
-     ;; :secondary-1  (nth secondaries 1)
-     ;; :secondary-2  (nth secondaries 2)
+     :secondary-0  (nth secondaries 0 "unknown")
+     :secondary-1  (nth secondaries 1 "unknown")
+     :secondary-2  (nth secondaries 2 "unknown")
      ;; :secondary-3  (nth secondaries 3)
      ;; :secondary-4  (nth secondaries 4)
      ;; :secondary-5  (nth secondaries 5)
@@ -228,7 +228,10 @@
         mission-wrapup (get mission-briefing-cards "2")]
     (-> card
         (assoc :briefing-cards (concat mission-open briefing mission-wrapup))
-        (update :secondary-objectives #(string/split % #"\s\s")))))
+        (update :secondary-objectives #(string/split % #"\s\s"))
+        (update :complications #(string/split % #"\s\s"))
+        (update :complications shuffle)
+        (update :secondary-objectives shuffle))))
 
 (defn one-per-act
   ([act-collection]
@@ -277,6 +280,7 @@
          missions    :mission
          :as         decks} (util/gather-decks game-url)
         act-names           (-> decks :act-name (one-per-act :text))
+        focus-names         (-> decks :focus-name (one-per-act :text))
         mission-briefing    (->> decks :mission-briefing (group-by :act))
         generators          (->> decks :generator (group-by :act))
         dossier-template    (->> decks :dossier first)
@@ -306,6 +310,7 @@
                                            :downvoting       "{act-name} (Voting)"
                                            :upvoting         "{act-name} (Voting)"}
                         :act-names        act-names
+                        :focus-names      focus-names
                         :stage            :intro
                         :stage-name       "Introduction"
                         :stage-focus      ""
@@ -333,7 +338,12 @@
   (zipmap (map keyword (map :name inputs))
           (map :value inputs)))
 
-(defn get-stage-info [{:keys [company act-names stage-names]} next-card]
+(defn get-stage-info [{:keys [company
+                              act-names
+                              stage-names
+                              focus-names]
+                       :as game}
+                      next-card]
   (let [next-stage      (get next-card :type :intro)
         next-act        (clojure.string/replace (str (get next-card :act "0"))
                                                 #"[^\d]"
@@ -342,7 +352,7 @@
                             (clojure.string/replace #"\{act-name\}" (get act-names next-act)))
 
         next-stage-focus (cond (#{:question :act-start} next-stage)
-                               (nth (:values company) (Integer/parseInt next-act) )
+                               (replace-vars game (get focus-names next-act (str "{value-" next-act "}")))
                                :else "")]
     {:stage       next-stage
      :stage-name  next-stage-name

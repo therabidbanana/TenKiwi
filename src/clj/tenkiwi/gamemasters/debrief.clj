@@ -433,7 +433,7 @@
         new-active-display      (build-active-card next-game active-card next-up next-next)]
     (assoc next-game
            :inactive-display (build-inactive-version next-game new-active-display)
-           :active-display (inspect new-active-display))))
+           :active-display new-active-display)))
 
 (defn push-uniq [coll item]
   (if (some #(= % item) coll)

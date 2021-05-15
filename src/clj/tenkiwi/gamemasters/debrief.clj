@@ -81,32 +81,34 @@
 (defn extract-vars [{:keys [active-player player-order company
                             dossiers mission]
                      :as   game}]
-  (let [next-player (:id (next-player player-order active-player))
-        prev-player (:id (previous-player player-order active-player))
-        secondaries (:secondary-objectives mission [])
-        scores      (score-players game)
-        values      (:values company)]
-    {:leader-name  (get-in game [:dossiers :leader :agent-codename] "")
-     :player-left  (get-in game [:dossiers prev-player :agent-codename] "")
-     :player-right (get-in game [:dossiers next-player :agent-codename] "")
-     :scoreboard   (string/join "\n"
+  (let [next-player   (:id (next-player player-order active-player))
+        prev-player   (:id (previous-player player-order active-player))
+        secondaries   (:secondary-objectives mission [])
+        complications (:complications mission [])
+        scores        (score-players game)
+        values        (:values company)]
+    {:leader-name    (get-in game [:dossiers :leader :agent-codename] "")
+     :player-left    (get-in game [:dossiers prev-player :agent-codename] "")
+     :player-right   (get-in game [:dossiers next-player :agent-codename] "")
+     :scoreboard     (string/join "\n"
                                 (map #(str
                                        "* "
                                        (:agent-codename (second %))
                                        " - "
                                        (scores (first %)))
                                      dossiers))
-     :value-0      (nth values 0 "unknown")
-     :value-1      (nth values 1 "unknown")
-     :value-2      (nth values 2 "unknown")
-     :primary      (:primary-objective mission)
-     :secondary    (first (shuffle secondaries))
-     :secondary-0  (nth secondaries 0 "unknown")
-     :secondary-1  (nth secondaries 1 "unknown")
-     :secondary-2  (nth secondaries 2 "unknown")
-     ;; :secondary-3  (nth secondaries 3)
-     ;; :secondary-4  (nth secondaries 4)
-     ;; :secondary-5  (nth secondaries 5)
+     :value-0        (nth values 0 "unknown")
+     :value-1        (nth values 1 "unknown")
+     :value-2        (nth values 2 "unknown")
+     :primary        (:primary-objective mission)
+     :secondary      (first (shuffle secondaries))
+     :secondary-0    (nth secondaries 0 "unknown")
+     :secondary-1    (nth secondaries 1 "unknown")
+     :secondary-2    (nth secondaries 2 "unknown")
+     :complication   (first (shuffle complications))
+     :complication-0 (nth complications 0 "unknown")
+     :complication-1 (nth complications 1 "unknown")
+     :complication-2 (nth complications 2 "unknown")
      }))
 
 (defn replace-vars [game str-or-card]
@@ -262,19 +264,25 @@
            round-end-qs
            [(get upvoting round) (get downvoting round)]))))
 
+(defn pluck
+  ([generators gen-name]
+   (first (pluck-generator generators gen-name 1)))
+  ([generators gen-name count]
+   (->> [{:text "Foo"}]
+        (get generators gen-name)
+        shuffle
+        (take count)
+        (map :text))))
+
 (defn start-game [world-atom room-id {:keys [game-url]
                                       :or   {game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=1113383423&single=true&output=tsv"}}]
-  (let [players      (get-in @world-atom [:rooms room-id :players])
-        first-player (first players)
-        next-player  (next-player players (:id first-player))
-        npcs         [{:user-name "NPC"
-                       :id        :leader
-                       :dead?     true
-                       :npc?      true}]
-        dossiers     {:leader {:agent-name     (tables/random-name)
-                               :agent-codename "Mr. Pickles"
-                               :agent-role     "Pickling"}}
-
+  (let [players             (get-in @world-atom [:rooms room-id :players])
+        first-player        (first players)
+        next-player         (next-player players (:id first-player))
+        npcs                [{:user-name "NPC"
+                              :id        :leader
+                              :dead?     true
+                              :npc?      true}]
         {intro-cards :intro
          questions   :question
          missions    :mission
@@ -286,11 +294,15 @@
         dossier-template    (->> decks :dossier first)
         mission-details     (build-mission-details mission-briefing (first (shuffle missions)))
 
-        all-players    (concat (into [] players)
+        all-players (concat (into [] players)
                                npcs)
-        card-count     11
-        company        {:name   (:text (first (shuffle (get generators "company" [{:text "Foo"}]))))
-                        :values (map :text (take 3 (shuffle (get generators "value" [{:text "Testing"}]))))}
+        card-count  11
+        company     {:name   (pluck generators "company")
+                     :values (pluck generators "value" 3)}
+        dossiers    {:leader {:agent-name     (tables/random-name)
+                              :agent-codename (pluck generators "leader-codename")
+                              :agent-role     (pluck generators "leader-role")}}
+
         active-display (build-active-card (first intro-cards) first-player next-player)
         new-game       {:player-order     (into [] players)
                         :player-scores    (into {}

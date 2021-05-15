@@ -266,7 +266,7 @@
 
 (defn pluck
   ([generators gen-name]
-   (first (pluck-generator generators gen-name 1)))
+   (first (pluck generators gen-name 1)))
   ([generators gen-name count]
    (->> [{:text "Foo"}]
         (get generators gen-name)

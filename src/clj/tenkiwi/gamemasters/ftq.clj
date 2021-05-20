@@ -194,10 +194,12 @@
     {:card          waiting
      :extra-actions [leave-game-action]}))
 
-(defn start-game [world-atom room-id {:keys [game-url]
-                                      :or   {game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=0&single=true&output=tsv"}}]
-  (let [players      (get-in @world-atom [:rooms room-id :players])
-        decks        (gather-decks game-url)
+(defn start-game [room-id
+                  {:keys [game-url]
+                   :or   {game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=0&single=true&output=tsv"}}
+                  {:keys [players]
+                   :as game}]
+  (let [decks        (gather-decks game-url)
         first-player (first players)
         next-player  (next-player players (:id first-player))
         card-count   (+ 21 (rand 10))
@@ -214,8 +216,7 @@
                       :queen            (first (:image decks))
                       :active-display   (build-active-card (first (:intro decks)) first-player next-player)
                       :inactive-display (build-inactive-card first-player (:text (first (:intro decks))))}]
-    (doto world-atom
-      (swap! update-in [:rooms room-id] assoc :game new-game))))
+    new-game))
 
 (defn finish-card [game]
   (let [{:keys [player-order
@@ -310,13 +311,12 @@
   ;; No-op
   game)
 
-(defn take-action [world-atom {:keys [uid room-id action]}]
+(defn take-action [{:keys [uid room-id action]} {:keys [game]}]
   (let [{:keys [player-order
                 active-player
                 active-display
                 state]
-         :as   game} (get-in @world-atom [:rooms room-id :game])
-
+         :as   game}   game
         current-card   (:card active-display)
         active-player? (= (:id active-player) uid)
         valid?         (valid-action? active-player? action)
@@ -333,7 +333,7 @@
                          :leave-game     end-game
                          :end-game       end-game)]
     ;; (println next-state)
-    (swap! world-atom update-in [:rooms room-id :game] do-next-state)))
+    (do-next-state game)))
 
 (comment
   (def fake-state {:rooms {1 {:playes [{:id "a"}]}}})

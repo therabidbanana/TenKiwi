@@ -52,10 +52,6 @@
       (swap! update-in [:player-info] assoc uid user-info)
       (swap! update-in [:rooms] assoc room-id new-room)))))
 
-#_(send-player-home (atom {:players {1 1} :rooms {1 {:players [{:id 1}]}}}) 1)
-
-#_(set-player-room (atom {}) 1 "a" {:id 1 :user-name "foo"})
-
 (defn new-arrival!
   "Called whenever a new uid arrives"
   [{:as system :keys [register chsk-send!]} uid]
@@ -64,7 +60,37 @@
     (println chsk-send! uid player-location)
     (if-not invalid-redirect?
       (if-let [room (get-room (:world register) player-location)]
-        (->player system uid [:user/room-joined! room])))))
+        (->player system uid [:->user/room-joined! room])))))
+
+(defn game-starter [game-name room-id params]
+  (cond
+    (home-room? room-id) nil
+    :else
+    (case game-name
+      :debrief (partial debrief/start-game room-id params)
+      :ftq (partial ftq/start-game room-id params)
+      nil)))
+
+(defn game-action [game-name {:keys [uid room-id] :as action}]
+  (cond
+    (home-room? room-id) nil
+    :else
+    (case game-name
+      :debrief (partial debrief/take-action action)
+      :ftq (partial ftq/take-action action)
+      nil)))
+
+(defn log-unless-timekeeper [output uid]
+  (if-not (#{:timekeeper} uid)
+    (println (select-keys output [:room-id :player-order :act]))))
+
+(defn update-room-state! [world-state system room-id mutator]
+  (let [current-game (get-in world-state [:rooms room-id])
+        response (mutator current-game)
+        new-game (dissoc response :broadcasts)]
+    (doseq [broadcast (:broadcasts response)]
+      (->room system room-id broadcast))
+    (assoc-in world-state [:rooms room-id :game] new-game)))
 
 (defn leave-room!
   [{:as system :keys [register]} uid]
@@ -80,73 +106,52 @@
     (set-player-room world uid room-code join-info)
     (let [player-location (get-player-location world uid)
           room        (get-room world player-location)]
-      (->player system uid [:user/room-joined! room])
+      (->player system uid [:->user/room-joined! room])
       (println "send to " player-location)
-      (->room system player-location [:room/user-joined! room]))))
+      (->room system player-location [:->room/user-joined! room]))))
 
 (defn start-game!
   "Called to trigger a game start by host"
   [{:as system :keys [register]} uid {:keys [game-type
                                              params]}]
-  (let [world           (:world register)
-        player-location (get-player-location world uid)
-        room            (get-room world player-location)]
-    (cond
-      (home-room? player-location)  nil
-      (not (valid-game? game-type)) nil
-      :else
-      (do
-        (try
-          (case game-type
-            :ftq (ftq/start-game world player-location params)
-            :debrief (debrief/start-game world player-location params)
-            ;; call game setup
-            )
-          (catch Exception e (println e)))
-        (->room system player-location [:game/started! (get-room world player-location)])))))
+  (let [world   (:world register)
+        room-id (get-player-location world uid)
+        mutator (game-starter game-type room-id params)]
+    (if mutator
+      (let [output    (swap! world update-room-state! system room-id mutator)
+            new-state (get-in output [:rooms room-id :game])]
+        (log-unless-timekeeper new-state uid)
+        (->room system room-id [:->game/started! (get-room world room-id)])))))
+
+(defn- run-action
+  "Do the work of triggering an action / broadcasting results, used by clock and
+  action calls"
+  [{{:keys [world]} :register :as system}
+                  {:as action :keys [uid room-id]}]
+  (let [room         (get-room world room-id)
+        current-game (get-in room [:game :game-type])
+        mutator      (game-action current-game action)]
+    (if mutator
+      (let [output    (swap! world update-room-state! system room-id mutator)
+            new-state (get-in output [:rooms room-id :game])]
+        (log-unless-timekeeper new-state uid)
+        (->room system room-id [:->game/changed! (get-room world room-id)])))))
 
 (defn tick-clock!
   "Called by the system to tick all game clocks"
   [{:as system :keys [register]}]
-  (doseq [room (-> register :world deref :rooms keys)]
-    (let [world        (:world register)
-          current-game (get-in (get-room world room)
-                               [:game :game-type])
-          action       {:room-id room
-                        :action  :tick-clock
-                        :uid     :timekeeper}]
-      (cond
-        (not (valid-game? current-game)) nil
-        :else
-        true ;; Nothing ticks right now
-        #_(do
-          (case current-game
-            ;; :ftq          (ftq/take-action world action)
-            :debrief (debrief/take-action world action)
-            ;; call game setup
-            )
-          (->room system room [:game/changed! (get-room world room)]))))))
+  (let []
+    (doseq [room (-> register :world deref :rooms keys)]
+     (run-action system {:room-id room
+                         :action  :tick-clock
+                         :uid     :timekeeper}))))
 
 (defn take-action!
   "Called to trigger a game start by host"
   [{:as system :keys [register]} uid action]
   (let [world           (:world register)
-        player-location (get-player-location world uid)
-        room            (get-room world player-location)
-        current-game    (get-in room [:game :game-type])
-        action          (assoc action :room-id player-location :uid uid)]
-    (println action)
-    (cond
-      (home-room? player-location)  nil
-      (not (valid-game? current-game)) nil
-      :else
-      (do
-        (case current-game
-          :ftq (ftq/take-action world action)
-          :debrief (debrief/take-action world action)
-          ;; call game setup
-          )
-        (->room system player-location [:game/changed! (get-room world player-location)])))))
+        player-location (get-player-location world uid)]
+    (run-action system (assoc action :room-id player-location :uid uid))))
 
 (defn boot-player!
   [{:as system :keys [register]} uid]
@@ -154,5 +159,5 @@
         player-location (get-player-location world uid)]
     (send-player-home world uid)
     (let [room (get-room world player-location)]
-      (->player system uid [:user/booted!])
-      (->room system player-location [:room/user-left! room]))))
+      (->player system uid [:->user/booted!])
+      (->room system player-location [:->room/user-left! room]))))

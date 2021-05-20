@@ -21,7 +21,7 @@
                  :value     (-> join deref :room-code)
                  :on-change #(dispatch [:join/set-params {:room-code (val %)}])}]]]
       [:button {:on-click #(do
-                             (dispatch [:->join/join-room!])
+                             (dispatch [:<-join/join-room!])
                              (.preventDefault %))}
        "Join"]]]))
 
@@ -37,23 +37,23 @@
       (for [player (:players game-data)]
         ^{:key (:id player)}
         [:li (:user-name player)
-         [:a.boot {:on-click #(dispatch [:->room/boot-player! (:id player)])} "x"]])]
+         [:a.boot {:on-click #(dispatch [:<-room/boot-player! (:id player)])} "x"]])]
      [:div.actions
       (if (= (:room-code game-data) "haslem")
         [:button {:on-click #(do
-                               (dispatch [:->game/start! :ftq])
+                               (dispatch [:<-game/start! :ftq])
                                (.preventDefault %))}
          "Start: FTQ (Original)"])
       [:button {:on-click #(do
-                             (dispatch [:->game/start! :ftq {:game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=59533190&single=true&output=tsv"}])
+                             (dispatch [:<-game/start! :ftq {:game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=59533190&single=true&output=tsv"}])
                              (.preventDefault %))}
        "Start: For The Captain"]
       [:button {:on-click #(do
-                             (dispatch [:->game/start! :debrief {:game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=1113383423&single=true&output=tsv"}])
+                             (dispatch [:<-game/start! :debrief {:game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=1113383423&single=true&output=tsv"}])
                              (.preventDefault %))}
        "Start: The Debrief"]
       [:button {:on-click #(do
-                             (dispatch [:->game/start! :debrief {:game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=599053556&single=true&output=tsv"}])
+                             (dispatch [:<-game/start! :debrief {:game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=599053556&single=true&output=tsv"}])
                              (.preventDefault %))}
        "Start: The Culinary Contest"]
       ]]))
@@ -116,7 +116,7 @@
         [:div.stage-name (str stage-name)]
         [:div.stage-focus (str stage-focus)]]
        [:div.x-card {:class (if x-carded? "active" "inactive")}
-        [:a {:on-click #(dispatch [:->game/action! :x-card])} "X"]]
+        [:a {:on-click #(dispatch [:<-game/action! :x-card])} "X"]]
        [:div.card {:class (str " "
                                (if x-carded?
                                  "x-carded"))}
@@ -145,7 +145,7 @@
                              :on-click #(if (and
                                              (valid-button? button)
                                              (or (not confirm?) (js/confirm "Are you sure?")))
-                                          (dispatch [:->game/action! action params])) }
+                                          (dispatch [:<-game/action! action params])) }
                 [:a {} text]]
                {:key (str action params)}))
            (get-in display [:actions]))]]
@@ -163,10 +163,10 @@
                      [:div.score-actions
                       ;; TODO - maybe this logic should come from gamemaster
                       (if-not (= id user-id)
-                        [:a.downvote-player.button {:on-click #(dispatch [:->game/action! :downvote-player {:player-id id}])} " - "])
+                        [:a.downvote-player.button {:on-click #(dispatch [:<-game/action! :downvote-player {:player-id id}])} " - "])
                       [:div.score (str (get-in player-scores [id user-id]))]
                       (if-not (= id user-id)
-                        [:a.upvote-player.button {:on-click #(dispatch [:->game/action! :upvote-player {:player-id id}])} " + "])
+                        [:a.upvote-player.button {:on-click #(dispatch [:<-game/action! :upvote-player {:player-id id}])} " + "])
                       ]]
                     {:key id})))
               all-players))]
@@ -194,7 +194,7 @@
       (map (fn [{conf  :confirm
                  :keys [action class text]}]
              (with-meta (vector :div.extra-action {:class class} [:a.button {:on-click #(if (or (not conf) (js/confirm "Are you sure?"))
-                                                                                          (dispatch [:->game/action! action]))} text]) {:key action}))
+                                                                                          (dispatch [:<-game/action! action]))} text]) {:key action}))
            (get-in display [:extra-actions]))]]))
 
 (defn -ftq-game-panel [user-data dispatch]
@@ -212,7 +212,7 @@
      [:div.current {}
       [:div.active-area {}
        [:div.x-card {:class (if x-carded? "active" "inactive")}
-        [:a {:on-click #(dispatch [:->game/action! :x-card])} "X"]]
+        [:a {:on-click #(dispatch [:<-game/action! :x-card])} "X"]]
        [:div.card {:class (str (name (get-in display [:card :state]))
                                " "
                                (if x-carded?
@@ -221,7 +221,7 @@
               (m/md->hiccup)
               (m/component))]
          [:div.actions
-          (map (fn [{:keys [action text]}] (with-meta (vector :div.action [:a {:on-click #(dispatch [:->game/action! action])} text]) {:key action}))
+          (map (fn [{:keys [action text]}] (with-meta (vector :div.action [:a {:on-click #(dispatch [:<-game/action! action])} text]) {:key action}))
                (get-in display [:actions]))]]
       ]
      [:div.extras
@@ -229,7 +229,7 @@
       (map (fn [{conf :confirm
                  :keys [action class text]}]
              (with-meta (vector :div.extra-action {:class class} [:a.button {:on-click #(if (or (not conf) (js/confirm "Are you sure?"))
-                                                                                          (dispatch [:->game/action! action]))} text]) {:key action}))
+                                                                                          (dispatch [:<-game/action! action]))} text]) {:key action}))
            (get-in display [:extra-actions]))]]))
 
 (defn game-panel []

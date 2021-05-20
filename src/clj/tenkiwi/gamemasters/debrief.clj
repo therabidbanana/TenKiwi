@@ -274,10 +274,10 @@
         (take count)
         (map :text))))
 
-(defn start-game [world-atom room-id {:keys [game-url]
-                                      :or   {game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=1113383423&single=true&output=tsv"}}]
-  (let [players             (get-in @world-atom [:rooms room-id :players])
-        first-player        (first players)
+(defn start-game [room-id {:keys [game-url]
+                           :or   {game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=1113383423&single=true&output=tsv"}}
+                  {:keys [players] :as room}]
+  (let [first-player        (first players)
         next-player         (next-player players (:id first-player))
         npcs                [{:user-name "NPC"
                               :id        :leader
@@ -343,8 +343,7 @@
                         :active-player    (first players)
                         :active-display   active-display
                         :inactive-display (build-inactive-version {:active-player (first players)} active-display)}]
-    (doto world-atom
-      (swap! update-in [:rooms room-id] assoc :game new-game))))
+    new-game))
 
 (defn extract-dossier [{:keys [inputs]}]
   (zipmap (map keyword (map :name inputs))
@@ -516,9 +515,8 @@
         (do-next-state game)
         game))))
 
-(defn take-action [world-atom {:keys [uid room-id action params]}]
-  (let [game          (get-in @world-atom [:rooms room-id :game])
-        do-next-state (case action
+(defn take-action [{:keys [uid room-id action params]} {:keys [game]}]
+  (let [do-next-state (case action
                         :done            finish-card
                         :x-card          x-card
                         :discard         discard-card
@@ -536,8 +534,7 @@
         execute       (if-active-> uid action do-next-state)]
     (try
       (execute game)
-      (catch Exception e (println e)))
-    (swap! world-atom update-in [:rooms room-id :game] execute)))
+      (catch Exception e (println e)))))
 
 (comment
   (def fake-state {:rooms {1 {:playes [{:id "a"}]}}})

@@ -30,17 +30,17 @@
      (update-in db [:join] merge params))))
 
 (re-frame/reg-event-db
- :user/room-joined!
+ :->user/room-joined!
  (fn [db [_ params]]
    (update-in db [:user] assoc :current-room params)))
 
 (re-frame/reg-event-db
- :user/booted!
+ :->user/booted!
  (fn [db [_ params]]
    (update-in db [:user] assoc :current-room nil)))
 
 (re-frame/reg-event-fx
- :->game/action!
+ :<-game/action!
  (fn [db [_ action & params]]
    (let [room-id (get-in db [:user :current-room :id])]
      {:fx [[:websocket [:game/action! {:action  action
@@ -48,7 +48,7 @@
                                        :room-id room-id}]]]})))
 
 (re-frame/reg-event-db
- :game/changed!
+ :->game/changed!
  (fn [db [_ params]]
    (let [current-room (get-in db [:user :current-room])]
      (if (= (:room-code params) (:room-code current-room))
@@ -56,7 +56,7 @@
          (update-in db [:user] assoc :current-room params))))))
 
 (re-frame/reg-event-db
- :game/started!
+ :->game/started!
  (fn [db [_ params]]
    (let [current-room (get-in db [:user :current-room])]
      (if (= (:room-code params) (:room-code current-room))
@@ -64,32 +64,32 @@
          (update-in db [:user] assoc :current-room params))))))
 
 (re-frame/reg-event-db
- :room/user-joined!
+ :->room/user-joined!
  (fn [db [_ params]]
    (let [current-room (get-in db [:user :current-room])]
      (if (= (:room-code params) (:room-code current-room))
        (update-in db [:user] assoc :current-room params)))))
 
 (re-frame/reg-event-db
- :room/user-left!
+ :->room/user-left!
  (fn [db [_ params]]
    (let [current-room (get-in db [:user :current-room])]
      (if (= (:room-code params) (:room-code current-room))
        (update-in db [:user] assoc :current-room params)))))
 
 (re-frame/reg-event-fx
- :->game/start!
+ :<-game/start!
  (fn [{:keys [db]} [_ id & params]]
    {:fx [[:websocket [:game/start! {:game-type id
                                     :params    (first params)}]]]}))
 
 (re-frame/reg-event-fx
- :->join/join-room!
+ :<-join/join-room!
  (fn [{:keys [db]} [_ val]]
    (let [join (:join db)]
      {:fx [[:websocket [:room/join-room! join]]]})))
 
 (re-frame/reg-event-fx
- :->room/boot-player!
+ :<-room/boot-player!
  (fn [{:keys [db]} [_ val]]
    {:fx [[:websocket [:room/boot-player! val]]]}))

@@ -2,11 +2,12 @@
   "The host is in charge of moving users back and forth to rooms"
   (:require [tenkiwi.gamemasters.ftq :as ftq]
             [tenkiwi.gamemasters.debrief :as debrief]
+            [tenkiwi.gamemasters.oracle :as oracle]
 ))
 
 (def home-room :home)
 (defn home-room? [room] (= home-room (or room home-room)))
-(defn valid-game? [type] (#{:ftq :debrief} type))
+(defn valid-game? [type] (#{:ftq :debrief :oracle} type))
 
 (defn ->players [{:keys [chsk-send!]} uids message]
   (doseq [uid uids]
@@ -68,6 +69,7 @@
     :else
     (case game-name
       :debrief (partial debrief/start-game room-id params)
+      :oracle (partial oracle/start-game room-id params)
       :ftq (partial ftq/start-game room-id params)
       nil)))
 
@@ -77,6 +79,7 @@
     :else
     (case game-name
       :debrief (partial debrief/take-action action)
+      :oracle (partial oracle/take-action action)
       :ftq (partial ftq/take-action action)
       nil)))
 

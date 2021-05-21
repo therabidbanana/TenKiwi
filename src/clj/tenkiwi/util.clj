@@ -34,3 +34,8 @@
 (defn gather-decks [url]
   (let [cards (read-spreadsheet-data url normalize-card)]
     (group-by :type cards)))
+
+(defn index-by [fn coll]
+  (let [grouped (group-by fn coll)]
+    (zipmap (keys grouped)
+            (map first (vals grouped)))))

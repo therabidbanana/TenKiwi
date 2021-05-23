@@ -20,6 +20,7 @@
          rest   (rest lines)
          keys   (map keyword header)
          rows   (->> (map #(zipmap keys %) rest)
+                     (filter :text)
                      (filter :type))]
      (map-indexed parser rows))))
 
@@ -39,3 +40,10 @@
   (let [grouped (group-by fn coll)]
     (zipmap (keys grouped)
             (map first (vals grouped)))))
+
+(defn pluck-text [generators keyname]
+  (-> generators
+      (get keyname [{:text "unknown"}])
+      shuffle
+      first
+      :text))

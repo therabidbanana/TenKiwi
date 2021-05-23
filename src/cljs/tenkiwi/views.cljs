@@ -59,7 +59,7 @@
       [:button {:on-click #(do
                              (dispatch [:<-game/start! :oracle {:game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=1204467298&single=true&output=tsv"}])
                              (.preventDefault %))}
-       "Start: D&D Oracle"]
+       "Start: D&D Seer"]
       ]]))
 
 (defn lobby-panel []
@@ -189,9 +189,15 @@
                extra-details
                )])
       (map (fn [{conf  :confirm
-                 :keys [action class text]}]
-             (with-meta (vector :div.extra-action {:class class} [:a.button {:on-click #(if (or (not conf) (js/confirm "Are you sure?"))
-                                                                                          (dispatch [:<-game/action! action]))} text]) {:key action}))
+                 disabled? :disabled
+                 :keys [action class text params]}]
+             (with-meta
+               (vector :div.extra-action
+                       {:class class}
+                       [:a.button {:on-click #(if (and (not disabled?)
+                                                                (or (not conf) (js/confirm "Are you sure?")))
+                                                         (dispatch [:<-game/action! action params]))} text])
+               {:key (str action params)}))
            (get-in display [:extra-actions]))]]))
 
 (defn -debrief-game-panel [user-data dispatch]

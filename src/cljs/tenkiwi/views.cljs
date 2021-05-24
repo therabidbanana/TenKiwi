@@ -66,6 +66,87 @@
   (let [game-data (re-frame/subscribe [:room])]
     [-lobby-panel game-data re-frame/dispatch]))
 
+(defn oracle-form-panel [form-config dispatch]
+  (let [{conf      :confirm
+         disabled? :disabled
+         :keys     [action class text params inputs]
+         :as       action-form} form-config
+
+        params (merge params
+                      (-> (re-frame/subscribe [:forms])
+                          deref
+                          (get action {})))
+
+        update-val  (fn [name val]
+                      (dispatch [:forms/set-params (assoc {:action action}
+                                                          name val)]))
+        form-option (fn [name val]
+                      [:option {:value    val
+                                :selected #(= val (get params name))} val])
+        tag-option  (fn [name val]
+                      (let [current-vals (into #{} (get params name))
+                            selected?    (if (current-vals val)
+                                           true false)
+                            with-val     (conj current-vals val)
+                            without-val  (disj current-vals val)]
+                        [:span.tag
+                         {:on-click #(if selected?
+                                               (update-val name without-val)
+                                               (update-val name with-val))
+                          :class (if selected? "active" "inactive")}
+                         val]))]
+    [:form.form
+     {:on-submit #(if (and (not disabled?)
+                           (or (not conf) (js/confirm "Are you sure?")))
+                    (do
+                      (dispatch [:<-game/action! action params])
+                      (.preventDefault %)))}
+     (map
+      (fn [{:keys [type label name options value nested]}]
+        (with-meta
+          [:div.user-input
+           [:label [:strong label]]
+           [:br]
+           (cond
+             (#{:select} type)
+             [:select {:value     (get params name)
+                       :on-change #(update-val name (-> % .-target .-value))}
+              (if (map? options)
+                (map (fn [[group-name opts]]
+                       [:optgroup {:label group-name}
+                        (map #(with-meta (form-option name %) {:key %}) opts)]) options)
+                (map #(with-meta (form-option name %) {:key %}) options))]
+             (#{:tag-select} type)
+             [:div.tag-select {:multiple true
+                               :value     (if (#{:tag-select} type)
+                                            (into-array (get params name))
+                                            (get params name))
+                               :on-change #(if (#{:tag-select} type)
+                                             (.preventDefault %)
+                                             (update-val name (-> % .-target .-value)))}
+              (if (map? options)
+                (map (fn [[group-name opts]]
+                       (if (or
+                            (and nested (#{(get params nested)} group-name))
+                            (nil? nested))
+                         [:span.optgroup {:label group-name}
+                          (map #(with-meta (tag-option name %) {:key %}) opts)])) options)
+                (map #(with-meta (tag-option name %) {:key %}) options))]
+             :else
+             [:input {:on-change #(update-val name (-> % .-target .-value))
+                      :name      name
+                      :value     (get params name)}])
+           ]
+          {:key name}))
+      inputs)
+     (vector :div.extra-action
+             {:class class}
+             [:button.button {}
+              #_{:on-click #(if (and (not disabled?)
+                                     (or (not conf) (js/confirm "Are you sure?")))
+                              (dispatch [:<-game/action! action params]))}
+              text])]))
+
 (defn -oracle-game-panel [user-data dispatch]
   (let [{user-id        :id
          :as            data
@@ -85,14 +166,10 @@
 
         all-players    (map #(merge % (get dossiers (:id %) {}))
                             all-players)
-        voting-active? (if-not (#{:intro} stage)
-                         true
-                         false)
-
         {:keys [extra-details]
          :as   display} (if active?
-                           (:active-display game)
-                           (:inactive-display game))
+                          (:active-display game)
+                          (:inactive-display game))
         x-carded?       (:x-card-active? display)
 
         self-vote?    (fn [{:keys                 [action params]
@@ -138,7 +215,7 @@
              (get-in display [:card :inputs]))]
          [:div.actions
           (map
-           (fn [{:keys    [action text params]
+           (fn [{:keys    [action text params inputs]
                  confirm? :confirm
                  :or      {params {}}
                  :as      button}]
@@ -154,30 +231,7 @@
            (get-in display [:actions]))]]
       ]
      [:div.extras
-      [:div.voting-area
-       #_(if voting-active?
-         (map (fn [{:keys [id user-name dead? agent-name agent-codename agent-role]}]
-                (let [total-score (apply + (vals (player-scores id)))]
-                  (with-meta
-                    [:div.player
-                     [:div.player-name
-                      {:title agent-name}
-                      (str "[ " total-score " ] " (if agent-name (str agent-codename ", " agent-role " ")) " (" user-name ")")]
-                     [:div.score-actions
-                      ;; TODO - maybe this logic should come from gamemaster
-                      (if-not (= id user-id)
-                        [:a.downvote-player.button {:on-click #(dispatch [:<-game/action! :downvote-player {:player-id id}])} " - "])
-                      [:div.score (str (get-in player-scores [id user-id]))]
-                      (if-not (= id user-id)
-                        [:a.upvote-player.button {:on-click #(dispatch [:<-game/action! :upvote-player {:player-id id}])} " + "])
-                      ]]
-                    {:key id})))
-              all-players))]
-      (if voting-active?
-        [:div.mission-details
-         [:h2 "More Details"]
-         [:p (str (:text mission))]])
-      (if (and voting-active? extra-details)
+      (if extra-details
         [:div.extra-details
          (map (fn [{:keys [title items]}]
                  (with-meta
@@ -188,16 +242,19 @@
                    {:key title}))
                extra-details
                )])
-      (map (fn [{conf  :confirm
+      (map (fn [{conf      :confirm
                  disabled? :disabled
-                 :keys [action class text params]}]
-             (with-meta
-               (vector :div.extra-action
-                       {:class class}
-                       [:a.button {:on-click #(if (and (not disabled?)
-                                                                (or (not conf) (js/confirm "Are you sure?")))
-                                                         (dispatch [:<-game/action! action params]))} text])
-               {:key (str action params)}))
+                 :keys     [action class text params inputs]
+                 :as       action-form}]
+             (if inputs
+               [oracle-form-panel action-form dispatch]
+               (with-meta
+                 (vector :div.extra-action
+                         {:class class}
+                         [:a.button {:on-click #(if (and (not disabled?)
+                                                         (or (not conf) (js/confirm "Are you sure?")))
+                                                  (dispatch [:<-game/action! action params]))} text])
+                 {:key (str action params)})))
            (get-in display [:extra-actions]))]]))
 
 (defn -debrief-game-panel [user-data dispatch]

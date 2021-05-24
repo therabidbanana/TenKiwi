@@ -110,7 +110,19 @@
              :box-shadow       "2px 2px 4px #123"}
      [:&.intro {:border-color "#aab"}]
      [:&.question {:border-color "#47a"}]
-     [:&.x-carded {:border-color "red"}]]]))
+     [:&.x-carded {:border-color "red"}]]
+    [:div.tag-select
+     {:margin "0.4rem"}
+     ["&::after" {:content " "
+                  :clear   'both
+                  :display 'table}]
+     [:.tag {:border           "1px solid grey"
+             :padding          "0.2rem"
+             :margin           "0.2rem"
+             :opacity          "0.7"
+             :background-color "rgba(0,0,0,0.2)"}
+      [:&.active {:opacity "1.0"}]]
+     ]]))
 
 (def lobby
   (list

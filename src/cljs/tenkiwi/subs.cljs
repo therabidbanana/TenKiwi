@@ -26,3 +26,8 @@
  :join
  (fn [db]
    (:join db)))
+
+(re-frame/reg-sub
+ :forms
+ (fn [db]
+   (:forms db)))

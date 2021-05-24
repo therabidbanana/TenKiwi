@@ -212,3 +212,25 @@ body {
 .game-table .card.x-carded {
   border-color: red;
 }
+
+.game-table div.tag-select {
+  margin: 0.4rem;
+}
+
+.game-table div.tag-select::after {
+  content:  ;
+  clear: both;
+  display: table;
+}
+
+.game-table div.tag-select .tag {
+  border: 1px solid grey;
+  padding: 0.2rem;
+  margin: 0.2rem;
+  opacity: 0.7;
+  background-color: rgba(0,0,0,0.2);
+}
+
+.game-table div.tag-select .tag.active {
+  opacity: 1.0;
+}

@@ -21,6 +21,14 @@
                    :connected? true)}))
 
 (re-frame/reg-event-db
+ :forms/set-params
+ (fn [db [_ params]]
+   (let [{:keys [action]} params
+         remaining-params (dissoc params :action)]
+     (println remaining-params)
+     (update-in db [:forms action] merge remaining-params))))
+
+(re-frame/reg-event-db
  :join/set-params
  (fn [db [_ params]]
    (let [{:keys [user-name

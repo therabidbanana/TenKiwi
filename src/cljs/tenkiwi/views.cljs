@@ -113,8 +113,11 @@
                        :on-change #(update-val name (-> % .-target .-value))}
               (if (map? options)
                 (map (fn [[group-name opts]]
-                       [:optgroup {:label group-name}
-                        (map #(with-meta (form-option name %) {:key %}) opts)]) options)
+                       (if (or
+                            (and nested (#{(get params nested)} group-name))
+                            (nil? nested))
+                           [:optgroup {:label group-name}
+                            (map #(with-meta (form-option name %) {:key %}) opts)])) options)
                 (map #(with-meta (form-option name %) {:key %}) options))]
              (#{:tag-select} type)
              [:div.tag-select {:multiple true

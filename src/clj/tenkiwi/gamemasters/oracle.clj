@@ -16,13 +16,14 @@
                                              (partial group-by :group))
                          name)
         available-tags  (util/update-values available-cards keys)
-        theme-names     (keys themes)]
+        theme-names     (util/update-values themes (partial map :title))
+        default-type    (first (keys available-cards))]
     {:action :create-deck
      :text   "Build a Deck"
      :params {:name      "Basic Test"
-              :deck-type (first (keys available-cards))
-              :theme     (first theme-names)
-              :tags      (take 1 (second (first available-tags)))}
+              :deck-type default-type
+              :theme     (first (get theme-names default-type []))
+              :tags      (take 1 (get available-tags default-type []))}
      :inputs [{:label "Name"
                :name  :title
                :type  "text"}
@@ -33,6 +34,7 @@
               {:type    :select
                :label   "Themes"
                :name    :theme
+               :nested  :deck-type
                :options theme-names}
               {:type    :tag-select
                :label   "Tags"
@@ -62,9 +64,9 @@
 (defn- find-next-player [{:as   game-state}]
   (:active-player (next-player-state game-state)))
 
-(defn draw-from-deck-action [[id {:keys [id title cards]}]]
+(defn draw-from-deck-action [[id {:keys [id title theme cards]}]]
   (if (> (count cards) 0)
-    {:text   (str "Draw from " title)
+    {:text   (str "Draw from " title " (" (:title theme) ")")
      :action :draw-card
      :params {:deck id}}
     {:text     (str "Draw from " title " [empty]")
@@ -81,7 +83,9 @@
                                     themes
                                     active-decks
                                     active-player
+                                    active-theme
                                     generators
+                                    tables
                                     builders
                                     discard]
                              :as   game-state}]
@@ -90,12 +94,17 @@
                         {:id    "waiting"
                          :type :inactive
                          :text  (str "It is " (:user-name active-player) "'s turn...")})
-        ]
+        theme-gens (:generators active-theme)]
     {:card          active-card
-     :extra-details (map #(hash-map :title %
-                                    :name %
-                                    :items (take 3 (shuffle (mapv :text (get generators % [])))))
-                         (keys generators))
+     :extra-details (concat
+                     (map #(hash-map :title (second %)
+                                     :name (first %)
+                                     :items (util/pluck-text tables (first %) 3))
+                          theme-gens)
+                     (map #(hash-map :title %
+                                     :name %
+                                     :items (take 3 (shuffle (mapv :text (get generators % [])))))
+                          (keys generators)))
      :extra-actions (concat
                      [reclaim-cards-action]
                      (mapv draw-from-deck-action active-decks)
@@ -121,6 +130,20 @@
                 builder]
          :as   decks} (util/gather-decks game-url)
 
+        build-generator-map (fn [{:as   m
+                                  :keys [extras]}]
+                              (assoc m
+                                     :generators
+                                     (->> (clojure.string/split extras #"\s\s+")
+                                          (map #(clojure.string/split % #":"))
+                                          (into {}))))
+
+        themes (util/update-values (group-by :group theme)
+                                   (partial map build-generator-map))
+
+        builders (util/update-values (group-by :group builder)
+                                     (partial map build-generator-map))
+
         player-ids    (map :id players)
         initial-state {:player-order-ids (into [] (rest player-ids))
                        :players-by-id    (util/index-by :id players)
@@ -131,13 +154,14 @@
                        :state            :intro
                        :active-decks     {}
                        :available-cards  (dissoc decks
+                                                 :theme
                                                  :table
                                                  :generator
                                                  :builder)
                        :generators       (group-by :group generator)
-                       :themes           (group-by :group theme)
+                       :themes           themes
                        :tables           (group-by :group table)
-                       :builders         (group-by :group builder)}]
+                       :builders         builders}]
     (println initial-state)
     (merge initial-state
            {:active-display   (build-active-display initial-state)
@@ -187,32 +211,37 @@
   [{:keys [uid room-id action params]}
    {:keys [active-decks discard]
     :as   game-state}]
-  (let [deck-name       (:deck params)
-        deck            (get-in active-decks [deck-name :cards] [])
-        next-card       (first deck)
-        active-decks    (assoc-in active-decks [deck-name :cards] (rest deck))]
+  (let [deck-name    (:deck params)
+        draw-deck    (get active-decks deck-name)
+        deck         (get-in active-decks [deck-name :cards] [])
+        next-card    (first deck)
+        active-decks (assoc-in active-decks [deck-name :cards] (rest deck))]
     (if deck-name
       (assoc game-state
-            :active-decks active-decks
-            :discard (cons next-card discard))
+             :active-theme (:theme draw-deck)
+             :active-decks active-decks
+             :discard (cons next-card discard))
       :no-op)))
 
 (defmethod do-action [:active-> :create-deck]
   [{:keys [uid room-id action params]}
-   {:keys [available-cards active-decks]
+   {:keys [available-cards active-decks themes]
     :as   game-state}]
-  (let [deck-name       (-> (:deck-type params)
-                            keyword)
-        group-cards (util/update-values available-cards
-                                        (partial group-by :group))
+  (let [deck-name    (-> (:deck-type params)
+                         keyword)
+        group-cards  (util/update-values available-cards
+                                         (partial group-by :group))
+        all-cards    (-> (mapcat #(get-in group-cards [deck-name %])
+                                 (:tags params))
+                         shuffle)
+        valid-themes (->> (get themes (name deck-name))
+                          (util/index-by :title))
 
-        all-cards (-> (mapcat #(get-in group-cards [deck-name %])
-                              (:tags params))
-                      shuffle)
-        new-deck {:id    (java.util.UUID/randomUUID)
-                  :theme (:theme params)
-                  :title  (:title params)
-                  :cards (take 10 all-cards)}
+        new-deck        {:id    (java.util.UUID/randomUUID)
+                         :theme (get valid-themes (:theme params)
+                                     (first (vals valid-themes)))
+                         :title (:title params)
+                         :cards (take 10 all-cards)}
         available-cards (assoc available-cards
                                deck-name (drop 10 all-cards))]
     (if deck-name
@@ -226,21 +255,18 @@
    {:keys [builders tables discard]
     :as   game-state}]
   (let [deck-name      (:builder params)
-        {:keys [text extras]
+        {:keys [text extras generators]
          :or   {extras ""}
          :as   card}   (-> (get builders deck-name [])
                            shuffle
                            first)
-        generator-list (->> (clojure.string/split extras #"\s\s+")
-                            (map #(clojure.string/split % #":"))
-                            (into {}))
 
         next-card (merge card
                          {:id     :builder
                           :inputs (mapv #(hash-map :name (first %)
                                                    :label (last %)
                                                    :value (util/pluck-text tables (first %)))
-                                        generator-list)})]
+                                        generators)})]
     (if deck-name
       (assoc game-state
              :discard (cons next-card discard))

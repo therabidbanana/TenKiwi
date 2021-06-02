@@ -3,6 +3,7 @@
   (:require [tenkiwi.gamemasters.ftq :as ftq]
             [tenkiwi.gamemasters.debrief :as debrief]
             [tenkiwi.gamemasters.oracle :as oracle]
+            [tenkiwi.instar :refer [transform]]
             [tenkiwi.util :as util :refer [inspect]]
 ))
 
@@ -10,9 +11,17 @@
 (defn home-room? [room] (= home-room (or room home-room)))
 (defn valid-game? [type] (#{:ftq :debrief :oracle} type))
 
+;; Drop hidden game state (mainly for performance)
+(defn- possibly-remove-keys [m]
+  (if (map? m)
+    (let [result (transform m [:game #"^-"] dissoc)]
+      result)
+    m))
+
 (defn ->players [{:keys [chsk-send!]} uids message]
   (doseq [uid uids]
-    (chsk-send! uid message)))
+    (let [mapped-msg (mapv possibly-remove-keys message)]
+      (chsk-send! uid message))))
 
 (defn ->player [system uid message]
   (->players system [uid] message))

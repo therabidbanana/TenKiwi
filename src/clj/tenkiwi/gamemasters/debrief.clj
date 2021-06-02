@@ -168,7 +168,7 @@
   ([game card active-player next-player]
    (let [{:keys [all-players
                  mission
-                 generators]}  game
+                 -generators]}  game
          story-details         (extract-generator-list (:story-details mission ""))
          act                   (:act card)
          next-stage            (or (:type card) :intro)
@@ -177,7 +177,7 @@
      {:card          (replace-vars game card)
       :extra-details (map #(hash-map :title (:label %)
                                      :name (:name %)
-                                     :items (take 3 (shuffle (mapv :text (get generators (:name %) [])))))
+                                     :items (take 3 (shuffle (mapv :text (get -generators (:name %) [])))))
                           story-details)
       :extra-actions (case next-stage
                        :end        [leave-game-action]
@@ -328,11 +328,11 @@
                         :stage-focus      ""
                         :dossiers         dossiers
                         :mission          mission-details
-                        :discard          []
+                        :-discard          []
                         :company          company
                         :dossier-template dossier-template
-                        :generators       generators
-                        :deck             (into []
+                        :-generators       generators
+                        :-deck             (into []
                                                 (concat (rest intro-cards)
                                                         (map (partial dossier-card dossier-template generators) players)
                                                         (:briefing-cards mission-details)
@@ -373,8 +373,8 @@
   (let [{:keys [player-order
                 active-player
                 dossiers
-                discard
-                deck
+                -discard
+                -deck
                 stage]}  game
         active-card      (get-in game [:active-display :card])
         dossiers         (if (#{:player-dossier} (:id active-card))
@@ -382,16 +382,16 @@
                                  (extract-dossier active-card))
                           dossiers)
         next-up          (next-player player-order active-player)
-        discard          (cons active-card discard)
-        next-card        (first deck)
-        deck             (into [] (rest deck))
+        discard          (cons active-card -discard)
+        next-card        (first -deck)
+        deck             (into [] (rest -deck))
         stage-info       (get-stage-info game next-card)
         next-next        (next-player player-order next-up)
 
         next-game          (assoc game
-                                  :deck deck
+                                  :-deck deck
                                   :dossiers dossiers
-                                  :discard discard
+                                  :-discard discard
                                   :active-player next-up)
         new-active-display (build-active-card next-game next-card next-up next-next)]
     (-> next-game
@@ -403,20 +403,20 @@
 (defn discard-card [game]
   (let [{:keys [player-order
                 active-player
-                discard
-                deck
+                -discard
+                -deck
                 stage]} game
         active-card     (get-in game [:active-display :card])
         next-up         (next-player player-order active-player)
-        discard         (cons active-card discard)
-        next-card       (first deck)
-        deck            (rest deck)
+        discard         (cons active-card -discard)
+        next-card       (first -deck)
+        deck            (rest -deck)
         stage-info      (get-stage-info game next-card)
 
         next-game          (-> game
                             (assoc-in [:inactive-display :x-card-active?] false)
-                            (assoc :deck deck
-                                   :discard discard))
+                            (assoc :-deck deck
+                                   :-discard discard))
         new-active-display (build-active-card next-game next-card active-player next-up)]
     (assoc (merge next-game stage-info)
            :active-display new-active-display)))
@@ -493,11 +493,11 @@
   ;; Nothing
   game)
 
-(defn regen-card [{:keys [generators dossier-template active-player player-order stage]
+(defn regen-card [{:keys [-generators dossier-template active-player player-order stage]
                    :as   game}]
   (let [next-up      (next-player player-order active-player)
         next-dossier (build-active-card game
-                                        (dossier-card dossier-template generators active-player)
+                                        (dossier-card dossier-template -generators active-player)
                                         active-player
                                         next-up)]
     (cond

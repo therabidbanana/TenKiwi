@@ -34,6 +34,8 @@
             event-msg-handler
             (get-sch-adapter)
             {:user-id-fn      (fn [ring-req] (:client-id ring-req))
+             ;; Do we want this?
+             :csrf-token-fn nil
              :wrap-component? true})
            [:register])
    :register  (new-register (atom {}))

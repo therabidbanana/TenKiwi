@@ -47,9 +47,11 @@
 (defn update-keys [m f & args]
   (reduce (fn [r [k v]] (assoc r (apply f k args) v)) {} m))
 
-(defn pluck-text [generators keyname]
-  (-> generators
-      (get keyname [{:text "unknown"}])
-      shuffle
-      first
-      :text))
+(defn pluck-text
+  ([generators keyname]
+   (first (pluck-text generators keyname 1)))
+  ([generators keyname n]
+   (->> (get generators keyname [{:text "unknown"}])
+        shuffle
+        (map :text)
+        (take n))))

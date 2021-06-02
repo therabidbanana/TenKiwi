@@ -155,7 +155,9 @@
   [{:as system :keys [register]}]
   (let []
     (doseq [room (-> register :world deref :rooms keys)]
-     (run-action system {:room-id room
+      ;; TODO - handle no-ops, cheaper ticks
+      ;; - tick clock is expensive if triggering full rerender on mobile
+     #_(run-action system {:room-id room
                          :action  :tick-clock
                          :uid     :timekeeper}))))
 

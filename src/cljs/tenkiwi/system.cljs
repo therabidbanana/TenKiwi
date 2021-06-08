@@ -2,6 +2,7 @@
   (:require [com.stuartsierra.component :as component]
             [re-frame.core :as re-frame]
             [tenkiwi.socket-events :refer [event-msg-handler]]
+            [taoensso.sente.packers.transit :refer [get-transit-packer]]
             [tenkiwi.components.sente :refer [new-channel-socket-client]]
             [tenkiwi.components.ui :refer [new-ui-component]]))
 
@@ -26,7 +27,7 @@
    :sente-handler {:handler event-msg-handler}
    :sente (component/using
            (new-channel-socket-client "/chsk" ?csrf-token {:type      :auto
-                                                           :packer    :transit
+                                                           :packer    (get-transit-packer)
                                                            :client-id (?client-id)})
            [:sente-handler])
    :client-id (?client-id)

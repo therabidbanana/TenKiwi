@@ -3,6 +3,7 @@
   (:require [com.stuartsierra.component :as component]
             [tenkiwi.components.server-info :refer [server-info]]
             [taoensso.sente.server-adapters.http-kit :refer [get-sch-adapter]]
+            [taoensso.sente.packers.transit :refer [get-transit-packer]]
             [system.components.endpoint :refer [new-endpoint]]
             [system.components.handler :refer [new-handler]]
             [system.components.middleware :refer [new-middleware]]
@@ -34,8 +35,9 @@
             event-msg-handler
             (get-sch-adapter)
             {:user-id-fn      (fn [ring-req] (:client-id ring-req))
-             ;; Do we want this?
+             ;; TODO: Do we want this? Maybe we need a way to get csrf?
              :csrf-token-fn nil
+             :packer (get-transit-packer)
              :wrap-component? true})
            [:register])
    :register  (new-register (atom {}))

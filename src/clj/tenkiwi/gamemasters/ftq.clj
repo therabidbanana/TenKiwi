@@ -173,26 +173,28 @@
   (let [next-state (or (:state card) :intro)
         pass       {:action :pass
                     :text   (str "Pass card to " (:user-name next-player))}]
-    {:card          card
-     :extra-actions (case next-state
-                      :end      [leave-game-action]
-                      :intro    [next-queen-action previous-queen-action leave-game-action]
-                      :question [leave-game-action])
-     :actions       (case next-state
-                      :end      [pass end-game-action]
-                      :intro    [done-action pass]
-                      :question [done-action pass])}))
+    {:card              card
+     :available-actions valid-active-actions
+     :extra-actions     (case next-state
+                          :end      [leave-game-action]
+                          :intro    [next-queen-action previous-queen-action leave-game-action]
+                          :question [leave-game-action])
+     :actions           (case next-state
+                          :end      [pass end-game-action]
+                          :intro    [done-action pass]
+                          :question [done-action pass])}))
 
 (defn build-inactive-card [active-player extra-text]
   (let [waiting (waiting-for active-player)
         waiting (if extra-text
-                        (update waiting
-                               :text
-                               (partial str extra-text "\n\n"))
-                        waiting)]
+                  (update waiting
+                          :text
+                          (partial str extra-text "\n\n"))
+                  waiting)]
 
-    {:card          waiting
-     :extra-actions [leave-game-action]}))
+    {:card              waiting
+     :available-actions valid-inactive-actions
+     :extra-actions     [leave-game-action]}))
 
 (defn start-game [room-id
                   {:keys [game-url]

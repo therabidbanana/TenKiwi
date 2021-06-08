@@ -26,7 +26,7 @@
    :sente-handler {:handler event-msg-handler}
    :sente (component/using
            (new-channel-socket-client "/chsk" ?csrf-token {:type      :auto
-                                                           :packer    :edn
+                                                           :packer    :transit
                                                            :client-id (?client-id)})
            [:sente-handler])
    :client-id (?client-id)

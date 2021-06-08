@@ -168,28 +168,29 @@
   ([game card active-player next-player]
    (let [{:keys [all-players
                  mission
-                 -generators]}  game
+                 -generators]} game
          story-details         (extract-generator-list (:story-details mission ""))
          act                   (:act card)
          next-stage            (or (:type card) :intro)
          pass                  {:action :pass
                                 :text   (str "Pass card to " (:user-name next-player))}]
-     {:card          (replace-vars game card)
-      :extra-details (map #(hash-map :title (:label %)
+     {:card              (replace-vars game card)
+      :extra-details     (map #(hash-map :title (:label %)
                                      :name (:name %)
                                      :items (take 3 (shuffle (mapv :text (get -generators (:name %) [])))))
                           story-details)
-      :extra-actions (case next-stage
-                       :end        [leave-game-action]
-                       [leave-game-action])
-      :actions       (case next-stage
-                       :end        [pass end-game-action]
-                       :upvoting   (mapv (partial player-button game {:rank :best
-                                                                      :act  act}) all-players)
-                       :downvoting (mapv (partial player-button game {:rank :worst
-                                                                      :act  act}) all-players)
-                       :dossier    [regen-action done-action]
-                       [done-action pass])}))
+      :extra-actions     (case next-stage
+                           :end [leave-game-action]
+                           [leave-game-action])
+      :available-actions valid-active-actions
+      :actions           (case next-stage
+                           :end        [pass end-game-action]
+                           :upvoting   (mapv (partial player-button game {:rank :best
+                                                                          :act  act}) all-players)
+                           :downvoting (mapv (partial player-button game {:rank :worst
+                                                                          :act  act}) all-players)
+                           :dossier    [regen-action done-action]
+                           [done-action pass])}))
   ([card active-player next-player]
    (build-active-card {} card active-player next-player)))
 
@@ -202,6 +203,7 @@
                   waiting)]
 
     {:card          waiting
+     :available-actions valid-inactive-actions
      :extra-actions [leave-game-action]}))
 
 (defn build-inactive-version [{:keys [active-player] :as game}
@@ -212,11 +214,13 @@
     (cond
       (#{:act-start :question :intro :mission-briefing} type)
       (-> active-display
+          (assoc :available-actions valid-inactive-actions)
           (assoc :actions disabled-actions))
       (#{:dossier} type)
       (build-inactive-card active-player "Introductions are being made.")
       :else
-      active-display)))
+      (-> active-display
+          (assoc :available-actions valid-inactive-actions)))))
 
 (defn- build-starting-scores [{:keys [npc? id]} players]
   (let [ids (remove #(= id %) (map :id players))]
@@ -419,7 +423,8 @@
                                    :-discard discard))
         new-active-display (build-active-card next-game next-card active-player next-up)]
     (assoc (merge next-game stage-info)
-           :active-display new-active-display)))
+           :active-display new-active-display
+           :inactive-display (build-inactive-version next-game new-active-display))))
 
 
 (defn pass-card [game]

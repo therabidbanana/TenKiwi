@@ -64,20 +64,33 @@
 (defn- find-next-player [{:as   game-state}]
   (:active-player (next-player-state game-state)))
 
-(defn draw-from-deck-action [[id {:keys [id title theme cards]}]]
+(defn draw-from-deck-action [[id {:keys [id title theme deck-params cards]}]]
   (if (> (count cards) 0)
-    {:text   (str "Draw from " title " (" (:title theme) ")")
-     :action :draw-card
-     :params {:deck id}}
-    {:text     (str "Draw from " title " [empty]")
-     :disabled true
-     :action   :draw-card
-     :params   {:deck id}}))
+    {:text                 (str "Draw from " title " (" (:title theme) ")")
+     :action-group         :draw-pile
+     :action-group-details {:count  (count cards)
+                            :title  title
+                            :params deck-params
+                            :theme  theme
+                            :empty? false}
+     :action               :draw-card
+     :params               {:deck id}}
+    {:text                 (str "Draw from " title " [empty]")
+     :disabled             true
+     :action-group-details {:count  (count cards)
+                            :title  title
+                            :params deck-params
+                            :theme  theme
+                            :empty? true}
+     :action-group         :draw-pile
+     :action               :draw-card
+     :params               {:deck id}}))
 
 (defn generate-something-action [[deck-name cards]]
-  {:text   (str "Generate " deck-name)
-   :action :generate-something
-   :params {:builder deck-name}})
+  {:text         (str "Generate " deck-name)
+   :action       :generate-something
+   :action-group :generator
+   :params       {:builder deck-name}})
 
 (defn build-active-display [{:keys [available-cards
                                     themes
@@ -231,19 +244,27 @@
                          keyword)
         group-cards  (util/update-values available-cards
                                          (partial group-by :group))
+        unused-cards (->>
+                      (:tags params)
+                      (apply dissoc (get-in group-cards [deck-name]))
+                      vals
+                      (apply concat))
         all-cards    (-> (mapcat #(get-in group-cards [deck-name %])
                                  (:tags params))
                          shuffle)
         valid-themes (->> (get themes (name deck-name))
                           (util/index-by :title))
 
-        new-deck        {:id    (java.util.UUID/randomUUID)
-                         :theme (get valid-themes (:theme params)
-                                     (first (vals valid-themes)))
-                         :title (:title params)
-                         :cards (take 10 all-cards)}
+        new-deck        {:id          (java.util.UUID/randomUUID)
+                         :deck-params params
+                         :theme       (get valid-themes (:theme params)
+                                           (first (vals valid-themes)))
+                         :title       (:title params)
+                         :cards       (take 10 all-cards)}
         available-cards (assoc available-cards
-                               deck-name (drop 10 all-cards))]
+                               deck-name (concat
+                                          unused-cards
+                                          (drop 10 all-cards)))]
     (if deck-name
       (assoc game-state
              :available-cards available-cards

@@ -22,11 +22,16 @@
      :text   "Build a Deck"
      :params {:name      "Basic Test"
               :deck-type default-type
+              :deck-size 4
               :theme     (first (get theme-names default-type []))
               :tags      (take 1 (get available-tags default-type []))}
      :inputs [{:label "Name"
                :name  :title
                :type  "text"}
+              {:type    :select
+               :label   "Deck Size"
+               :name    :deck-size
+               :options [4 7 10]}
               {:type    :select
                :label   "Deck Type"
                :name    :deck-type
@@ -255,16 +260,18 @@
         valid-themes (->> (get themes (name deck-name))
                           (util/index-by :title))
 
+        deck-size    (get params :deck-size 5)
+
         new-deck        {:id          (java.util.UUID/randomUUID)
                          :deck-params params
                          :theme       (get valid-themes (:theme params)
                                            (first (vals valid-themes)))
                          :title       (:title params)
-                         :cards       (take 10 all-cards)}
+                         :cards       (take deck-size all-cards)}
         available-cards (assoc available-cards
                                deck-name (concat
                                           unused-cards
-                                          (drop 10 all-cards)))]
+                                          (drop deck-size all-cards)))]
     (if deck-name
       (assoc game-state
              :available-cards available-cards

@@ -138,8 +138,9 @@
              :uberjar
              {:source-paths ^:replace ["src/clj" "src/cljc"]
               :prep-tasks ["compile"
-                           ["cljsbuild" "once" "min"]
-                           ["run" "-m" "garden-watcher.main" "tenkiwi.styles"]]
+                           ;; Using old cljs builds
+                           #_["cljsbuild" "once" "min"]
+                           #_["run" "-m" "garden-watcher.main" "tenkiwi.styles"]]
               :hooks []
               :omit-source true
               :aot :all}})

@@ -1,0 +1,30 @@
+{
+  "files": {
+    "app.js": "/static/js/app.4fe1b350.chunk.js",
+    "runtime~app.js": "/static/js/runtime~app.c09eef9e.js",
+    "static/js/2.83ef3a5b.chunk.js": "/static/js/2.83ef3a5b.chunk.js",
+    "fonts/AntDesign.ttf": "/./fonts/AntDesign.ttf",
+    "fonts/Entypo.ttf": "/./fonts/Entypo.ttf",
+    "fonts/Feather.ttf": "/./fonts/Feather.ttf",
+    "fonts/FontAwesome.ttf": "/./fonts/FontAwesome.ttf",
+    "fonts/FontAwesome5_Brands.ttf": "/./fonts/FontAwesome5_Brands.ttf",
+    "fonts/FontAwesome5_Solid.ttf": "/./fonts/FontAwesome5_Solid.ttf",
+    "fonts/Fontisto.ttf": "/./fonts/Fontisto.ttf",
+    "fonts/Foundation.ttf": "/./fonts/Foundation.ttf",
+    "fonts/Ionicons.ttf": "/./fonts/Ionicons.ttf",
+    "fonts/MaterialCommunityIcons.ttf": "/./fonts/MaterialCommunityIcons.ttf",
+    "fonts/MaterialIcons.ttf": "/./fonts/MaterialIcons.ttf",
+    "fonts/SimpleLineIcons.ttf": "/./fonts/SimpleLineIcons.ttf",
+    "favicon-16.png": "/favicon-16.png",
+    "favicon-32.png": "/favicon-32.png",
+    "favicon.ico": "/favicon.ico",
+    "index.html": "/index.html",
+    "manifest.json": "/manifest.json",
+    "serve.json": "/serve.json"
+  },
+  "entrypoints": [
+    "static/js/runtime~app.c09eef9e.js",
+    "static/js/2.83ef3a5b.chunk.js",
+    "static/js/app.4fe1b350.chunk.js"
+  ]
+}

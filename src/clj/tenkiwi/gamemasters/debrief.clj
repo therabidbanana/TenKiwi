@@ -37,6 +37,7 @@
 
 (def regen-action
   {:action :regen
+   :params {}
    :text   "Shuffle"})
 
 (def leave-game-action
@@ -134,22 +135,26 @@
                        :label (last %)))))
 
 ;; TODO: Use above thing
-(defn dossier-card [dossier-template generators {:keys []}]
-  (let [generator-list (->> (clojure.string/split (:inputs dossier-template) #"\s\s")
-                            (map #(clojure.string/split % #":"))
-                            (into {}))
-        pluck-value    (fn [keyname]
-                         (-> generators
-                             (get keyname [{:text "unknown"}])
-                             shuffle
-                             first
-                             :text))]
-    (merge dossier-template
-           {:id     :player-dossier
-            :inputs (mapv #(hash-map :name (first %)
-                                    :label (last %)
-                                    :value (pluck-value (first %)))
-                          generator-list)})))
+(defn dossier-card
+  ([dossier-template generators player]
+   (dossier-card dossier-template generators player {}))
+  ([dossier-template generators player defaults]
+   (let [generator-list (->> (clojure.string/split (:inputs dossier-template) #"\s\s")
+                             (map #(clojure.string/split % #":"))
+                             (into {}))
+         pluck-value    (fn [keyname]
+                          (or (get defaults keyname)
+                              (-> generators
+                                  (get keyname [{:text "unknown"}])
+                                  shuffle
+                                  first
+                                  :text)))]
+     (merge dossier-template
+            {:id     :player-dossier
+             :inputs (mapv #(hash-map :name (first %)
+                                      :label (last %)
+                                      :value (pluck-value (first %)))
+                           generator-list)}))))
 
 ;; TODO: XSS danger?
 (defn waiting-for
@@ -498,11 +503,12 @@
   ;; Nothing
   game)
 
-(defn regen-card [{:keys [-generators dossier-template active-player player-order stage]
+(defn regen-card [params
+                  {:keys [-generators dossier-template active-player player-order stage]
                    :as   game}]
   (let [next-up      (next-player player-order active-player)
         next-dossier (build-active-card game
-                                        (dossier-card dossier-template -generators active-player)
+                                        (dossier-card dossier-template -generators active-player params)
                                         active-player
                                         next-up)]
     (cond
@@ -526,7 +532,7 @@
                         :x-card          x-card
                         :discard         discard-card
                         :pass            pass-card
-                        :regen           regen-card
+                        :regen           (partial regen-card params)
                         ;; TODO - work out upvote/downvote UI for players
                         :upvote-player   (partial upvote-player uid params)
                         :downvote-player (partial downvote-player uid params)

@@ -194,7 +194,7 @@
                                                                           :act  act}) all-players)
                            :downvoting (mapv (partial player-button game {:rank :worst
                                                                           :act  act}) all-players)
-                           :dossier    [regen-action done-action]
+                           :dossier    [done-action]
                            [done-action pass])}))
   ([card active-player next-player]
    (build-active-card {} card active-player next-player)))

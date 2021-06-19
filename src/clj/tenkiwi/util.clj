@@ -37,7 +37,7 @@
 (defn extract-tags [{:as card
                      :keys [text]}]
   (let [[tag-line rest] (if (clojure.string/starts-with? text "#")
-                          (clojure.string/split text #"\n\n")
+                          (clojure.string/split text #"\n\n" 2)
                           ["" text])
         tags
         (reduce #(assoc %1 (clojure.string/replace %2 "#" "") true)

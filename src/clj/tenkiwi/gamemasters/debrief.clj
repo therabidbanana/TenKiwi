@@ -177,9 +177,14 @@
          story-details         (extract-generator-list (:story-details mission ""))
          act                   (:act card)
          next-stage            (or (:type card) :intro)
+         starting-player       (or (:starting-player card) active-player)
+         ;; Don't allow done-action for #everyone cards until they are passed around
+         can-finish?           (or (not (get-in card [:tags :everyone] false))
+                                   (= (:starting-player card) active-player))
          pass                  {:action :pass
                                 :text   (str "Pass card to " (:user-name next-player))}]
-     {:card              (replace-vars game card)
+     {:card              (assoc (replace-vars game card)
+                                :starting-player starting-player)
       :extra-details     (map #(hash-map :title (:label %)
                                      :name (:name %)
                                      :items (take 3 (shuffle (mapv :text (get -generators (:name %) [])))))
@@ -195,7 +200,9 @@
                            :downvoting (mapv (partial player-button game {:rank :worst
                                                                           :act  act}) all-players)
                            :dossier    [done-action]
-                           [done-action pass])}))
+                           (if can-finish?
+                             [done-action pass]
+                             [pass]))}))
   ([card active-player next-player]
    (build-active-card {} card active-player next-player)))
 

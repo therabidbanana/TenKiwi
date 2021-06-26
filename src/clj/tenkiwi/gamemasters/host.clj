@@ -47,16 +47,24 @@
         (swap! update-in [:rooms player-location :players] filter-user)))
     world-atom))
 
+(def GAME-LIBRARY "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=1598562012&single=true&output=tsv")
+
 (defn set-player-room
   ([world-atom uid room-id]
    (let [user-info (get-in @world-atom [:player-info uid])]
      (set-player-room world-atom uid room-id user-info)))
   ([world-atom uid room-id user-info]
-   (let [room (or (get-room world-atom room-id)
+   (let [available-games (filter (fn [{:keys [code]}]
+                                   (or (empty? code) (= room-id code)))
+                                 (util/read-spreadsheet-data GAME-LIBRARY util/normalize-card))
+         room (or (get-room world-atom room-id)
                   {:id room-id
                    :room-code room-id
+                   :available-games available-games
                    :players []})
          _ (println room)
+         ;;; TODO - bounce if user joining started game (limit trolling)
+         ;;; TODO - concurrency bug room join
          new-room (update-in room [:players] conj user-info)]
      (doto world-atom
       (swap! update-in [:players] assoc uid room-id)

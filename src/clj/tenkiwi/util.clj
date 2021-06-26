@@ -40,9 +40,11 @@
                           (clojure.string/split text #"\n\n" 2)
                           ["" text])
         tags
-        (reduce #(assoc %1 (clojure.string/replace %2 "#" "") true)
-                {}
-                (clojure.string/split tag-line #","))
+        (if (empty? tag-line)
+          {}
+          (reduce #(assoc %1 (clojure.string/replace %2 "#" "") true)
+                  {}
+                  (clojure.string/split tag-line #",")))
         ]
     (assoc card
            :tags (update-keys tags keyword)

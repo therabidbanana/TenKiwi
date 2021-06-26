@@ -1,8 +1,8 @@
 {
   "files": {
-    "app.js": "/static/js/app.f7fe077d.chunk.js",
+    "app.js": "/static/js/app.1ea0cdcb.chunk.js",
     "runtime~app.js": "/static/js/runtime~app.c09eef9e.js",
-    "static/js/2.83ef3a5b.chunk.js": "/static/js/2.83ef3a5b.chunk.js",
+    "static/js/2.2f7d278c.chunk.js": "/static/js/2.2f7d278c.chunk.js",
     "fonts/AntDesign.ttf": "/./fonts/AntDesign.ttf",
     "fonts/Entypo.ttf": "/./fonts/Entypo.ttf",
     "fonts/Feather.ttf": "/./fonts/Feather.ttf",
@@ -24,7 +24,7 @@
   },
   "entrypoints": [
     "static/js/runtime~app.c09eef9e.js",
-    "static/js/2.83ef3a5b.chunk.js",
-    "static/js/app.f7fe077d.chunk.js"
+    "static/js/2.2f7d278c.chunk.js",
+    "static/js/app.1ea0cdcb.chunk.js"
   ]
 }

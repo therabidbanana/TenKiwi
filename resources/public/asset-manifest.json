@@ -1,6 +1,6 @@
 {
   "files": {
-    "app.js": "/static/js/app.1ea0cdcb.chunk.js",
+    "app.js": "/static/js/app.0646ae91.chunk.js",
     "runtime~app.js": "/static/js/runtime~app.c09eef9e.js",
     "static/js/2.2f7d278c.chunk.js": "/static/js/2.2f7d278c.chunk.js",
     "fonts/AntDesign.ttf": "/./fonts/AntDesign.ttf",
@@ -25,6 +25,6 @@
   "entrypoints": [
     "static/js/runtime~app.c09eef9e.js",
     "static/js/2.2f7d278c.chunk.js",
-    "static/js/app.1ea0cdcb.chunk.js"
+    "static/js/app.0646ae91.chunk.js"
   ]
 }

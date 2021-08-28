@@ -116,16 +116,15 @@
       (update :rank normalize-rank)
       (update :suit normalize-suit)))
 
+(defn- require-rank-suit [rows]
+  (->> rows
+       (filter :rank)
+       (filter :suit)))
+
 (defn pull-prompts [maybe-str]
-  (if maybe-str
-    (try
-      (to-lookup-map (util/read-spreadsheet-data maybe-str
-                                                 normalize-card-info))
-      (catch Exception e
-        (do
-          (println (str "Failed to pull prompts from spreadsheet " maybe-str))
-          prompts)))
-    prompts))
+  (to-lookup-map (util/read-spreadsheet-data maybe-str
+                                             normalize-card-info
+                                             require-rank-suit)))
 
 ;;; ----------------------------------------
 
@@ -147,7 +146,7 @@
      (str "the " rank " of " suit))))
 
 (defn interpret-draw
-  [{:keys [active-player next-players prompts]
+  [{:keys [active-player next-players prompts]}
    {:keys [type rank suit] :as card}]
   (let [{:keys [say-something-about
                 we-encounter
@@ -190,14 +189,14 @@
            "_When all players hit **\"Ready\"** the clocks will start and the game will begin._"
            )
       dead?
-      (str whos-up
+      (str #_whos-up
            "{character} is *dead*. "
            "Choose one of the following to add to the story:\n\n"
            "* The danger... **" the-horde "**\n"
            "* Establish important details... **" establish-something "**\n"
            )
       :else
-      (str whos-up
+      (str #_whos-up
            "Choose one of the following and use it to add to the story:\n\n"
            "* Say something about... **" say-something-about "**\n"
            "* We encounter... **" we-encounter "**\n"
@@ -240,14 +239,24 @@
                               )
         extra-actions       [(if paused? unpause-game-action
                                  pause-game-action)
-                             leave-game-action]]
+                             leave-game-action]
+
+        {:keys            [dead? id
+                           user-name]
+         active-character :character} active-player
+        whos-up          (str
+                          (:title active-character) " ("
+                          user-name
+                          ")'s turn...")]
     (if (#{:win? :lose? :death} type)
       (-> active-display
           (assoc :type type)
           (update :additional-prompts concat [(:text new-card)])
+          (assoc :turn-marker whos-up)
           (assoc :extra-actions extra-actions)
           (assoc :actions actions))
       {:card          new-card
+       :turn-marker   whos-up
        :extra-actions extra-actions
        :actions       actions})))
 
@@ -346,7 +355,8 @@
         horde             (get params :horde "Zombies")
         location          (get params :location "in a mall")
         act-length        (get params :act-length 9)
-        prompts           (pull-prompts (get params :prompts "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBY3mq94cg_k3onDKmA1fa_L3AGbKVBfdxxeP04l73QVIXMkD4gEdG-e2ciex2jjTJjaKkdU1Vtaf1/pub?gid=481445422&single=true&output=tsv"))
+        prompts           (pull-prompts (get params :game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBY3mq94cg_k3onDKmA1fa_L3AGbKVBfdxxeP04l73QVIXMkD4gEdG-e2ciex2jjTJjaKkdU1Vtaf1/pub?gid=481445422&single=true&output=tsv"))
+        _ (inspect (take 5 prompts))
         original-players  players
         players           (take (+ extra-players (count original-players))
                                 (cycle original-players))

@@ -18,6 +18,11 @@
   ([url]
    (read-spreadsheet-data url second))
   ([url parser]
+   (let [row-filter (fn [r] (->> r
+                                 (filter :text)
+                                 (filter :type)))]
+     (read-spreadsheet-data url parser row-filter)))
+  ([url parser row-filter]
    (let [lines
          (->> (slurp url)
               (clojure.string/split-lines)
@@ -26,8 +31,7 @@
          rest   (rest lines)
          keys   (map keyword header)
          rows   (->> (map #(zipmap keys %) rest)
-                     (filter :text)
-                     (filter :type))]
+                     row-filter)]
      (map-indexed parser rows))))
 
 (defn normalize-twospace [text]

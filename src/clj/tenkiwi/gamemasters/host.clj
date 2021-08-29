@@ -55,12 +55,15 @@
    (let [user-info (get-in @world-atom [:player-info uid])]
      (set-player-room world-atom uid room-id user-info)))
   ([world-atom uid room-id user-info]
-   (let [available-games (filter (fn [{:keys [code]}]
-                                   (or (empty? code) (= room-id code)))
+   (let [host-codes (into #{} (:unlock-codes user-info))
+         available-games (filter (fn [{:keys [code]}]
+                                   (or (empty? code) (= room-id code)
+                                       (host-codes code)))
                                  (util/read-spreadsheet-data GAME-LIBRARY util/normalize-card))
          room (or (get-room world-atom room-id)
                   {:id room-id
                    :room-code room-id
+                   :host-id uid
                    :available-games available-games
                    :players []})
          _ (println room)

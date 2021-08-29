@@ -68,10 +68,11 @@
 
 (defmethod -event-msg-handler :room/join-room!
   [system {:as ev-msg :keys [event uid send-fn]}]
-  (let [[_ {:keys [user-name room-code]}] event
+  (let [[_ {:keys [user-name room-code unlock-codes]}] event
 
-        user {:id        uid
-              :user-name user-name}]
+        user {:id           uid
+              :user-name    user-name
+              :unlock-codes (or unlock-codes [])}]
     (if (= uid :taoensso.sente/nil-uid)
       (println "Warning - unassigned user id! Ignoring join :room/join-room!")
       (host/join-room! system uid room-code user))))

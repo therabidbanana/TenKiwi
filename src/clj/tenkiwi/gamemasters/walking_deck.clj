@@ -257,6 +257,7 @@
           (assoc :actions actions))
       {:card          new-card
        :turn-marker   whos-up
+       :available-actions #{:x-card :done :pass :pause :unpause :end-game}
        :extra-actions extra-actions
        :actions       actions})))
 
@@ -275,6 +276,7 @@
 
     {:card          waiting
      :actions       [(assoc done-action :disabled? true :text (str user-name "'s turn..."))]
+     :available-actions #{:x-card :pause :unpause :end-game}
      :extra-actions [(if paused? unpause-game-action
                          pause-game-action)
                      leave-game-action]}))
@@ -560,10 +562,12 @@
       (-> next-game
           (assoc-in [:active-player :dead?] true)
           ;; Play death sound
-          (assoc :broadcasts [[:->sound/trigger! :stinger]]))
+          (assoc :broadcasts [[:->sound/trigger! :stinger]
+                              [:->toast/show! "The timer goes off and someone died"]]))
       (-> next-game
           ;; Play timer expired sound (same for now)
-          (assoc :broadcasts [[:->sound/trigger! :stinger]])))))
+          (assoc :broadcasts [[:->sound/trigger! :stinger]
+                              [:->toast/show! "The timer goes off"]])))))
 
 (defn tick-clock [game]
   (let [{:keys [act

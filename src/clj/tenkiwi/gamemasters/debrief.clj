@@ -246,8 +246,8 @@
         mission-wrapup (get mission-briefing-cards "2")]
     (-> card
         (assoc :briefing-cards (concat mission-open briefing mission-wrapup))
-        (update :secondary-objectives #(string/split % #"\s\s"))
-        (update :complications #(string/split % #"\s\s"))
+        (update :secondary-objectives #(->> (string/split % #"\s\s") (map string/trim)))
+        (update :complications #(->> (string/split % #"\s\s") (map string/trim)))
         (update :complications shuffle)
         (update :secondary-objectives shuffle))))
 

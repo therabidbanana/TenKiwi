@@ -1,0 +1,9 @@
+i[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.davidhaslem.tenkiwi",
+    "sha256_cert_fingerprints":
+    ["BF:E7:8C:44:C4:74:4B:88:64:CC:B2:FD:4B:03:8D:9C:DD:0E:5C:25:02:53:70:57:8C:02:47:1F:FB:84:61:B9"]
+  }
+}]

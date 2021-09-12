@@ -40,7 +40,7 @@
              :packer (get-transit-packer)
              :wrap-component? true})
            [:register])
-   :register  (new-register (atom {}))
+   :register  (new-register (:database-uri config))
    :server-info (server-info (:http-port config))))
 
 (defn -main [& _]

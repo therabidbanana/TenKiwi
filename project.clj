@@ -24,6 +24,10 @@
                  [re-frame "1.1.2"]
                  [lambdaisland/garden-watcher "0.3.3"]
 
+                 [duratom "0.5.3"]
+                 [org.clojure/java.jdbc "0.6.1"]
+                 [org.postgresql/postgresql "9.4.1211"]
+                 [com.taoensso/nippy "3.1.1"]
 
                  [markdown-to-hiccup "0.6.2"]
                  [com.taoensso/sente "1.16.0"]

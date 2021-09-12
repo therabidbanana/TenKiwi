@@ -6,6 +6,8 @@
 
 (defn config []
   {:http-port  (Integer. (or (env :port) 10555))
+   :database-uri (or (env :database-url)
+                     "postgres://tenkiwi:secretPasskiwi@localhost:5432/tenkiwi")
    :middleware [[wrap-defaults site-defaults]
                 wrap-with-logger
                 wrap-gzip]})

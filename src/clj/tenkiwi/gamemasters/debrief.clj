@@ -169,6 +169,17 @@
    :confirm true
    :text    (str (get-in dossiers [id :agent-codename] user-name))})
 
+(defn upvote-current-player-button [{:keys [dossiers]} {:keys [id user-name]}]
+  {:action  :upvote-player
+   :params  {:player-id id}
+   :text    (str "Upvote " (get-in dossiers [id :agent-codename] user-name))})
+
+(defn downvote-current-player-button [{:keys [dossiers]} {:keys [id user-name]}]
+  {:action  :downvote-player
+   :params  {:player-id id}
+   :text    (str "Downvote " (get-in dossiers [id :agent-codename] user-name))})
+
+
 (defn build-active-card
   ([game card active-player next-player]
    (let [{:keys [all-players
@@ -218,16 +229,19 @@
      :available-actions valid-inactive-actions
      :extra-actions [leave-game-action]}))
 
-(defn build-inactive-version [{:keys [active-player] :as game}
+(defn build-inactive-version [{:keys [dossiers active-player] :as game}
                               {{:keys [type]} :card
                                :as            active-display}]
   (let [disabled-actions [{:text      (:text (waiting-for active-player))
-                           :disabled? true}]]
+                           :disabled? true}]
+        extra-actions    [(upvote-current-player-button dossiers active-player)
+                          (downvote-current-player-button dossiers active-player)]]
     (cond
       (#{:act-start :question :intro :mission-briefing} type)
       (-> active-display
           (assoc :available-actions valid-inactive-actions)
-          (assoc :actions disabled-actions))
+          (assoc :actions disabled-actions)
+          (update :actions #(into % extra-actions)))
       (#{:dossier} type)
       (build-inactive-card active-player "Introductions are being made.")
       :else
@@ -477,23 +491,31 @@
 (defn upvote-player
   [voter-id
    {:keys [player-id]}
-   {:keys [player-scores] :as game}]
+   {:keys [all-players player-scores dossiers] :as game}]
   (let [current-score (get-in player-scores [player-id voter-id])
-        new-score (min (inc current-score) 10)]
+        new-score (min (inc current-score) 10)
+        player-names (group-by :id all-players)
+        player-name (or (get-in dossiers [player-id :agent-codename])
+                        (get-in player-names [player-id 0 :user-name] "Someone"))]
     (if current-score
       (-> game
-         (assoc-in [:player-scores player-id voter-id] new-score))
+          (assoc-in [:player-scores player-id voter-id] new-score)
+          (assoc-in [:broadcasts] [[:->toast/show! (str "👍  " player-name " got upvoted.")]]))
       game)))
 
 (defn downvote-player
   [voter-id
    {:keys [player-id]}
-   {:keys [player-scores] :as game}]
+   {:keys [all-players player-scores dossiers] :as game}]
   (let [current-score (get-in player-scores [player-id voter-id])
-        new-score (max (dec current-score) 0)]
+        new-score (max (dec current-score) 0)
+        player-names (group-by :id all-players)
+        player-name (or (get-in dossiers [player-id :agent-codename])
+                        (get-in player-names [player-id 0 :user-name] "Someone"))]
     (if current-score
       (-> game
-          (assoc-in [:player-scores player-id voter-id] new-score))
+          (assoc-in [:player-scores player-id voter-id] new-score)
+          (assoc-in [:broadcasts] [[:->toast/show! (str "👎  " player-name " got downvoted.")]]))
       game)))
 
 (defn x-card [game]

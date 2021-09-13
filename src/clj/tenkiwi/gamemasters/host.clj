@@ -3,6 +3,7 @@
   (:require [tenkiwi.gamemasters.ftq :as ftq]
             [tenkiwi.gamemasters.debrief :as debrief]
             [tenkiwi.gamemasters.walking-deck :as walking-deck]
+            [tenkiwi.gamemasters.walking-deck-v2 :as walking-deck-v2]
             [tenkiwi.gamemasters.oracle :as oracle]
             [tenkiwi.instar :refer [transform]]
             [tenkiwi.util :as util :refer [inspect]]
@@ -93,6 +94,7 @@
       :debrief (partial debrief/start-game room-id params)
       :oracle (partial oracle/start-game room-id params)
       :walking-deck (partial walking-deck/start-game room-id params)
+      :walking-deck-v2 (partial walking-deck-v2/start-game room-id params)
       :ftq (partial ftq/start-game room-id params)
       nil)))
 
@@ -104,6 +106,7 @@
       :debrief (partial debrief/take-action action)
       :oracle (partial oracle/take-action action)
       :walking-deck (partial walking-deck/take-action action)
+      :walking-deck-v2 (partial walking-deck-v2/take-action action)
       :ftq (partial ftq/take-action action)
       nil)))
 

@@ -2,8 +2,8 @@
   "applinks": {
     "apps": [],
     "details": [{
-      "appID": "com.davidhaslem.tenkiwi",
-      "paths": ["/unlock/*", "/join/*", "/*"]
+      "appID": "3PZEM7YXDE.com.davidhaslem.tenkiwi",
+      "paths": ["*"]
     }]
   }
 }

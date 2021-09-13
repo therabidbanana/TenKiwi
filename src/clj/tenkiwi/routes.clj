@@ -23,12 +23,12 @@
             (update-in [:body] #(str/replace (slurp %) "CSRF_TOKEN" (force csrf/*anti-forgery-token*)))
             (assoc :headers {"Content-Type" "text/html; charset=utf-8"})))
    (GET "/.well-known/apple-app-site-association" _
-        (-> "public/.well-known/apple-app-site-association"
+        (-> "public/well-known/apple-app-site-association"
             io/resource
             io/input-stream
             response))
    (GET "/.well-known/assetlinks.json" _
-        (-> "public/.well-known/assetlinks.json"
+        (-> "public/well-known/assetlinks.json"
             io/resource
             io/input-stream
             response))

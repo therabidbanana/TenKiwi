@@ -59,11 +59,6 @@
    :state :inactive
    :text  (str "It is " user-name "'s turn...")})
 
-(def act-prompts {0 "Introduction"
-                  1 "Act One: The Threat Emerges"
-                  2 "Act Two: We Gather Our Resources"
-                  3 "Act Three: Everything Ends"})
-
 
 ;;; ----------------------------------------
 ;; Utilities for building up the new decks
@@ -76,14 +71,6 @@
 (def playing-cards (for [rank card-ranks
                          suit card-suits]
                      (hash-map :rank rank :suit suit)))
-
-(defn- to-lookup-map
-  "Build a lookup map from a spreadsheet with rank and suit"
-  [card-rows]
-  (into {}
-        (for [{:keys [rank suit]
-               :as row} card-rows]
-          [[suit rank] row])))
 
 (defn- normalize-rank [string]
   (let [to-rank (merge {"k" :king
@@ -147,70 +134,30 @@
 (defn interpret-draw
   [{:keys [active-player next-players prompts]}
    {:keys [type rank suit] :as card}]
-  (let [{:keys [say-something-about
-                we-encounter
-                establish-something
-                the-horde
-                character
-                how-you-die]}         (lookup-card prompts card)
-        all-players                   (cons active-player next-players)
+  (let [all-players                   (cons active-player next-players)
         {:keys            [dead? id
                            user-name]
          active-character :character} active-player
-        matching-players              (keep #(if (= rank (get-in % [:character :rank]))
-                                               %
-                                               nil)
-                                            all-players)
 
-        {{:keys [title]} :character
-         :keys           [id]
-         :as             drawn-char} (first matching-players)
-
-        character-draw   (:character (lookup-card prompts active-character))
-        character-intro? (= :character-intro type)
-        starter?         (= :starter type)
-        card-title       (card-name card)
-        whos-up          (str
-                          "_"
-                          (:title active-character) " ("
-                          user-name
-                          ")'s turn:_\n\n")]
+        starter?         (= :starter type)]
     (cond
-      character-intro?
-      (str "_" user-name "_ is playing _" character-draw "_. "
-           "Read the following and fill in the blanks!\n\n"
-           "I'm _" character-draw "_! My name is.... and you can tell I'm _"
-           character-draw "_ because ... \n\n"
-           "I'm {location} because ..."
-           )
       starter?
       (str "You are all {location} when {horde} strike!\n\n"
            "_When all players hit **\"Ready\"** the clocks will start and the game will begin._"
            )
-      dead?
-      (str #_whos-up
-           "{character} is *dead*. "
-           "Choose one of the following to add to the story:\n\n"
-           "* The danger... **" the-horde "**\n"
-           "* Establish important details... **" establish-something "**\n"
-           )
       :else
-      (str #_whos-up
-           "Choose one of the following and use it to add to the story:\n\n"
-           "* Say something about... **" say-something-about "**\n"
-           "* We encounter... **" we-encounter "**\n"
-           ))))
+      (str "Something went wrong - card text not found"))))
 
 (defn replace-vars [{:keys [active-player
                             option-1 option-2
                             horde location]} str]
   (let [character (get-in active-player [:character :title])]
     (-> str
-       (clojure.string/replace #"\{horde\}" horde)
-       (clojure.string/replace #"\{character\}" character)
-       (clojure.string/replace #"\{location\}" location)
-       (clojure.string/replace #"\{option-1\}" option-1)
-       (clojure.string/replace #"\{option-2\}" option-2)
+        (clojure.string/replace #"\{horde\}" (or horde "zombies"))
+        (clojure.string/replace #"\{character\}" (or character "CHARACTER"))
+        (clojure.string/replace #"\{location\}" (or location "LOCATION"))
+        (clojure.string/replace #"\{option-1\}" (or option-1 "???"))
+        (clojure.string/replace #"\{option-2\}" (or option-2 "???"))
        )))
 
 (defn build-active-card [{:keys [act
@@ -228,7 +175,7 @@
         all-dead?           (empty? survivors)
         active-player-dead? (:dead? active-player)
         new-card            (assoc card
-                                   :type (or type :prompt)
+                                   :type (or type :unknown)
                                    :text (replace-vars
                                           (merge game-state card)
                                           (or text (interpret-draw game-state card))))
@@ -236,7 +183,7 @@
                               all-dead?                           [lose-game-action]
                               (and (> act 3) active-player-dead?) [lose-game-action]
                               (> act 3)                           [win-game-action]
-                              (#{:prompt} (:type new-card))       [pass-action done-action]
+                              (#{:alive :dead} (:type new-card))  [pass-action done-action]
                               (#{:starter} (:type new-card))      [ready-action]
                               :else                               [done-action]
                               )
@@ -409,6 +356,7 @@
                      :horde         horde
                      :location      location
                      ;; :prompts       prompts
+                     :prompts       {}
                      :generators    gens
                      :player-order  original-players
                      :act           0
@@ -485,7 +433,8 @@
                              (and (> act 3) next-player-alive?) end-game-card
                              (> act 3)                          dead-end-game-card
                              :else                              top-card)
-        next-act           (if (and (= act 0) (= (:type next-card) :prompt))
+        next-act           (if (and (= act 0)
+                                    (#{:alive :dead} (:type next-card)))
                              (inc act)
                              act)
         next-act-prompt    (act-prompts next-act)
@@ -507,10 +456,10 @@
                             next-players
                             prompts
                             discard
-                            deck
+                            decks
                             state]
                      :as   game}]
-  (let [[discard deck]        (draw-next discard deck active-player)
+  (let [[discard decks]       (draw-next discard decks active-player)
         top-card              (first discard)
         {:keys [how-you-die]} (lookup-card prompts top-card)
         specific-death        (-> death-card
@@ -521,7 +470,7 @@
                       top-card)
         active-card (build-active-card game next-card)]
     (assoc game
-           :deck deck
+           :decks decks
            :discard discard
            :active-display active-card
            :inactive-display (inactive-version game active-card))))
@@ -575,14 +524,16 @@
   nil)
 
 (defn show-timer-card!
-  [{:keys [prompts act active-player discard deck]
+  [{:keys [prompts act active-player discard decks generators]
     :as game}]
   (let [currently-dead? (:dead? active-player)
-        [discard deck]  (draw-next discard deck)
+        [discard decks] (draw-next discard decks active-player)
         current-card    (first discard)
 
-        {:keys [how-you-die]
-         :as   card}   (lookup-card prompts current-card)
+        how-you-die   (->> (get-in generators [:how-you-die])
+                           shuffle
+                           first
+                           :text)
         specific-death (-> death-card
                            (update :text str " _" how-you-die "_."))
 
@@ -600,7 +551,7 @@
                        :else
                        [true (build-active-card game specific-death)])
         next-game    (assoc game
-                            :deck deck
+                            :decks decks
                             :discard discard
                             :active-display new-screen
                             :inactive-display (inactive-version game new-screen))]
@@ -619,6 +570,7 @@
   (let [{:keys [act
                 act-timer
                 act-length
+                act-prompts
                 drama-timer
                 active-display
                 active-player
@@ -643,6 +595,7 @@
                                   (inc act)
                                   act)
         next-act-prompt   (act-prompts next-act)]
+    (println "tick" drama-timer new-drama-timer "act" act)
     (cond
       (= act 0) game ;; Game not technically started yet
       (> act 3) game ;; or over

@@ -201,12 +201,16 @@
            "* We encounter... **" we-encounter "**\n"
            ))))
 
-(defn replace-vars [{:keys [active-player horde location]} str]
+(defn replace-vars [{:keys [active-player
+                            option-1 option-2
+                            horde location]} str]
   (let [character (get-in active-player [:character :title])]
     (-> str
        (clojure.string/replace #"\{horde\}" horde)
        (clojure.string/replace #"\{character\}" character)
        (clojure.string/replace #"\{location\}" location)
+       (clojure.string/replace #"\{option-1\}" option-1)
+       (clojure.string/replace #"\{option-2\}" option-2)
        )))
 
 (defn build-active-card [{:keys [act
@@ -226,7 +230,7 @@
         new-card            (assoc card
                                    :type (or type :prompt)
                                    :text (replace-vars
-                                          game-state
+                                          (merge game-state card)
                                           (or text (interpret-draw game-state card))))
         actions             (cond
                               all-dead?                           [lose-game-action]
@@ -296,18 +300,19 @@
     {:title       name
      :description (clojure.string/join ", " description)}))
 
-(defn character-card [player [option-1 option-2]]
+(defn character-card [player [{option-1 :text} {option-2 :text}]]
   {:type      :character-intro
+   :text      (str "Choose a character. How did you get here? What's your name? \n\n"
+                   (clojure.string/join "\n\nor...\n\n" [option-1 option-2]))
    :player-id (:id player)
    :player    player
    :character-1 (parse-character-name option-1)
    :character-2 (parse-character-name option-2)})
 
-(defn shuffle-discard [discard]
+(defn shuffle-discard [discard type]
   (->> discard
-       (filter #(= :prompt (:type %)))
+       (filter #(= type (:type %)))
        shuffle
-       (map #(select-keys % [:rank :suit :type]))
        (into [])))
 
 (defn act-timer! [room-id length]
@@ -369,7 +374,6 @@
         location          (get params :location "in a mall")
         act-length        (get params :act-length 9)
         prompts           (gather-decks (get params :game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBY3mq94cg_k3onDKmA1fa_L3AGbKVBfdxxeP04l73QVIXMkD4gEdG-e2ciex2jjTJjaKkdU1Vtaf1/pub?gid=963518572&single=true&output=tsv"))
-        _ (inspect (keys prompts))
         alive             (prompts :alive)
         dead              (prompts :dead)
         intro-cards       (->> (prompts :intro) (group-by :rank))
@@ -379,7 +383,6 @@
                                (group-by-uniq :rank))
         act-prompts       (->> (prompts :act-prompt)
                                (group-by-uniq :rank))
-        _ (inspect players)
         original-players  players
         players           (take (+ extra-players (count original-players))
                                 (cycle original-players))
@@ -394,18 +397,12 @@
                                 cycle
                                 (partition-all 2)
                                 (take player-count))
-        _ (inspect character-pairs)
         ;; Create dynamic cards with options for player to make
         character-cards   (map character-card players character-pairs)
         intro-deck        (concat (get intro-cards :first)
                                   character-cards
                                   (get intro-cards :last)
                                   [starter-card])
-
-        _ (inspect (take 3 intro-deck))
-        _ (inspect (take 3 alive))
-        _ (inspect (take 3 dead))
-        _ (inspect (keys gens))
 
         new-game    {:game-type     :walking-deck-v2
                      :room-id       room-id
@@ -447,26 +444,37 @@
 (def all-dead-card {:type :lose?
                     :text "Everyone has died."})
 
-(defn draw-next [discard deck]
+(defn draw-next [discard decks player]
   "Given discard and deck, draws next card, shuffling if needed"
-  (let [next-card (first deck)]
-    (if (empty? (rest deck))
-     (do
-       (println "Shuffling...")
-       [[next-card] (shuffle-discard discard)])
-     [(cons next-card discard) (into [] (rest deck))])))
+  (let [deck-type (cond
+                    (> (count (:intro decks)) 0)
+                    :intro
+                    (:dead? player)
+                    :dead
+                    :else
+                    :alive)
+        deck (get decks deck-type)]
+    (let [next-card (first deck)
+          [discard new-deck] (if (and (not= :intro deck-type) (empty? (rest deck)))
+                               (do
+                                 (println "Shuffling...")
+                                 (let [[discard new-deck] (shuffle-discard deck-type)]
+                                   [(cons next-card discard) (into [] new-deck)]))
+                               [(cons next-card discard) (into [] (rest deck))])]
+      [discard (assoc decks deck-type new-deck)])))
 
 (defn finish-card [{:keys [player-order
                            active-player
                            next-players
                            discard
-                           deck
+                           decks
+                           act-prompts
                            act]
                     :as   game}]
-  (let [[discard deck]     (draw-next discard deck)
-        top-card           (first discard)
-        all-players        (conj (into [] next-players) active-player)
+  (let [all-players        (conj (into [] next-players) active-player)
         next-up            (first all-players)
+        [discard decks]    (draw-next discard decks next-up)
+        top-card           (first discard)
         ;; This lets us push first player back in the mix (only single player)
         next-players       (rest all-players)
         survivors          (remove :dead? all-players)
@@ -486,7 +494,7 @@
                                   :active-player next-up)
         active-card        (build-active-card next-game next-card)]
     (assoc next-game
-           :deck deck
+           :decks decks
            :discard discard
            :act-prompt next-act-prompt
            :act next-act
@@ -502,7 +510,7 @@
                             deck
                             state]
                      :as   game}]
-  (let [[discard deck]        (draw-next discard deck)
+  (let [[discard deck]        (draw-next discard deck active-player)
         top-card              (first discard)
         {:keys [how-you-die]} (lookup-card prompts top-card)
         specific-death        (-> death-card

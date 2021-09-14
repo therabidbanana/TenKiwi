@@ -149,7 +149,7 @@
         mutator (game-starter game-type room-id params)]
     (if mutator
       (let [output    (swap! world update-room-state! system room-id mutator)
-            new-state (inspect (get-in output [:rooms room-id :game]))]
+            new-state (get-in output [:rooms room-id :game])]
         (log-unless-timekeeper new-state uid)
         (->room system room-id [:->game/started! (get-room world room-id)])))))
 

@@ -449,6 +449,7 @@
         next-game          (-> game
                             (assoc-in [:inactive-display :x-card-active?] false)
                             (assoc :-deck deck
+                                   :-last-state game
                                    :-discard discard))
         new-active-display (build-active-card next-game next-card active-player next-up)]
     (assoc (merge next-game stage-info)

@@ -5,7 +5,7 @@
    [tenkiwi.tables.debrief :as tables]
    [tenkiwi.util :as util :refer [inspect]]))
 
-(def valid-active-actions #{:rank-player :regen :pass :discard :done :x-card :end-game :upvote-player :downvote-player :leave-game})
+(def valid-active-actions #{:rank-player :regen :pass :discard :undo :done :x-card :end-game :upvote-player :downvote-player :leave-game})
 (def valid-inactive-actions #{:rank-player :x-card :undo :leave-game :upvote-player :downvote-player})
 
 (defn valid-action? [active? action]
@@ -52,6 +52,10 @@
 (def end-game-action
   {:action  :end-game
    :text    "End the Game"})
+
+(def undo-action
+  {:action  :undo
+   :text    "Undo Last"})
 
 (defn score-ranks
   "Finds scores for player id based on best/worst ranking from each other player
@@ -200,9 +204,7 @@
                                      :name (:name %)
                                      :items (take 3 (shuffle (mapv :text (get -generators (:name %) [])))))
                           story-details)
-      :extra-actions     (case next-stage
-                           :end [leave-game-action]
-                           [leave-game-action])
+      :extra-actions     [undo-action leave-game-action]
       :available-actions valid-active-actions
       :actions           (case next-stage
                            :end        [pass end-game-action]
@@ -227,7 +229,7 @@
 
     {:card          waiting
      :available-actions valid-inactive-actions
-     :extra-actions [leave-game-action]}))
+     :extra-actions [undo-action leave-game-action]}))
 
 (defn build-inactive-version [{:keys [dossiers active-player] :as game}
                               {{:keys [type]} :card
@@ -422,6 +424,7 @@
                                   :-deck deck
                                   :dossiers dossiers
                                   :-discard discard
+                                  :-last-state game
                                   :active-player next-up)
         new-active-display (build-active-card next-game next-card next-up next-next)]
     (-> next-game
@@ -459,11 +462,19 @@
         active-card             (get-in game [:active-display :card])
         next-up                 (next-player player-order active-player)
         next-next               (next-player player-order next-up)
-        next-game               (assoc game :active-player next-up)
+        next-game               (assoc game :active-player next-up :-last-state game)
         new-active-display      (build-active-card next-game active-card next-up next-next)]
     (assoc next-game
            :inactive-display (build-inactive-version next-game new-active-display)
            :active-display new-active-display)))
+
+;; TODO: How much stress does this add to duratom?
+(defn undo-card [game]
+  (let [{:keys [player-scores
+                -last-state]} game]
+    (assoc -last-state
+           :player-scores
+           (get-in game [:player-scores]))))
 
 (defn push-uniq [coll item]
   (if (some #(= % item) coll)
@@ -561,6 +572,7 @@
                         :x-card          x-card
                         :discard         discard-card
                         :pass            pass-card
+                        :undo            undo-card
                         :regen           (partial regen-card params)
                         ;; TODO - work out upvote/downvote UI for players
                         :upvote-player   (partial upvote-player uid params)

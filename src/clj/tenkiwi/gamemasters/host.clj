@@ -23,7 +23,7 @@
 (defn ->players [{:keys [chsk-send!]} uids message]
   (doseq [uid uids]
     (let [mapped-msg (mapv possibly-remove-keys message)]
-      (chsk-send! uid message))))
+      (chsk-send! uid mapped-msg))))
 
 (defn ->player [system uid message]
   (->players system [uid] message))

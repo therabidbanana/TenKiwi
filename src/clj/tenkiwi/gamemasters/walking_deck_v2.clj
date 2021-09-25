@@ -3,7 +3,7 @@
   (:require [tenkiwi.util :as util :refer [inspect]]
             #_[walking-deck.common :as common]))
 
-(def valid-active-actions #{:ready :pause-game :unpause-game :discard :done :x-card :end-game :leave-game})
+(def valid-active-actions #{:ready :pause-game :unpause-game :discard :done :x-card :end-game :choose-option :leave-game})
 (def valid-inactive-actions #{:ready :pause-game :unpause-game :x-card :leave-game})
 
 (defn valid-action? [active? action]
@@ -248,13 +248,27 @@
      :description (clojure.string/join ", " description)}))
 
 (defn character-card [player [{option-1 :text} {option-2 :text}]]
-  {:type      :character-intro
-   :text      (str "Choose a character. How did you get here? What's your name? \n\n"
-                   (clojure.string/join "\n\nor...\n\n" [option-1 option-2]))
-   :player-id (:id player)
-   :player    player
-   :character-1 (parse-character-name option-1)
-   :character-2 (parse-character-name option-2)})
+  (let [character-1 (parse-character-name option-1)
+        character-2 (parse-character-name option-2)]
+    {:type      :character-intro
+     :text      (str "Choose a character. How did you get here? What's your name? \n\n"
+                     #_(clojure.string/join "\n\nor...\n\n" [option-1 option-2]))
+     :prompt-options [{:character character-1
+                       :name :option-1
+                       :label (:title character-1)
+                       :description (:description character-1)
+                       :text option-1
+                       :selected? false}
+                      {:character character-2
+                       :name :option-2
+                       :label (:title character-2)
+                       :description (:description character-2)
+                       :text option-2
+                       :selected? false}]
+     :player-id (:id player)
+     :player    player
+     :character-1 character-1
+     :character-2 character-2}))
 
 (defn shuffle-discard [discard type]
   (->> discard
@@ -411,15 +425,25 @@
                                [(cons next-card discard) (into [] (rest deck))])]
       [discard (assoc decks deck-type new-deck)])))
 
+(defn update-player-if-selected! [display player]
+  (let [options         (get-in display [:card :prompt-options] [])
+        selected-option (first (filter :selected? options))
+        character       (get selected-option :character)]
+    (if character
+      (assoc player :character character)
+      player)))
+
 (defn finish-card [{:keys [player-order
                            active-player
+                           active-display
                            next-players
                            discard
                            decks
                            act-prompts
                            act]
                     :as   game}]
-  (let [all-players        (conj (into [] next-players) active-player)
+  (let [active-player      (update-player-if-selected! active-display active-player)
+        all-players        (conj (into [] next-players) active-player)
         next-up            (first all-players)
         [discard decks]    (draw-next discard decks next-up)
         top-card           (first discard)
@@ -493,6 +517,18 @@
       game
       :else
       (update-in game [:active-display :actions] push-uniq discard-action))
+    ))
+
+(defn choose-option [option-name game]
+  (let [{:keys [active-display]} game
+        {{:keys [type]} :card}   active-display
+        prompt-options (get-in active-display [:card :prompt-options])
+        updater (fn [{:keys [name] :as opt}]
+                  (assoc opt :selected? (= option-name name)))
+        prompt-options (map updater prompt-options)]
+    (-> game
+        (assoc-in [:active-display :card :prompt-options] prompt-options)
+        (assoc-in [:inactive-display :card :prompt-options] prompt-options))
     ))
 
 (defn pause-game [{:keys [:active-display] :as game}]
@@ -595,7 +631,8 @@
                                   (inc act)
                                   act)
         next-act-prompt   (act-prompts next-act)]
-    (println "tick" drama-timer new-drama-timer "act" act)
+    ;; Debug ticks
+    ;; (println "tick" drama-timer new-drama-timer "act" act)
     (cond
       (= act 0) game ;; Game not technically started yet
       (> act 3) game ;; or over
@@ -627,19 +664,20 @@
           game
           )))))
 
-(defn take-action [{:keys [uid room-id action]} {:keys [game]}]
+(defn take-action [{:keys [uid room-id action params]} {:keys [game]}]
   (let [state-mutator  (case action
-                         :done         finish-card
-                         :x-card       x-card
-                         :ready        (partial make-ready uid)
-                         :discard      discard-card
-                         :pause-game   pause-game
-                         :unpause-game unpause-game
-                         :tick-clock   tick-clock
+                         :done          finish-card
+                         :x-card        x-card
+                         :ready         (partial make-ready uid)
+                         :discard       discard-card
+                         :pause-game    pause-game
+                         :unpause-game  unpause-game
+                         :choose-option (partial choose-option params)
+                         :tick-clock    tick-clock
                          ;; TODO allow players to leave game without ending
                          ;;; change action text
-                         :leave-game   end-game
-                         :end-game     end-game)]
+                         :leave-game    end-game
+                         :end-game      end-game)]
 
     ((validated-mutator uid action state-mutator) game)))
 

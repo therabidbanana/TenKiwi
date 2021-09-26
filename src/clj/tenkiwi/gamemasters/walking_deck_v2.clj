@@ -3,7 +3,7 @@
   (:require [tenkiwi.util :as util :refer [inspect]]
             #_[walking-deck.common :as common]))
 
-(def valid-active-actions #{:ready :pause-game :unpause-game :discard :done :x-card :end-game :choose-option :leave-game})
+(def valid-active-actions #{:ready :pass :pause-game :unpause-game :discard :done :x-card :end-game :choose-option :leave-game})
 (def valid-inactive-actions #{:ready :pause-game :unpause-game :x-card :leave-game})
 
 (defn valid-action? [active? action]
@@ -37,8 +37,8 @@
    :text   "[X] Discard this..."})
 
 (def pass-action
-  {:action :done
-   :text   "Stuck? Spend your turn freaking out instead."})
+  {:action :pass
+   :text   "Stuck? Freak out instead."})
 
 (def end-game-action
   {:action  :end-game
@@ -170,11 +170,17 @@
      {:name :option-2 :selected? false :label option-2-label :description option-2}
      ]))
 
+;; TODO - make this dynamic
+
+(def story-details [{:label "Keyword" :name :keyword}
+                    {:label "Location" :name :location}])
+
 (defn build-active-card [{:keys [act
                                  paused?
                                  active-player
                                  active-display
                                  next-players
+                                 -generators
                                  horde
                                  location]
                           :as   game-state}
@@ -223,6 +229,10 @@
        :turn-marker   whos-up
        :available-actions #{:x-card :done :pass :pause :unpause :end-game}
        :extra-actions extra-actions
+       :extra-details     (map #(hash-map :title (:label %)
+                                          :name (:name %)
+                                          :items (take 3 (shuffle (mapv :text (get -generators (:name %) [])))))
+                               story-details)
        :actions       actions})))
 
 (defn build-inactive-card [{:keys [act
@@ -385,7 +395,7 @@
                      :location      location
                      ;; :prompts       prompts
                      :prompts       {}
-                     :generators    gens
+                     :-generators   gens
                      :player-order  original-players
                      :act           0
                      :act-prompts   act-prompts
@@ -393,9 +403,9 @@
                      :act-timer     (act-timer! room-id act-length)
                      :act-length    act-length
                      :drama-timer   (drama-timer! room-id player-count)
-                     :discard       [(first intro-deck)]
+                     :-discard      [(first intro-deck)]
                      :ready-players {}
-                     :decks         {:intro (rest intro-deck)
+                     :-decks        {:intro (rest intro-deck)
                                      :dead (into [] dead)
                                      :alive (into [] alive)}
                      :active-player (first players)
@@ -451,15 +461,15 @@
                            active-player
                            active-display
                            next-players
-                           discard
-                           decks
+                           -discard
+                           -decks
                            act-prompts
                            act]
                     :as   game}]
   (let [active-player      (update-player-if-selected! active-display active-player)
         all-players        (conj (into [] next-players) active-player)
         next-up            (first all-players)
-        [discard decks]    (draw-next discard decks next-up)
+        [discard decks]    (draw-next -discard -decks next-up)
         top-card           (first discard)
         ;; This lets us push first player back in the mix (only single player)
         next-players       (rest all-players)
@@ -481,8 +491,8 @@
                                   :active-player next-up)
         active-card        (build-active-card next-game next-card)]
     (assoc next-game
-           :decks decks
-           :discard discard
+           :-decks decks
+           :-discard discard
            :act-prompt next-act-prompt
            :act next-act
            :active-display active-card
@@ -493,11 +503,11 @@
                             active-display
                             next-players
                             prompts
-                            discard
-                            decks
+                            -discard
+                            -decks
                             state]
                      :as   game}]
-  (let [[discard decks]       (draw-next discard decks active-player)
+  (let [[discard decks]       (draw-next -discard -decks active-player)
         top-card              (first discard)
         {:keys [how-you-die]} (lookup-card prompts top-card)
         specific-death        (-> death-card
@@ -508,8 +518,8 @@
                       top-card)
         active-card (build-active-card game next-card)]
     (assoc game
-           :decks decks
-           :discard discard
+           :-decks decks
+           :-discard discard
            :active-display active-card
            :inactive-display (inactive-version game active-card))))
 
@@ -574,13 +584,13 @@
   nil)
 
 (defn show-timer-card!
-  [{:keys [prompts act active-player discard decks generators]
+  [{:keys [prompts act active-player -discard -decks -generators]
     :as game}]
   (let [currently-dead? (:dead? active-player)
-        [discard decks] (draw-next discard decks active-player)
+        [discard decks] (draw-next -discard -decks active-player)
         current-card    (first discard)
 
-        how-you-die   (->> (get-in generators [:how-you-die])
+        how-you-die   (->> (get-in -generators [:how-you-die])
                            shuffle
                            first
                            :text)
@@ -601,8 +611,8 @@
                        :else
                        [true (build-active-card game specific-death)])
         next-game    (assoc game
-                            :decks decks
-                            :discard discard
+                            :-decks decks
+                            :-discard discard
                             :active-display new-screen
                             :inactive-display (inactive-version game new-screen))]
     (if kill-active?
@@ -681,6 +691,7 @@
 (defn take-action [{:keys [uid room-id action params]} {:keys [game]}]
   (let [state-mutator  (case action
                          :done          finish-card
+                         :pass          finish-card
                          :x-card        x-card
                          :ready         (partial make-ready uid)
                          :discard       discard-card

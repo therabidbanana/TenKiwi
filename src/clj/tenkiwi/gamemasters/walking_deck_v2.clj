@@ -191,7 +191,6 @@
                                           (or text (interpret-draw game-state card))))
         new-card            (if (#{:alive :dead} type)
                               (assoc new-card
-                                     :text "Choose one of the options below and say more about it:"
                                      :prompt-options (build-card-prompts type option-1 option-2))
                               new-card)
         actions             (cond

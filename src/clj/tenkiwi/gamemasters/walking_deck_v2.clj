@@ -142,7 +142,7 @@
         starter?         (= :starter type)]
     (cond
       starter?
-      (str "You are all {location} when {horde} strike!\n\n"
+      (str "Describe briefly the safe space you have found.\n\n"
            "_When all players hit **\"Ready\"** the clocks will start and the game will begin._"
            )
       :else

@@ -160,6 +160,16 @@
         (clojure.string/replace #"\{option-2\}" (or option-2 "???"))
        )))
 
+(defn- build-card-prompts [type option-1 option-2]
+  (let [option-1-label (type {:alive "Say something about..."
+                              :dead "Establish why..."})
+        option-2-label (type {:alive "We encounter..."
+                              :dead "The horde..."})]
+    [
+     {:name :option-1 :selected? false :label option-1-label :description option-1}
+     {:name :option-2 :selected? false :label option-2-label :description option-2}
+     ]))
+
 (defn build-active-card [{:keys [act
                                  paused?
                                  active-player
@@ -168,7 +178,7 @@
                                  horde
                                  location]
                           :as   game-state}
-                         {:keys [text type]
+                         {:keys [text type option-1 option-2]
                           :as   card}]
   (let [all-players         (cons active-player next-players)
         survivors           (remove :dead? all-players)
@@ -179,6 +189,11 @@
                                    :text (replace-vars
                                           (merge game-state card)
                                           (or text (interpret-draw game-state card))))
+        new-card            (if (#{:alive :dead} type)
+                              (assoc new-card
+                                     :text "Choose one of the options below and say more about it:"
+                                     :prompt-options (build-card-prompts type option-1 option-2))
+                              new-card)
         actions             (cond
                               all-dead?                           [lose-game-action]
                               (and (> act 3) active-player-dead?) [lose-game-action]

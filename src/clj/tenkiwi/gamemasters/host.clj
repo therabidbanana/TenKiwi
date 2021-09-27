@@ -43,7 +43,6 @@
   (get-in @world-atom [:rooms room-id]))
 
 (defn delete-room-if-empty [room]
-  (println room)
   (if (empty? (:players room))
     nil
     room))

@@ -28,6 +28,7 @@
                  [org.clojure/java.jdbc "0.6.1"]
                  [org.postgresql/postgresql "9.4.1211"]
                  [com.taoensso/nippy "3.1.1"]
+                 [clj-time "0.15.2"]
 
                  [markdown-to-hiccup "0.6.2"]
                  [com.taoensso/sente "1.16.0"]

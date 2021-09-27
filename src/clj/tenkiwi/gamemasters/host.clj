@@ -7,6 +7,8 @@
             [tenkiwi.gamemasters.oracle :as oracle]
             [tenkiwi.instar :refer [transform]]
             [tenkiwi.util :as util :refer [inspect]]
+            [clj-time.core :as t]
+            [clj-time.coerce :as tc]
 ))
 
 (def home-room :home)
@@ -40,14 +42,21 @@
 (defn get-room [world-atom room-id]
   (get-in @world-atom [:rooms room-id]))
 
-(defn send-player-home [world-atom uid]
-  (let [player-location (get-player-location world-atom uid)
+(defn delete-room-if-empty [room]
+  (println room)
+  (if (empty? (:players room))
+    nil
+    room))
+
+(defn send-player-home [world-state uid]
+  (let [player-location (get-in world-state [:players uid])
         filter-user (fn [list] (remove #(= uid (:id %)) list))]
-    (if-not (home-room? player-location)
-      (doto world-atom
-        (swap! update-in [:players] assoc uid home-room)
-        (swap! update-in [:rooms player-location :players] filter-user)))
-    world-atom))
+    (if (home-room? player-location)
+      world-state
+      (-> world-state
+          (update-in [:players] assoc uid home-room)
+          (update-in [:rooms player-location :players] filter-user)
+          (update-in [:rooms player-location] delete-room-if-empty)))))
 
 (def GAME-LIBRARY "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=1598562012&single=true&output=tsv")
 
@@ -66,7 +75,8 @@
                    :room-code room-id
                    :host-id uid
                    :available-games available-games
-                   :players []})
+                   :players []
+                   :opened-at (tc/to-long (t/now))})
          _ (println room)
          ;;; TODO - bounce if user joining started game (limit trolling)
          ;;; TODO - concurrency bug room join
@@ -124,7 +134,7 @@
 
 (defn leave-room!
   [{:as system :keys [register]} uid]
-  (send-player-home (:world register) uid))
+  (swap! (:world register) send-player-home uid))
 
 (defn join-room!
   "Called when a player tries to join an existing room"
@@ -189,7 +199,7 @@
   [{:as system :keys [register]} uid]
   (let [world           (:world register)
         player-location (get-player-location world uid)]
-    (send-player-home world uid)
+    (swap! world send-player-home uid)
     (let [room (get-room world player-location)]
       (->player system uid [:->user/booted!])
       (->room system player-location [:->room/user-left! room]))))

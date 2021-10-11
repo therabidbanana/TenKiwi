@@ -263,17 +263,6 @@
   (let [ids (remove #(= id %) (map :id players))]
     (zipmap ids (cycle [5]))))
 
-(defn extract-missions [{:keys [mission-briefing mission
-                                mission-clue mission-complication
-                                mission-npc mission-setting]
-                         :as decks}]
-  (let [missions (mapv #(build-mission-details % decks) mission)]
-    [missions
-     (dissoc decks
-             :mission-briefing
-             :mission-complication :mission-clue
-             :mission-npc :mission-setting)]))
-
 (defn build-mission-details [{:keys [text group story-details] :as card}
                              {:keys [mission-briefing mission-clock-complication
                                      mission-clue mission-complication
@@ -318,6 +307,17 @@
                               shuffle
                               (map string/trim)))
         #_(inspect ))))
+
+(defn extract-missions [{:keys [mission-briefing mission
+                                mission-clue mission-complication
+                                mission-npc mission-setting]
+                         :as decks}]
+  (let [missions (mapv #(build-mission-details % decks) mission)]
+    [missions
+     (dissoc decks
+             :mission-briefing
+             :mission-complication :mission-clue
+             :mission-npc :mission-setting)]))
 
 (defn one-per-group
   ([act-collection]

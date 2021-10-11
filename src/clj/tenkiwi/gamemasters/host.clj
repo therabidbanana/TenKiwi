@@ -5,6 +5,7 @@
             [tenkiwi.gamemasters.walking-deck :as walking-deck]
             [tenkiwi.gamemasters.walking-deck-v2 :as walking-deck-v2]
             [tenkiwi.gamemasters.oracle :as oracle]
+            [tenkiwi.gamemasters.opera :as opera]
             [tenkiwi.instar :refer [transform]]
             [tenkiwi.util :as util :refer [inspect]]
             [clj-time.core :as t]
@@ -105,6 +106,7 @@
       :walking-deck (partial walking-deck/start-game room-id params)
       :walking-deck-v2 (partial walking-deck-v2/start-game room-id params)
       :ftq (partial ftq/start-game room-id params)
+      :opera (partial opera/start-game room-id params)
       nil)))
 
 (defn game-action [game-name {:keys [uid room-id] :as action}]
@@ -117,6 +119,7 @@
       :walking-deck (partial walking-deck/take-action action)
       :walking-deck-v2 (partial walking-deck-v2/take-action action)
       :ftq (partial ftq/take-action action)
+      :opera (partial opera/take-action action)
       nil)))
 
 (defn log-unless-timekeeper [output uid]

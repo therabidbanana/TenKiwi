@@ -48,7 +48,7 @@
           {}
           (reduce #(assoc %1 (clojure.string/replace %2 "#" "") true)
                   {}
-                  (clojure.string/split tag-line #",")))
+                  (clojure.string/split tag-line #"(,|\s+)")))
         ]
     (assoc card
            :tags (update-keys tags keyword)
@@ -62,7 +62,13 @@
       ))
 
 (defn gather-decks [url]
-  (let [cards (read-spreadsheet-data url normalize-card)]
+  (let [cards    (read-spreadsheet-data url normalize-card)
+        includes (->> (group-by :type cards)
+                      :include
+                      (map :text))
+        cards    (concat cards
+                         (mapcat #(read-spreadsheet-data % normalize-card)
+                                 includes))]
     (group-by :type cards)))
 
 (defn index-by [fn coll]

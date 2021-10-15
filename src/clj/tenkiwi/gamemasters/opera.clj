@@ -496,7 +496,7 @@
     ;; (gotta have enough of each type)
     ;; [next-card (concat (rest matches) non-matches)]
     (if-not (empty? prompts)
-      [next-card (assoc prompt-decks deck-type (concat matches non-matches))]
+      [next-card (assoc prompt-decks deck-type (concat (rest matches) non-matches))]
       [next-card prompt-decks]
       )))
 

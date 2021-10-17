@@ -5,8 +5,8 @@
    [tenkiwi.tables.debrief :as tables]
    [tenkiwi.util :as util :refer [inspect]]))
 
-(def valid-active-actions #{:jump-ahead :regen :pass :discard :undo :done :x-card :end-game :upvote-player :downvote-player :leave-game})
-(def valid-inactive-actions #{:jump-ahead :x-card :undo :leave-game :upvote-player :downvote-player})
+(def valid-active-actions #{:jump-ahead :regen :pass :discard :undo :done :x-card :end-game :leave-game})
+(def valid-inactive-actions #{:jump-ahead :x-card :undo :leave-game})
 
 (defn valid-action? [active? action]
   (if active?
@@ -173,16 +173,6 @@
    :type :inactive
    :text  (str "It is " user-name "'s turn...")})
 
-(defn upvote-current-player-button [{:keys [dossiers]} {:keys [id user-name]}]
-  {:action  :upvote-player
-   :params  {:player-id id}
-   :text    (str "Upvote " (get-in dossiers [id :agent-codename] user-name))})
-
-(defn downvote-current-player-button [{:keys [dossiers]} {:keys [id user-name]}]
-  {:action  :downvote-player
-   :params  {:player-id id}
-   :text    (str "Downvote " (get-in dossiers [id :agent-codename] user-name))})
-
 
 (defn build-active-card
   ([game card active-player next-player]
@@ -245,8 +235,7 @@
                                :as            active-display}]
   (let [disabled-actions [{:text      (:text (waiting-for active-player))
                            :disabled? true}]
-        extra-actions    [(upvote-current-player-button dossiers active-player)
-                          (downvote-current-player-button dossiers active-player)]]
+        extra-actions    []]
     (cond
       (#{:act-start :question :intro :mission-briefing} type)
       (-> active-display

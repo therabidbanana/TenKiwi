@@ -273,28 +273,25 @@
                                        (concat (remove #(clojure.string/blank? (:text %)) briefing)
                                                mission-middle)
                                        mission-wrapup))
-        ;; (update :clues #(->> (string/split (or % "") #"\s\s+") (map string/trim)))
-        ;; (update :complications #(->> (string/split (or % "") #"\s\s+") (map string/trim)))
-        ;; (update :clock-complications #(->> (string/split (or % "") #"\s\s+") (map string/trim)))
-        ;; (update :npcs #(->> (string/split (or % "") #"\s\s+") (map string/trim)))
-        ;; (update :settings #(->> (string/split (or % "") #"\s\s+") (map string/trim)))
-        ;; (update :clues #(->> (map (fn [i] {:type :clue :text i}) %) shuffle))
-        ;; (update :complications #(->> (map (fn [i] {:type :complication :text i}) %) shuffle))
-        (assoc :clues (->> mission-clues
-                           shuffle
-                           (map (fn [x] (assoc x :type :clue)))))
-        (assoc :complications (->> mission-complications
-                                   shuffle
-                                   (map (fn [x] (assoc x :type :complication)))))
-        (assoc :npcs (->> (map :text mission-npcs)
-                          shuffle
-                          (map string/trim)))
-        (assoc :clock-complications (->> (map :text mission-clock-complications)
-                          shuffle
-                          (map string/trim)))
-        (assoc :settings (->> (map :text mission-settings)
-                              shuffle
-                              (map string/trim)))
+        (assoc :clues
+               (->> mission-clues
+                    shuffle
+                    (map (fn [x] (assoc x :type :clue)))))
+        (assoc :complications
+               (->> mission-complications
+                    shuffle
+                    (map (fn [x] (assoc x :type :complication)))))
+        (assoc :npcs
+               (->> (map :text mission-npcs)
+                    shuffle
+                    (map string/trim)))
+        (assoc :clock-complications
+               (->> mission-clock-complications
+                    (map (fn [x] (assoc x :type :complication)))))
+        (assoc :settings
+               (->> (map :text mission-settings)
+                    shuffle
+                    (map string/trim)))
         #_(inspect ))))
 
 (defn extract-missions [{:keys [mission-briefing mission
@@ -327,10 +324,10 @@
         starter  (cond
                    (= :clue scene-type)
                    {:type :scene-open
-                    :text "**New Scene**\n\nThis scene will focus on getting a clue: {focus}.\n\nWork together using the details below to imagine the scene leading up to that moment, then continue to answer the prompts."}
+                    :text "**New Scene**\n\nThis scene will focus on getting a clue: {focus}.\n\nWork together using the wordbank behind this card to imagine the scene leading up to that moment, then continue to answer the prompts."}
                    :else
                    {:type :scene-open
-                    :text "**New Scene**\n\nThis scene will focus on a complication: {focus}.\n\nWork together using the details below to imagine the scene leading up to that moment, then continue to answer the prompts."})
+                    :text "**New Scene**\n\nThis scene will focus on a complication: {focus}.\n\nWork together using the wordbank behind this card to imagine the scene leading up to that moment, then continue to answer the prompts."})
 
         prompts [{:type :prompt :text "filler"} {:type :prompt :text "filler"}]
         ender   (assoc (first (shuffle setups))
@@ -388,11 +385,14 @@
 
         all-players (concat (into [] players) party-npcs)
         scene-count 9
-        scene-focus (concat (:clues mission-details)
-                            (:complications mission-details))
+        scene-focus (interleave (shuffle (:clues mission-details))
+                                (concat
+                                 (take 1 (shuffle (:complications mission-details)))
+                                 (:clock-complications mission-details))
+                            #_(:complications mission-details))
 
         ;; TODO: Drop in clock complications - or do those work into existing scenes?
-        investigate-scenes (take scene-count (shuffle scene-focus))
+        investigate-scenes (take scene-count scene-focus)
 
         company     {:name   (pluck generators "company")
                      :values (pluck generators "value" 3)}
@@ -490,7 +490,7 @@
       )))
 
 (defn roll-theory [dice]
-  (let [rolls (map (fn [i] (inc (rand 6))) (range 0 dice))
+  (let [rolls (map (fn [i] (inc (rand-int 6))) (range 0 dice))
         result (apply max rolls)]
     (cond (> result 5) ;; GREAT!
           1

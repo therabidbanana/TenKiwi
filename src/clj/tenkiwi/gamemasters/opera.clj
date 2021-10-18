@@ -349,7 +349,7 @@
                  {:type :epilogue :text "filler"} {:type :epilogue :text "filler"}
                  {:type :epilogue :text "filler"} {:type :epilogue :text "filler"}]
         ender   [{:type :epilogue-close
-                  :text "The mission has come to a close.\n\nDescribe how your superiors feel about the job you've done."}]]
+                  :text "The mission has come to a close.\n\nDescribe how your superiors feel about the job you've done.\n\nWere there any complications they had to clean up for you? ECB doesn't like agents that leave a mess."}]]
     (->> (concat starter prompts ender)
          (into []))))
 
@@ -384,7 +384,7 @@
         _ (println mission-details)
 
         all-players (concat (into [] players) party-npcs)
-        scene-count 9
+        scene-count 8
         scene-focus (interleave (shuffle (:clues mission-details))
                                 (concat
                                  (take 1 (shuffle (:complications mission-details)))
@@ -480,10 +480,6 @@
                                #(some (:tags %) tags)
                                (shuffle prompts))
         next-card             (merge next-card (first matches))]
-    ;; TODO: Make this "rest" matches
-    ;; - main problem is figuring out how to handle when we run low on prompts
-    ;; (gotta have enough of each type)
-    ;; [next-card (concat (rest matches) non-matches)]
     (if-not (empty? prompts)
       [next-card (assoc prompt-decks deck-type (concat (rest matches) non-matches))]
       [next-card prompt-decks]

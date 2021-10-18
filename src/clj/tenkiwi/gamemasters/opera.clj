@@ -329,7 +329,9 @@
                    {:type :scene-open
                     :text "**New Scene**\n\nThis scene will focus on a complication: {focus}.\n\nWork together using the wordbank behind this card to imagine the scene leading up to that moment, then continue to answer the prompts."})
 
-        prompts [{:type :prompt :text "filler"} {:type :prompt :text "filler"}]
+        prompts [{:type :prompt :text "filler"}
+                 {:type :prompt :text "filler"}
+                 {:type :prompt :text "filler"}]
         ender   (assoc (first (shuffle setups))
                        :type :scene-close)
         focus   (assoc
@@ -346,6 +348,7 @@
                   {:type :epilogue-open
                    :text "Theory roll here"}]
         prompts [{:type :epilogue :text "filler"} {:type :epilogue :text "filler"}
+                 {:type :epilogue :text "filler"}
                  {:type :epilogue :text "filler"} {:type :epilogue :text "filler"}
                  {:type :epilogue :text "filler"} {:type :epilogue :text "filler"}]
         ender   [{:type :epilogue-close

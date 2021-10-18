@@ -324,10 +324,10 @@
         starter  (cond
                    (= :clue scene-type)
                    {:type :scene-open
-                    :text "**New Scene**\n\nThis scene will focus on getting a clue: {focus}.\n\nWork together using the wordbank behind this card to imagine the scene leading up to that moment, then continue to answer the prompts."}
+                    :text "**New Scene**\n\nThis scene will focus on getting a clue: _{focus}_.\n\nWork together using the wordbank behind this card to imagine the scene leading up to that moment, then continue to answer the prompts."}
                    :else
                    {:type :scene-open
-                    :text "**New Scene**\n\nThis scene will focus on a complication: {focus}.\n\nWork together using the wordbank behind this card to imagine the scene leading up to that moment, then continue to answer the prompts."})
+                    :text "**New Scene**\n\nThis scene will focus on a complication: _{focus}_.\n\nWork together using the wordbank behind this card to imagine the scene leading up to that moment, then continue to answer the prompts."})
 
         prompts [{:type :prompt :text "filler"}
                  {:type :prompt :text "filler"}

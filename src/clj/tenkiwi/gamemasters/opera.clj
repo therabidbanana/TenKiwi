@@ -258,7 +258,7 @@
                                      mission-npc mission-setting]
                               :as decks}]
   (let [briefing       (->> (string/split text #"\n\n")
-                      (map #(hash-map :text % :type :mission-briefing)))
+                            (map #(hash-map :text % :type :mission-briefing)))
         mission-briefing (group-by :group mission-briefing)
         mission-open   (get mission-briefing "0" [])
         mission-wrapup (get mission-briefing "2" [])
@@ -270,9 +270,9 @@
         mission-settings  (-> (group-by :group mission-setting) (get group []))]
     (-> card
         (assoc :briefing-cards (concat mission-open
-                                       (concat (remove #(clojure.string/blank? (:text %)) briefing)
-                                               mission-middle)
+                                       mission-middle
                                        mission-wrapup))
+        (assoc :text (clojure.string/join "\n\n" (map :text mission-middle)))
         (assoc :clues
                (->> mission-clues
                     shuffle

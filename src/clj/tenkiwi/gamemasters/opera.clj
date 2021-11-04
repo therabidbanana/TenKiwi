@@ -5,8 +5,8 @@
    [tenkiwi.tables.debrief :as tables]
    [tenkiwi.util :as util :refer [inspect]]))
 
-(def valid-active-actions #{:jump-ahead :regen :pass :discard :undo :done :x-card :end-game :leave-game})
-(def valid-inactive-actions #{:jump-ahead :x-card :undo :leave-game})
+(def valid-active-actions #{:upstress-player :downstress-player :jump-ahead :regen :pass :discard :undo :done :x-card :end-game :leave-game})
+(def valid-inactive-actions #{:upstress-player :downstress-player :jump-ahead :x-card :undo :leave-game})
 
 (defn valid-action? [active? action]
   (if active?
@@ -458,8 +458,9 @@
   )
 
 (defn extract-dossier [{:keys [inputs]}]
-  (zipmap (map keyword (map :name inputs))
-          (map :value inputs)))
+  (-> (zipmap (map keyword (map :name inputs))
+              (map :value inputs))
+      (assoc :stress 0)))
 
 (defn get-stage-info [{:keys [company
                               stage-names]
@@ -660,34 +661,34 @@
     coll
     (into [item] coll)))
 
-(defn upvote-player
+(defn upstress-player
   [voter-id
    {:keys [player-id]}
-   {:keys [all-players player-scores dossiers] :as game}]
-  (let [current-score (get-in player-scores [player-id voter-id])
-        new-score (min (inc current-score) 10)
+   {:keys [all-players dossiers] :as game}]
+  (let [current-score (get-in dossiers [player-id :stress])
+        new-score (min (inc current-score) 3)
         player-names (group-by :id all-players)
         player-name (or (get-in dossiers [player-id :agent-codename])
                         (get-in player-names [player-id 0 :user-name] "Someone"))]
     (if current-score
       (-> game
-          (assoc-in [:player-scores player-id voter-id] new-score)
-          (assoc-in [:broadcasts] [[:->toast/show! (str "👍  " player-name " got upvoted.")]]))
+          (assoc-in [:dossiers player-id :stress] new-score)
+          (assoc-in [:broadcasts] [[:->toast/show! (str "😬 " player-name " took stress.")]]))
       game)))
 
-(defn downvote-player
+(defn downstress-player
   [voter-id
    {:keys [player-id]}
-   {:keys [all-players player-scores dossiers] :as game}]
-  (let [current-score (get-in player-scores [player-id voter-id])
+   {:keys [all-players dossiers] :as game}]
+  (let [current-score (get-in dossiers [player-id :stress])
         new-score (max (dec current-score) 0)
         player-names (group-by :id all-players)
         player-name (or (get-in dossiers [player-id :agent-codename])
                         (get-in player-names [player-id 0 :user-name] "Someone"))]
     (if current-score
       (-> game
-          (assoc-in [:player-scores player-id voter-id] new-score)
-          (assoc-in [:broadcasts] [[:->toast/show! (str "👎  " player-name " got downvoted.")]]))
+          (assoc-in [:dossiers player-id :stress] new-score)
+          (assoc-in [:broadcasts] [[:->toast/show! (str "😅 " player-name " removed stress.")]]))
       game)))
 
 (defn x-card [game]
@@ -736,8 +737,8 @@
                         :undo            undo-card
                         :regen           (partial regen-card params)
                         ;; TODO - work out upvote/downvote UI for players
-                        :upvote-player   (partial upvote-player uid params)
-                        :downvote-player (partial downvote-player uid params)
+                        :upstress-player   (partial upstress-player uid params)
+                        :downstress-player (partial downstress-player uid params)
                         :tick-clock      tick-clock
                         ;; TODO allow players to leave game without ending
                          ;;; change action text

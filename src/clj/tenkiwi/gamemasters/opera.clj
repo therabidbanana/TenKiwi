@@ -346,7 +346,7 @@
          (map #(assoc % :scene focus))
          (into []))))
 
-(defn build-closing-scenes [{:keys [epilogue setup] :as decks}]
+(defn build-closing-scenes [{:keys [epilogue setup epilogue-close] :as decks}]
   (let [starter  [{:type :theory
                    :text "Work together to determine what you think the phenomenon might be, how you might contain it, and how you can obfuscate ECB involvement."}
                   {:type :epilogue-open
@@ -355,8 +355,10 @@
                  {:type :epilogue :text "filler"}
                  {:type :epilogue :text "filler"} {:type :epilogue :text "filler"}
                  {:type :epilogue :text "filler"} {:type :epilogue :text "filler"}]
-        ender   [{:type :epilogue-close
-                  :text "The mission has come to a close.\n\nDescribe how your superiors feel about the job you've done.\n\nWere there any complications they had to clean up for you? ECB doesn't like agents that leave a mess."}]]
+        ender   (or
+                 epilogue-close
+                 [{:type :epilogue-close
+                   :text "The mission has come to a close.\n\nDescribe how your superiors feel about the job you've done.\n\nWere there any complications they had to clean up for you? ECB doesn't like agents that leave a mess."}])]
     (->> (concat starter prompts ender)
          (into []))))
 
@@ -388,7 +390,7 @@
                                            :inputs [{:type    :select
                                                      :label   "Mission"
                                                      :name    :mission-id
-                                                     :options (mapv #(select-keys % [:id :title])
+                                                     :options (mapv #(hash-map :value (:id %) :name (:title %))
                                                                     missions)}
                                                     ]}
                         :mission          mission-details

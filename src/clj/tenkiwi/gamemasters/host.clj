@@ -115,7 +115,8 @@
     :else
     (case game-name
       :opera (partial opera/select-game room-id params)
-      nil)))
+      nil    (constantly nil)
+      (constantly {:configuration {:params params}}))))
 
 (defn game-action [game-name {:keys [uid room-id] :as action}]
   (cond

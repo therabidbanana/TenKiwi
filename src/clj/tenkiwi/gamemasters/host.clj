@@ -109,6 +109,14 @@
       :opera (partial opera/start-game room-id params)
       nil)))
 
+(defn game-selector [game-name room-id params]
+  (cond
+    (home-room? room-id) nil
+    :else
+    (case game-name
+      :opera (partial opera/select-game room-id params)
+      nil)))
+
 (defn game-action [game-name {:keys [uid room-id] :as action}]
   (cond
     (home-room? room-id) nil
@@ -134,6 +142,14 @@
       (->room system room-id broadcast))
     (assoc-in world-state [:rooms room-id :game] new-game)))
 
+(defn update-room-setup! [world-state system room-id mutator]
+  (let [current-game (get-in world-state [:rooms room-id])
+        response (mutator current-game)
+        new-game (dissoc response :broadcasts)]
+    (doseq [broadcast (:broadcasts response)]
+      (->room system room-id broadcast))
+    (assoc-in world-state [:rooms room-id :game-setup] new-game)))
+
 (defn leave-room!
   [{:as system :keys [register]} uid]
   (swap! (:world register) send-player-home uid))
@@ -151,6 +167,19 @@
       (->player system uid [:->user/room-joined! room])
       (println "send to " player-location)
       (->room system player-location [:->room/user-joined! room]))))
+
+(defn select-game!
+  "Called to trigger a game start by host"
+  [{:as system :keys [register]} uid {:keys [game-type
+                                             params]}]
+  (let [world   (:world register)
+        room-id (get-player-location world uid)
+        mutator (game-selector game-type room-id params)]
+    (if mutator
+      (let [output    (swap! world update-room-setup! system room-id mutator)
+            new-state (get-in output [:rooms room-id :game-setup])]
+        (log-unless-timekeeper new-state uid)
+        (->room system room-id [:->game/selected! (get-room world room-id)])))))
 
 (defn start-game!
   "Called to trigger a game start by host"

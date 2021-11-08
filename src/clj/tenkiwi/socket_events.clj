@@ -61,6 +61,12 @@
     (host/start-game! system uid params)
     (println "ready to start")))
 
+(defmethod -event-msg-handler :game/select!
+  [system {:as ev-msg :keys [uid event send-fn]}]
+  (let [[_ params] event]
+    (host/select-game! system uid params)
+    (println "ready to start")))
+
 (defmethod -event-msg-handler :game/action!
   [system {:as ev-msg :keys [uid event send-fn]}]
   (let [[_ action] event]

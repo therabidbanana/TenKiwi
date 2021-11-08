@@ -370,55 +370,20 @@
         (take count)
         (map :text))))
 
-
-
-;; TODO: TRIM out / extract duplication
 (defn select-game [room-id {:keys [game-url mission-id]
                            :as   params
                            :or   {game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQGZTHQnC9oQxhEnSzS-cYkQNTExjW3VVNMOIkvkNpVfEPhB_XwZN9kTMCYguSmksFKdvf1-ExTmKU0/pub?gid=0&single=true&output=tsv"}}
                   {:keys [players] :as room}]
   (let [first-player        (first players)
         next-player         (next-player players (:id first-player))
-        party-npcs          []
-
-        {intro-cards :intro
-         prompts     :prompt
-         epilogues   :epilogue
-         theories    :epilogue-open
-         :as         decks} (util/gather-decks game-url)
-        setups              (->> decks :setup (group-by :group))
-        mission-briefing    (->> decks :mission-briefing (group-by :group))
-        generators          (->> decks :generator (group-by :group))
+        decks               (util/gather-decks game-url)
         dossier-template    (->> decks :dossier first)
         [missions decks]    (extract-missions decks)
         mission-details     (or
                               (first (filter #(= (:id %) mission-id) missions))
                               (first (shuffle missions)))
 
-        all-players (concat (into [] players) party-npcs)
-        scene-count 8
-        scene-focus (interleave (shuffle (:clues mission-details))
-                                (concat
-                                 (take 1 (shuffle (:complications mission-details)))
-                                 (:clock-complications mission-details))
-                            #_(:complications mission-details))
-
-        ;; TODO: Drop in clock complications - or do those work into existing scenes?
-        investigate-scenes (take scene-count scene-focus)
-
-        company     {:name   (pluck generators "company")
-                     :values (pluck generators "value" 3)}
-        dossiers    {:leader {:agent-name     (tables/random-name)
-                              :agent-codename (pluck generators "leader-codename")
-                              :agent-role     (pluck generators "leader-role")}}
-
-        active-display (build-active-card (first intro-cards) first-player next-player)
-        new-game       {:player-order     (into [] players)
-                        :player-scores    (into {}
-                                                (map #(vector (:id %)
-                                                              (build-starting-scores % players)) all-players))
-                        :all-players      all-players
-                        :game-type        :opera
+        new-game       {:game-type        :opera
                         :configuration    {:params (assoc params :mission-id (:id mission-details))
                                            :inputs [{:type    :select
                                                      :label   "Mission"
@@ -426,30 +391,7 @@
                                                      :options (mapv #(select-keys % [:id :title])
                                                                     missions)}
                                                     ]}
-                        :stage-names      {:intro            "Introduction"
-                                           :mission-briefing "Mission Briefing"
-                                           :dossier          "Character Intros"
-                                           :prompt           "{focus-type} - {focus}"
-                                           :scene-open       "{focus-type} - {focus}"
-                                           :scene-close      "{focus-type} - {focus}"
-                                           :theory           "Theorizing"
-                                           :epilogue-open       "Resolution"
-                                           :epilogue            "Resolution"
-                                           :epilogue-close      "Resolution"}
-                        :position-tags    {1 [:green]
-                                           2 [:green :yellow]
-                                           3 [:yellow]
-                                           4 [:yellow :red]
-                                           5 [:red]}
-                        :position         1
-                        :clocks           {:plot 1}
-                        :stage            :intro
-                        :stage-name       "Introduction"
-                        :dossiers         dossiers
-                        :scenes           []
                         :mission          mission-details
-                        :-discard          []
-                        :company          company
                         :dossier-template dossier-template}]
     new-game))
 

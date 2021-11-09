@@ -115,6 +115,7 @@
     :else
     (case game-name
       :opera (partial opera/select-game room-id params)
+      :walking-deck-v2 (partial walking-deck-v2/select-game room-id params)
       nil    (constantly nil)
       (constantly {:configuration {:params params}}))))
 

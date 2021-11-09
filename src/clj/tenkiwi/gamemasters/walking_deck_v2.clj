@@ -353,6 +353,52 @@
 (defn- group-by-uniq [key array]
   (reduce #(assoc %1 (get %2 key) %2) {} array))
 
+(defn select-game [room-id {:keys [game-url horde location extra-players act-length]
+                            :as   params
+                            :or   {horde "slow zombies"
+                                   location "mall"
+                                   extra-players 0
+                                   act-length 9
+                                   game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBY3mq94cg_k3onDKmA1fa_L3AGbKVBfdxxeP04l73QVIXMkD4gEdG-e2ciex2jjTJjaKkdU1Vtaf1/pub?gid=963518572&single=true&output=tsv"}}
+                  {:keys [players] :as room}]
+  (let [prompts             (gather-decks game-url)
+        gens                (->> (prompts :generator)
+                                 (group-by :rank))
+
+        hordes  (get gens :horde-type [{:text "slow zombies"}])
+        locales (get gens :location [{:text "mall"}])
+
+        new-game       {:game-type        :opera
+                        :configuration    {:params (assoc params
+                                                          :horde horde
+                                                          :location location
+                                                          :extra-players extra-players
+                                                          :act-length act-length)
+                                           :inputs [{:type    :select
+                                                     :label   "Horde Type"
+                                                     :name    :horde
+                                                     :options (mapv #(hash-map :value (:text %) :name (:text %))
+                                                                    hordes)}
+                                                    {:type    :select
+                                                     :label   "Location"
+                                                     :name    :location
+                                                     :options (mapv #(hash-map :value (:text %) :name (:text %))
+                                                                    locales)}
+                                                    {:type    :select
+                                                     :label   "Act Length"
+                                                     :name    :act-length
+                                                     :options (mapv #(hash-map :value % :name %)
+                                                                    [9 10 11 12 13])}
+                                                    {:type    :select
+                                                     :label   "Extra Players"
+                                                     :name    :extra-players
+                                                     :options (mapv #(hash-map :value % :name %)
+                                                                    [0 1 2 3 4])}
+                                                    ]}
+                        }]
+    new-game))
+
+
 (defn start-game [room-id params {:keys [players]}]
   (let [extra-players     (get params :extra-players 0)
         horde             (get params :horde "Zombies")

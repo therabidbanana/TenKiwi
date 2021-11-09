@@ -368,7 +368,7 @@
         hordes  (get gens :horde-type [{:text "slow zombies"}])
         locales (get gens :location [{:text "mall"}])
 
-        new-game       {:game-type        :opera
+        new-game       {:game-type        :walking-deck-v2
                         :configuration    {:params (assoc params
                                                           :horde horde
                                                           :location location

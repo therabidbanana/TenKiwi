@@ -346,7 +346,7 @@
          (map #(assoc % :scene focus))
          (into []))))
 
-(defn build-closing-scenes [{:keys [epilogue setup epilogue-close] :as decks}]
+(defn build-closing-scenes [{:keys [epilogue setup] :as decks}]
   (let [starter  [{:type :theory
                    :text "Work together to determine what you think the phenomenon might be, how you might contain it, and how you can obfuscate ECB involvement."}
                   {:type :epilogue-open
@@ -355,10 +355,8 @@
                  {:type :epilogue :text "filler"}
                  {:type :epilogue :text "filler"} {:type :epilogue :text "filler"}
                  {:type :epilogue :text "filler"} {:type :epilogue :text "filler"}]
-        ender   (or
-                 epilogue-close
-                 [{:type :epilogue-close
-                   :text "The mission has come to a close.\n\nDescribe how your superiors feel about the job you've done.\n\nWere there any complications they had to clean up for you? ECB doesn't like agents that leave a mess."}])]
+        ender   [{:type :epilogue-close
+                  :text "The mission has ended. How did it go?"}]]
     (->> (concat starter prompts ender)
          (into []))))
 
@@ -409,6 +407,7 @@
          prompts     :prompt
          epilogues   :epilogue
          theories    :epilogue-open
+         endings     :epilogue-close
          :as         decks} (util/gather-decks game-url)
         setups              (->> decks :setup (group-by :group))
         mission-briefing    (->> decks :mission-briefing (group-by :group))
@@ -471,6 +470,7 @@
                         :-generators      generators
                         :-prompt-decks    {:prompt (shuffle prompts)
                                            :epilogue-open (shuffle theories)
+                                           :epilogue-close (shuffle endings)
                                            :epilogue (shuffle epilogues)}
                         :-deck            (into []
                                                 (concat (rest intro-cards)
@@ -556,7 +556,13 @@
         deck            (into [] (rest -deck))
         position        (if (= :epilogue-open (:type next-card))
                           (roll-theory (count (->> (map :type scenes) (keep #{:clue}))))
-                          position)
+                          (cond
+                            (#{:de-escalate} active-tags)
+                            (max 1 (dec position))
+                            (#{:escalate} active-tags)
+                            (min 5 (inc position))
+                            :else
+                            position))
         [next-card
          prompt-decks]  (draw-prompt next-card
                                      (get position-tags position [:green])

@@ -557,9 +557,9 @@
         position        (if (= :epilogue-open (:type next-card))
                           (roll-theory (count (->> (map :type scenes) (keep #{:clue}))))
                           (cond
-                            (some #{:de-escalate} active-tags)
+                            (:de-escalate active-tags)
                             (max 1 (dec position))
-                            (some #{:escalate} active-tags)
+                            (:escalate active-tags)
                             (min 5 (inc position))
                             :else
                             position))

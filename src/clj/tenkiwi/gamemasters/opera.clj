@@ -79,31 +79,16 @@
               :else
               6)))))
 
-(defn score-players [{:keys [dossiers player-ranks player-scores]}]
-  (let [sum-scores  #(apply + (vals %))
-        base-scores (zipmap (keys player-scores)
-                            (map sum-scores (vals player-scores)))
-        final-scores (reduce #(update %1 %2 + (score-ranks %2 player-ranks))
-                             base-scores
-                             (keys base-scores))]
-    final-scores))
-
-(defn extract-vars [{:keys [active-player player-order company
+(defn extract-vars [{:keys [active-player next-players
                             dossiers mission]
                      :as   game}
                     card]
-  (let [next-player   (:id (next-player player-order active-player))
-        prev-player   (:id (previous-player player-order active-player))
+  (let [next-player   (:agent-id (first next-players))
+        prev-player   (:agent-id (last next-players))
         secondaries   (:secondary-objectives mission [])
-        complications (:complications mission [])
-        scores        (score-players game)
-        values        (:values company)]
-    {:leader-name    (get-in game [:dossiers :leader :agent-codename] "")
-     :player-left    (get-in game [:dossiers prev-player :agent-codename] "")
-     :player-right   (get-in game [:dossiers next-player :agent-codename] "")
-     :value-0        (nth values 0 "unknown")
-     :value-1        (nth values 1 "unknown")
-     :value-2        (nth values 2 "unknown")
+        complications (:complications mission [])]
+    {:player-left    (get-in game [:dossiers prev-player :codename] "")
+     :player-right   (get-in game [:dossiers next-player :codename] "")
      :primary        (:primary-objective mission)
      :secondary      (first (shuffle secondaries))
      :secondary-0    (nth secondaries 0 "unknown")
@@ -195,8 +180,10 @@
          ;; Don't allow done-action for #everyone cards until they are passed around
          can-finish?           (or (not (get-in card [:tags :everyone] false))
                                    (= (:starting-player card) active-player))
-         pass                  {:action :pass
-                                :text   (str "Pass card to " (:user-name next-player))}]
+
+         pass                  (if next-player
+                                 {:action :pass
+                                  :text   (str "Pass card to " (:user-name next-player))})]
      {:card              (assoc (replace-vars game card)
                                 :starting-player starting-player)
       :extra-details     (concat
@@ -209,12 +196,13 @@
                            [jump-ahead-action undo-action leave-game-action]
                            [undo-action leave-game-action])
       :available-actions valid-active-actions
-      :actions           (case next-stage
-                           :epilogue-close [pass end-game-action]
-                           :dossier        [done-action]
-                           (if can-finish?
-                             [done-action pass]
-                             [pass]))}))
+      :actions           (keep identity
+                               (case next-stage
+                                 :epilogue-close [pass end-game-action]
+                                 :dossier        [done-action]
+                                 (if can-finish?
+                                   [done-action pass]
+                                   [pass])))}))
   ([card active-player next-player]
    (build-active-card {} card active-player next-player)))
 
@@ -247,10 +235,6 @@
       :else
       (-> active-display
           (assoc :available-actions valid-inactive-actions)))))
-
-(defn- build-starting-scores [{:keys [npc? id]} players]
-  (let [ids (remove #(= id %) (map :id players))]
-    (zipmap ids (cycle [5]))))
 
 (defn build-mission-details [{:keys [text group story-details] :as card}
                              {:keys [mission-briefing mission-clock-complication
@@ -370,12 +354,11 @@
         (take count)
         (map :text))))
 
-(defn select-game [room-id {:keys [game-url mission-id]
+(defn select-game [room-id {:keys [game-url extra-players mission-id]
                            :as   params
                            :or   {game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQGZTHQnC9oQxhEnSzS-cYkQNTExjW3VVNMOIkvkNpVfEPhB_XwZN9kTMCYguSmksFKdvf1-ExTmKU0/pub?gid=0&single=true&output=tsv"}}
                   {:keys [players] :as room}]
   (let [first-player        (first players)
-        next-player         (next-player players (:id first-player))
         decks               (util/gather-decks game-url)
         dossier-template    (->> decks :dossier first)
         [missions decks]    (extract-missions decks)
@@ -390,18 +373,30 @@
                                                      :name    :mission-id
                                                      :options (mapv #(hash-map :value (:id %) :name (:title %))
                                                                     missions)}
+                                                    {:type    :select
+                                                     :label   "Extra Players"
+                                                     :name    :extra-players
+                                                     :options (mapv #(hash-map :value % :name %)
+                                                                    [0 1 2 3 4])}
                                                     ]}
                         :mission          mission-details
                         :dossier-template dossier-template}]
     new-game))
 
-(defn start-game [room-id {:keys [game-url mission-id]
+(defn start-game [room-id {:keys [game-url mission-id extra-players]
                            :as   params
-                           :or   {game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQGZTHQnC9oQxhEnSzS-cYkQNTExjW3VVNMOIkvkNpVfEPhB_XwZN9kTMCYguSmksFKdvf1-ExTmKU0/pub?gid=0&single=true&output=tsv"}}
+                           :or   {extra-players 0
+                                  game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQGZTHQnC9oQxhEnSzS-cYkQNTExjW3VVNMOIkvkNpVfEPhB_XwZN9kTMCYguSmksFKdvf1-ExTmKU0/pub?gid=0&single=true&output=tsv"}}
                   {:keys [players] :as room}]
-  (let [first-player        (first players)
-        next-player         (next-player players (:id first-player))
-        party-npcs          []
+  (let [original-players  players
+        players           (map-indexed
+                           #(assoc %2 :agent-id %1)
+                           (take (+ extra-players (count original-players))
+                                 (cycle original-players)))
+        first-player      (first players)
+        next-players      (rest players)
+        player-count      (count players)
+        next-player       (first next-players)
 
         {intro-cards :intro
          prompts     :prompt
@@ -418,7 +413,6 @@
                               (first (filter #(= (:id %) mission-id) missions))
                               (first (shuffle missions)))
 
-        all-players (concat (into [] players) party-npcs)
         scene-count 8
         scene-focus (interleave (shuffle (:clues mission-details))
                                 (concat
@@ -429,18 +423,13 @@
         ;; TODO: Drop in clock complications - or do those work into existing scenes?
         investigate-scenes (take scene-count scene-focus)
 
-        company     {:name   (pluck generators "company")
-                     :values (pluck generators "value" 3)}
-        dossiers    {:leader {:agent-name     (tables/random-name)
-                              :agent-codename (pluck generators "leader-codename")
-                              :agent-role     (pluck generators "leader-role")}}
+        dossiers    {}
 
         active-display (build-active-card (first intro-cards) first-player next-player)
-        new-game       {:player-order     (into [] players)
-                        :player-scores    (into {}
-                                                (map #(vector (:id %)
-                                                              (build-starting-scores % players)) all-players))
-                        :all-players      all-players
+        new-game       {:player-order     (into [] original-players)
+                        :all-players      players
+                        :active-player    (first players)
+                        :next-players     (rest players)
                         :game-type        :opera
                         :stage-names      {:intro            "Introduction"
                                            :mission-briefing "Mission Briefing"
@@ -458,14 +447,13 @@
                                            4 [:yellow :red]
                                            5 [:red]}
                         :position         1
-                        :clocks           {:plot 1}
+                        :clocks           {:plot 1 :clues 0 :complications 0}
                         :stage            :intro
                         :stage-name       "Introduction"
                         :dossiers         dossiers
                         :scenes           []
                         :mission          mission-details
                         :-discard          []
-                        :company          company
                         :dossier-template dossier-template
                         :-generators      generators
                         :-prompt-decks    {:prompt (shuffle prompts)
@@ -479,13 +467,12 @@
                                                         (mapcat #(build-scene % mission-details decks)
                                                                 investigate-scenes)
                                                         (build-closing-scenes decks)))
-                        :active-player    (first players)
                         :active-display   active-display
                         :inactive-display (build-inactive-version {:active-player (first players)} active-display)}]
     new-game))
 
 (comment
-  (let [game (start-game "foo" {} {:players [{:name "David"}]})]
+  (let [game (start-game "foo" {:extra-players 1} {:players [{:name "David"}]})]
     (:-deck game))
 
   )
@@ -495,8 +482,7 @@
               (map :value inputs))
       (assoc :stress 0)))
 
-(defn get-stage-info [{:keys [company
-                              stage-names]
+(defn get-stage-info [{:keys [stage-names]
                        :as game}
                       next-card]
   (let [next-stage      (get next-card :type :intro)
@@ -510,13 +496,24 @@
     {:stage       next-stage
      :stage-name  next-stage-name}))
 
+#_(defn- build-card-options [type option-1 option-2]
+  (let [option-1-label (type {:alive "Say something about..."
+                              :dead "Establish why..."})
+        option-2-label (type {:alive "We encounter..."
+                              :dead "The horde..."})]
+    [
+     {:name :option-1 :selected? false :label option-1-label :description option-1}
+     {:name :option-2 :selected? false :label option-2-label :description option-2}
+     ]))
+
 (defn draw-prompt [next-card tags prompt-decks]
   (let [deck-type             (:type next-card)
         prompts               (get prompt-decks deck-type [])
         [matches non-matches] ((juxt filter remove)
                                #(some (:tags %) tags)
                                (shuffle prompts))
-        next-card             (merge next-card (first matches))]
+        next-card             (merge next-card (first matches))
+        ]
     (if-not (empty? prompts)
       [next-card (assoc prompt-decks deck-type (concat (rest matches) non-matches))]
       [next-card prompt-decks]
@@ -524,7 +521,9 @@
 
 (defn roll-theory [dice]
   (let [rolls (map (fn [i] (inc (rand-int 6))) (range 0 dice))
-        result (apply max rolls)]
+        result (if (empty? rolls)
+                 (apply min [(inc (rand-int 6)) (inc (rand-int 6))])
+                 (apply max rolls))]
     (cond (> result 5) ;; GREAT!
           1
           (> result 3) ;; Mixed
@@ -532,9 +531,15 @@
           :else ;; Fail
           5)))
 
+(defn- max-inc [val maxed]
+  (min maxed (inc val)))
+
+(defn- zero-dec [val]
+  (max 0 (dec val)))
+
 (defn finish-card [game]
-  (let [{:keys [player-order
-                active-player
+  (let [{:keys [active-player
+                next-players
                 dossiers
                 scenes
                 -prompt-decks
@@ -546,16 +551,26 @@
                 stage]} game
         active-card     (get-in game [:active-display :card])
         dossiers        (if (#{:player-dossier} (:id active-card))
-                          (assoc dossiers (:id active-player)
+                          (assoc dossiers
+                                 (:agent-id active-player)
+                                 (extract-dossier active-card)
+                                 ;; Backward compatible if extra-players = 0
+                                 (:id active-player)
                                  (extract-dossier active-card))
                           dossiers)
         active-tags     (:tags active-card)
-        next-up         (next-player player-order active-player)
+        all-players     (conj (into [] next-players) active-player)
+        next-up         (first all-players)
+        next-players    (rest all-players)
         discard         (cons active-card -discard)
         next-card       (first -deck)
         deck            (into [] (rest -deck))
-        position        (if (= :epilogue-open (:type next-card))
-                          (roll-theory (count (->> (map :type scenes) (keep #{:clue}))))
+        position        (cond
+                          (= :epilogue-open (:type next-card))
+                          (roll-theory (:clues clocks))
+                          (= :epilogue-close (:type next-card))
+                          (inc (get clocks :complications 0))
+                          :else
                           (cond
                             (:de-escalate active-tags)
                             (max 1 (dec position))
@@ -568,11 +583,15 @@
                                      (get position-tags position [:green])
                                      -prompt-decks)
         stage-info      (get-stage-info game next-card)
-        next-next       (next-player player-order next-up)
+        next-next       (first next-players)
         max-clock       8
-        clocks          (if (and (> max-clock (-> clocks :plot)) (:advance active-tags))
-                          (update clocks :plot inc)
-                          clocks)
+        clocks          (cond-> clocks
+                          (:advance active-tags) (update :plot max-inc max-clock)
+                          (:clue active-tags) (update :clues max-inc max-clock)
+                          (:complication active-tags) (update :complications max-inc max-clock)
+                          (:remove-complication active-tags) (update :complications zero-dec)
+                          (:remove-clue active-tags) (update :clues zero-dec)
+                          )
         next-clock      (-> clocks :plot)
 
         next-game          (assoc game
@@ -598,7 +617,8 @@
                                             scenes)
                                   :-discard discard
                                   :-last-state game
-                                  :active-player next-up)
+                                  :active-player next-up
+                                  :next-players next-players)
         new-active-display (build-active-card next-game next-card next-up next-next)]
     (-> next-game
         (merge stage-info)
@@ -607,8 +627,8 @@
          :inactive-display (build-inactive-version next-game new-active-display)))))
 
 (defn discard-card [game]
-  (let [{:keys [player-order
-                active-player
+  (let [{:keys [active-player
+                next-players
                 -prompt-decks
                 position-tags
                 position
@@ -616,7 +636,7 @@
                 -deck
                 stage]} game
         active-card     (get-in game [:active-display :card])
-        next-up         (next-player player-order active-player)
+        next-up         (first next-players)
         discard         (cons active-card -discard)
         next-card       (first -deck)
         deck            (rest -deck)
@@ -638,8 +658,8 @@
            :inactive-display (build-inactive-version next-game new-active-display))))
 
 (defn jump-ahead [game]
-  (let [{:keys [player-order
-                active-player
+  (let [{:keys [active-player
+                next-players
                 -prompt-decks
                 position-tags
                 position
@@ -647,7 +667,7 @@
                 -deck
                 stage]} game
         active-card     (get-in game [:active-display :card])
-        next-up         (next-player player-order active-player)
+        next-up         (first next-players)
         discard         (cons active-card -discard)
         [discard -deck] (loop [x discard
                                d -deck]
@@ -676,24 +696,26 @@
            :inactive-display (build-inactive-version next-game new-active-display))))
 
 (defn pass-card [game]
-  (let [{:keys [player-order
-                active-player]} game
-        active-card             (get-in game [:active-display :card])
-        next-up                 (next-player player-order active-player)
-        next-next               (next-player player-order next-up)
-        next-game               (assoc game :active-player next-up :-last-state game)
-        new-active-display      (build-active-card next-game active-card next-up next-next)]
+  (let [{:keys [active-player
+                next-players]} game
+        active-card            (get-in game [:active-display :card])
+        all-players            (conj (into [] next-players) active-player)
+        next-up                (first all-players)
+        next-players           (rest all-players)
+        next-next              (first next-players)
+        next-game              (assoc game
+                                      :next-players next-players
+                                      :active-player next-up
+                                      :-last-state game)
+        new-active-display     (build-active-card next-game active-card next-up next-next)]
     (assoc next-game
            :inactive-display (build-inactive-version next-game new-active-display)
            :active-display new-active-display)))
 
 ;; TODO: How much stress does this add to duratom?
 (defn undo-card [game]
-  (let [{:keys [player-scores
-                -last-state]} game]
-    (assoc -last-state
-           :player-scores
-           (get-in game [:player-scores]))))
+  (let [{:keys [-last-state]} game]
+    -last-state))
 
 (defn push-uniq [coll item]
   (if (some #(= % item) coll)
@@ -702,31 +724,31 @@
 
 (defn upstress-player
   [voter-id
-   {:keys [player-id]}
+   {:keys [player-id agent-id]}
    {:keys [all-players dossiers] :as game}]
-  (let [current-score (get-in dossiers [player-id :stress])
+  (let [current-score (get-in dossiers [agent-id :stress])
         new-score (min (inc current-score) 3)
         player-names (group-by :id all-players)
-        player-name (or (get-in dossiers [player-id :agent-codename])
+        player-name (or (get-in dossiers [agent-id :codename])
                         (get-in player-names [player-id 0 :user-name] "Someone"))]
-    (if current-score
+    (if (not= current-score new-score)
       (-> game
-          (assoc-in [:dossiers player-id :stress] new-score)
+          (assoc-in [:dossiers agent-id :stress] new-score)
           (assoc-in [:broadcasts] [[:->toast/show! (str "😬 " player-name " took stress.")]]))
       game)))
 
 (defn downstress-player
   [voter-id
-   {:keys [player-id]}
+   {:keys [player-id agent-id]}
    {:keys [all-players dossiers] :as game}]
-  (let [current-score (get-in dossiers [player-id :stress])
+  (let [current-score (get-in dossiers [agent-id :stress])
         new-score (max (dec current-score) 0)
         player-names (group-by :id all-players)
-        player-name (or (get-in dossiers [player-id :agent-codename])
+        player-name (or (get-in dossiers [agent-id :codename])
                         (get-in player-names [player-id 0 :user-name] "Someone"))]
-    (if current-score
+    (if (not= current-score new-score)
       (-> game
-          (assoc-in [:dossiers player-id :stress] new-score)
+          (assoc-in [:dossiers agent-id :stress] new-score)
           (assoc-in [:broadcasts] [[:->toast/show! (str "😅 " player-name " removed stress.")]]))
       game)))
 

@@ -19,6 +19,7 @@
                                                        <meta property='al:ios:app_store_id' content='1571524662'>
                                                        <meta property='al:ios:url' content='/'>"
                                                                      "</head>")))
+                       (update-in [:body] #(str/replace % "./static" "/static"))
                        (assoc :headers {"Content-Type" "text/html; charset=utf-8"})))]
     (routes
      (GET "/" _ (index-fn))

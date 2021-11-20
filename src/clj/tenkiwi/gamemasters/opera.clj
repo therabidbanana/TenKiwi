@@ -769,7 +769,8 @@
 (defn regen-card [params
                   {:keys [-generators dossier-template active-player player-order stage]
                    :as   game}]
-  (let [next-up      (next-player player-order active-player)
+  (let [all-players            (conj (into [] next-players) active-player)
+        next-up                (first all-players)
         next-dossier (build-active-card game
                                         (dossier-card dossier-template -generators active-player params)
                                         active-player

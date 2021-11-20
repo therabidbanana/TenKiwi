@@ -84,3 +84,6 @@
         shuffle
         (map :text)
         (take n))))
+
+(defn roll [count sides]
+  (map (fn [i] (inc (rand-int sides))) (range 0 count)))

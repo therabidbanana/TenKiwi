@@ -9,6 +9,7 @@
             [tenkiwi.gamemasters.wretched :as wretched]
             [tenkiwi.instar :refer [transform]]
             [tenkiwi.util :as util :refer [inspect]]
+            [environ.core :refer [env]]
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
 ))
@@ -59,7 +60,9 @@
           (update-in [:rooms player-location :players] filter-user)
           (update-in [:rooms player-location] delete-room-if-empty)))))
 
-(def GAME-LIBRARY "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=1598562012&single=true&output=tsv")
+(def GAME-LIBRARY
+  (or (env :games-library)
+      "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1Uj9bFkSyrifXYBFEHeXB39fzwJNzM73HipLYDlWGEHSaUTVAob7nXUIEAxumYb_SjeC9bivjpEMp/pub?gid=0&single=true&output=tsv"))
 
 (defn set-player-room
   ([world-atom uid room-id]

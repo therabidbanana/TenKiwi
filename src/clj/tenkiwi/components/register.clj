@@ -28,8 +28,5 @@
                           :write nippy/freeze
                           :column-type :bytea}
                      :db-config
-                     (str #_"jdbc:" connection-uri)
-
-                     #_{:classname   "org.postgresql.Driver"
-                                 :connection-uri connection-uri})]
+                     (str connection-uri))]
      (->Register world-atom))))

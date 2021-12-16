@@ -357,7 +357,7 @@
         horde             (get params :horde "Zombies")
         location          (get params :location "in a mall")
         act-length        (get params :act-length 9)
-        prompts           (pull-prompts (get params :game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBY3mq94cg_k3onDKmA1fa_L3AGbKVBfdxxeP04l73QVIXMkD4gEdG-e2ciex2jjTJjaKkdU1Vtaf1/pub?gid=481445422&single=true&output=tsv"))
+        prompts           (pull-prompts (get params :game-url))
         _ (inspect (take 5 prompts))
         original-players  players
         players           (take (+ extra-players (count original-players))

@@ -358,8 +358,7 @@
                             :or   {horde "slow zombies"
                                    location "mall"
                                    extra-players 0
-                                   act-length 9
-                                   game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBY3mq94cg_k3onDKmA1fa_L3AGbKVBfdxxeP04l73QVIXMkD4gEdG-e2ciex2jjTJjaKkdU1Vtaf1/pub?gid=963518572&single=true&output=tsv"}}
+                                   act-length 9}}
                   {:keys [players] :as room}]
   (let [prompts             (gather-decks game-url)
         gens                (->> (prompts :generator)

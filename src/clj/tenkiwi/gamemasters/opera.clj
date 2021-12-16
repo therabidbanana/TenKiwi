@@ -355,8 +355,8 @@
         (map :text))))
 
 (defn select-game [room-id {:keys [game-url extra-players mission-id]
-                           :as   params
-                           :or   {game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQGZTHQnC9oQxhEnSzS-cYkQNTExjW3VVNMOIkvkNpVfEPhB_XwZN9kTMCYguSmksFKdvf1-ExTmKU0/pub?gid=0&single=true&output=tsv"}}
+                            :as   params
+                            :or   {}}
                   {:keys [players] :as room}]
   (let [first-player        (first players)
         decks               (util/gather-decks game-url)
@@ -385,8 +385,7 @@
 
 (defn start-game [room-id {:keys [game-url mission-id extra-players]
                            :as   params
-                           :or   {extra-players 0
-                                  game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQGZTHQnC9oQxhEnSzS-cYkQNTExjW3VVNMOIkvkNpVfEPhB_XwZN9kTMCYguSmksFKdvf1-ExTmKU0/pub?gid=0&single=true&output=tsv"}}
+                           :or   {extra-players 0}}
                   {:keys [players] :as room}]
   (let [original-players  players
         players           (map-indexed

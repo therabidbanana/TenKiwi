@@ -35,7 +35,8 @@
             event-msg-handler
             (get-sch-adapter)
             {:user-id-fn      (fn [ring-req] (:client-id ring-req))
-             ;; TODO: Do we want this? Maybe we need a way to get csrf?
+             ;; In general all sessions are considered unauthenticated
+             ;; so CSRF is not likely to be a strong attack vector
              :csrf-token-fn nil
              :packer (get-transit-packer)
              :wrap-component? true})

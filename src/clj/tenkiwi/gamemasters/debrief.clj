@@ -307,7 +307,7 @@
         (map :text))))
 
 (defn start-game [room-id {:keys [game-url]
-                           :or   {game-url "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy0erICrWZ7GE_pzno23qvseu20CqM1XzuIZkIWp6Bx_dX7JoDaMbWINNcqGtdxkPRiM8rEKvRAvNL/pub?gid=1113383423&single=true&output=tsv"}}
+                           :or   {}}
                   {:keys [players] :as room}]
   (let [first-player        (first players)
         next-player         (next-player players (:id first-player))

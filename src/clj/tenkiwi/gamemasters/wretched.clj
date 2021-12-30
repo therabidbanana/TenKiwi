@@ -5,7 +5,7 @@
    [tenkiwi.tables.debrief :as tables]
    [tenkiwi.util :as util :refer [inspect]]))
 
-(def valid-active-actions #{:collapsed :pass :discard :undo :done :x-card :end-game :next-image :previous-image :leave-game})
+(def valid-active-actions #{:collapsed :pass :discard :add-note :undo :done :x-card :end-game :next-image :previous-image :leave-game})
 (def valid-inactive-actions #{:x-card :undo :leave-game})
 
 (defn valid-action? [active? action]
@@ -176,20 +176,6 @@
      (zipmap (keys grouped)
              (map #(-> % first func) (vals grouped))))))
 
-(defn build-closing-scenes [{:keys [epilogue setup] :as decks}]
-  (let [starter  [{:type :theory
-                   :text "Work together to determine what you think the phenomenon might be, how you might contain it, and how you can obfuscate ECB involvement."}
-                  {:type :epilogue-open
-                   :text "Theory roll here"}]
-        prompts [{:type :epilogue :text "filler"} {:type :epilogue :text "filler"}
-                 {:type :epilogue :text "filler"}
-                 {:type :epilogue :text "filler"} {:type :epilogue :text "filler"}
-                 {:type :epilogue :text "filler"} {:type :epilogue :text "filler"}]
-        ender   [{:type :epilogue-close
-                  :text "The mission has ended. How did it go?"}]]
-    (->> (concat starter prompts ender)
-         (into []))))
-
 (defn pluck
   ([generators gen-name]
    (first (pluck generators gen-name 1)))
@@ -256,6 +242,7 @@
                         :scenes           []
                         :image-deck       (into [] (rest images))
                         :image            (first images)
+                        :log              [(first intro-cards)]
                         :-discard         []
                         :-endings         {:climax (first climax)
                                            :good (first good-ending)
@@ -326,6 +313,7 @@
   (let [{:keys [active-player
                 next-players
                 scenes
+                log
                 -endings
                 -tower
                 clocks
@@ -362,7 +350,10 @@
         next-game          (assoc game
                                   :-deck deck
                                   :-tower -tower
-                                  :clocks (inspect clocks)
+                                  :clocks clocks
+                                  :log    (conj log {:type :action
+                                                     :text "Finished prompt"}
+                                                next-card)
                                   :-discard discard
                                   :-last-state game
                                   :active-player next-up
@@ -379,6 +370,7 @@
                 -prompt-decks
                 position-tags
                 position
+                log
                 -discard
                 -deck
                 stage]} game
@@ -397,6 +389,9 @@
                             (assoc-in [:inactive-display :x-card-active?] false)
                             (assoc :-deck deck
                                    :-last-state game
+                                   :log (conj log {:type :action
+                                                   :text "Discarded prompt"}
+                                              next-card)
                                    :-prompt-decks prompt-decks
                                    :-discard discard))
         new-active-display (build-active-card next-game next-card active-player next-up)]
@@ -406,6 +401,7 @@
 
 (defn pass-card [game]
   (let [{:keys [active-player
+                log
                 next-players]} game
         active-card            (get-in game [:active-display :card])
         all-players            (conj (into [] next-players) active-player)
@@ -415,6 +411,7 @@
         next-game              (assoc game
                                       :next-players next-players
                                       :active-player next-up
+                                      :log  (conj log {:type :action :text "Passed"})
                                       :-last-state game)
         new-active-display     (build-active-card next-game active-card next-up next-next)]
     (assoc next-game
@@ -435,6 +432,7 @@
            :image new-image
            :image-deck new-image-deck)))
 
+
 (defn next-image [game]
   (let [{:keys [image-deck
                 image]} game
@@ -443,6 +441,13 @@
     (assoc game
            :image next-image
            :image-deck next-image-deck)))
+
+(defn add-note [uid {:keys [text]} game]
+  (let [{:keys [log]} game]
+    (assoc game
+           :log (conj log {:player-id uid
+                           :type :note
+                           :text text}))))
 
 (defn push-uniq [coll item]
   (if (some #(= % item) coll)
@@ -478,6 +483,7 @@
                         :discard         discard-card
                         :pass            pass-card
                         :undo            undo-card
+                        :add-note        (partial add-note uid params)
                         :next-image      next-image
                         :previous-image  previous-image
                         :tick-clock      tick-clock

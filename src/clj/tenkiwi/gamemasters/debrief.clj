@@ -259,9 +259,13 @@
   (let [briefing       (->> (string/split text #"\n\n")
                       (map #(hash-map :text % :type :mission-briefing)))
         mission-open   (get mission-briefing-cards "0")
-        mission-wrapup (get mission-briefing-cards "2")]
+        mission-wrapup (get mission-briefing-cards "2")
+        mission-ending (-> mission-briefing-cards
+                           (get "end" [{:text "{scoreboard}"}])
+                           first)]
     (-> card
         (assoc :briefing-cards (concat mission-open briefing mission-wrapup))
+        (assoc :ending-card    (assoc mission-ending :type :end))
         (update :secondary-objectives #(->> (string/split % #"\s\s") (map string/trim)))
         (update :complications #(->> (string/split % #"\s\s") (map string/trim)))
         (update :complications shuffle)
@@ -370,8 +374,7 @@
                                                         (:briefing-cards mission-details)
                                                         (mapcat #(build-round % card-count decks)
                                                                 (keys act-names))
-                                                        [{:type :end
-                                                          :text "{scoreboard}"}]))
+                                                        [(:ending-card mission-details)]))
                         :active-player    (first players)
                         :active-display   active-display
                         :inactive-display (build-inactive-version {:active-player (first players)} active-display)}]

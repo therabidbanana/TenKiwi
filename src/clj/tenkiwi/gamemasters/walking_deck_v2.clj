@@ -66,7 +66,7 @@
 
 (def card-suits #{:clubs :hearts :spades :diamonds})
 
-(def card-ranks #{:ace 2 3 4 5 6 7 8 9 10 :jack :queen :king})
+(def card-ranks #{:ace 1 0 2 3 4 5 6 7 8 9 10 :jack :queen :king})
 
 (def playing-cards (for [rank card-ranks
                          suit card-suits]
@@ -442,9 +442,10 @@
                      :prompts       {}
                      :-generators   gens
                      :player-order  original-players
+                     :log           [(first intro-deck)]
                      :act           0
                      :act-prompts   act-prompts
-                     :act-prompt    (act-prompts 0)
+                     :act-prompt    (get-in act-prompts [0 :text])
                      :act-timer     (act-timer! room-id act-length)
                      :act-length    act-length
                      :drama-timer   (drama-timer! room-id player-count)
@@ -508,6 +509,7 @@
                            next-players
                            -discard
                            -decks
+                           log
                            act-prompts
                            act]
                     :as   game}]
@@ -530,7 +532,7 @@
                                     (#{:alive :dead} (:type next-card)))
                              (inc act)
                              act)
-        next-act-prompt    (act-prompts next-act)
+        next-act-prompt    (get-in act-prompts [next-act :text])
         next-game          (assoc game
                                   :next-players next-players
                                   :active-player next-up)
@@ -538,6 +540,10 @@
     (assoc next-game
            :-decks decks
            :-discard discard
+           :log (conj log {:type :action
+                           :active-player active-player
+                           :text "Finished Prompt"}
+                      (:card active-card))
            :act-prompt next-act-prompt
            :act next-act
            :active-display active-card
@@ -550,6 +556,7 @@
                             prompts
                             -discard
                             -decks
+                            log
                             state]
                      :as   game}]
   (let [[discard decks]       (draw-next -discard -decks active-player)
@@ -565,6 +572,9 @@
     (assoc game
            :-decks decks
            :-discard discard
+           :log (conj log {:type :action
+                           :text "Discarded Prompt"}
+                      (:card active-card))
            :active-display active-card
            :inactive-display (inactive-version game active-card))))
 
@@ -589,13 +599,19 @@
     ))
 
 (defn choose-option [option-name game]
-  (let [{:keys [active-display]} game
-        {{:keys [type]} :card}   active-display
-        prompt-options (get-in active-display [:card :prompt-options])
-        updater (fn [{:keys [name] :as opt}]
-                  (assoc opt :selected? (= option-name name)))
-        prompt-options (map updater prompt-options)]
+  (let [{:keys [active-player active-display log]} game
+        {{:keys [type]} :card}                     active-display
+
+        prompt-options  (get-in active-display [:card :prompt-options])
+        updater         (fn [{:keys [name] :as opt}]
+                           (assoc opt :selected? (= option-name name)))
+        prompt-options  (map updater prompt-options)
+        selected-option (first (filter :selected? prompt-options))]
     (-> game
+        (update :log conj {:type          :choice
+                           :active-player active-player
+                           :text          (str "**" (:label selected-option) "**..."
+                                               (:description selected-option))})
         (assoc-in [:active-display :card :prompt-options] prompt-options)
         (assoc-in [:inactive-display :card :prompt-options] prompt-options))
     ))
@@ -663,10 +679,14 @@
     (if kill-active?
       (-> next-game
           (assoc-in [:active-player :dead?] true)
+          (update :log conj {:type :death
+                             :text (str (get-in active-player [:character :title]) " died.")})
           ;; Play death sound
           (assoc :broadcasts [[:->sound/trigger! :stinger]
                               [:->toast/show! "The timer goes off and someone died"]]))
       (-> next-game
+          (update :log conj {:type :timer
+                             :text (str "A timer went off!")})
           ;; Play timer expired sound (same for now)
           (assoc :broadcasts [[:->sound/trigger! :stinger]
                               [:->toast/show! "The timer goes off"]])))))
@@ -699,7 +719,7 @@
         next-act          (if (or new-act? (= act 0))
                                   (inc act)
                                   act)
-        next-act-prompt   (act-prompts next-act)]
+        next-act-prompt   (get-in act-prompts [next-act :text])]
     ;; Debug ticks
     ;; (println "tick" drama-timer new-drama-timer "act" act)
     (cond

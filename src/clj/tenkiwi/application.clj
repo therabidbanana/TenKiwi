@@ -41,7 +41,7 @@
              :packer (get-transit-packer)
              :wrap-component? true})
            [:register])
-   :register  (new-register (:database-uri config))
+   :register  (new-register (:s3-creds config))
    :server-info (server-info (:http-port config))))
 
 (defn -main [& _]

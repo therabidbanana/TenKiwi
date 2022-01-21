@@ -2,8 +2,11 @@
   "Used for keeping track of gamestate across all players. The register is
   updated by gamemasters, especially the host, which move players to a room"
   (:require [com.stuartsierra.component :as component]
+            [amazonica.core :refer [with-credential defcredential]]
+            [amazonica.aws.s3 :as aws]
             [taoensso.nippy :as nippy]
-            [duratom.core :refer [duratom]]))
+            [duratom.duratom.core :refer [duratom]]
+            [duratom.duratom.utils :refer [s3-bucket-bytes]]))
 
 (defrecord Register [world]
   component/Lifecycle
@@ -18,15 +21,16 @@
 
 (defn new-register
   ([] (->Register (atom {})))
-  ([connection-uri]
+  ([creds]
    (let [world-atom (duratom
-                     :postgres-db
-                     :table-name "atom_state"
-                     :row-id 0
+                     :aws-s3
+                     :bucket (get creds :bucketname "tenkiwi-test")
+                     :key "0"
+                     :credentials creds
                      :init {}
-                     :rw {:read nippy/thaw
-                          :write nippy/freeze
-                          :column-type :bytea}
-                     :db-config
-                     (str connection-uri))]
+                     :rw {:read  (comp nippy/thaw s3-bucket-bytes)
+                          :write nippy/freeze}
+                     #_:db-config
+                     #_(str connection-uri)
+                     )]
      (->Register world-atom))))

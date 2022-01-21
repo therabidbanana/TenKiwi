@@ -217,6 +217,7 @@
 (defn create-s3-bucket [creds bucket-name]
   (aws/create-bucket creds bucket-name))
 
+;; TODO: FIX #2 - bucket-name vs bucket
 (defn get-value-from-s3 [creds bucket-name k metadata read-it!]
   (let [obj-size (when-not (-> read-it! meta :ignore-size?)
                    ;; make sure the reader needs the object-size, otherwise don't bother

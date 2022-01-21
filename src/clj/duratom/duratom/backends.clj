@@ -117,6 +117,7 @@
   (snapshot [_]
     (try
       (ut/get-value-from-s3 credentials bucket k metadata read-it!)
+      ;;; TODO: FIX #1 - catch 404s
       (catch AmazonS3Exception e)))
   (commit [this]
     (commit this ::deref))

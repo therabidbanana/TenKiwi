@@ -26,6 +26,7 @@
    (let [lines
          (->> (slurp url)
               (clojure.string/split-lines)
+              (take 1000)
               (map #(clojure.string/split % #"\t")))
          header (first lines)
          rest   (rest lines)

@@ -112,12 +112,40 @@
       :wretched (partial wretched/start-game room-id params)
       nil)))
 
+
+(defn select-custom-game [room-id {:keys []
+                                   :as   params
+                                   :or   {}}
+                          {:keys [players] :as room}]
+  (let [new-game {:game-type     :ftq
+                  :configuration {:params (assoc params :game-type :ftq :game-url "")
+                                  :inputs [{:type    :select
+                                            :label   "Game Mode"
+                                            :name    :game-type
+                                            :options (mapv #(hash-map :value (:id %) :name (:title %))
+                                                           [{:id    :ftq
+                                                             :title "Descended from the Queen"}
+                                                            {:id    :debrief
+                                                             :title "Debrief"}
+                                                            {:id    :opera
+                                                             :title "Opera"}
+                                                            {:id    :wretched
+                                                             :title "Wretched and Alone"}
+                                                            ])}
+                                           {:type  :text
+                                            :label "Tab Separated Values URL"
+                                            :name  :game-url}
+                                           ]}
+                  :game-url      ""}]
+    new-game))
+
 (defn game-selector [game-name room-id params]
   (cond
     (home-room? room-id) nil
     :else
     (case game-name
       :opera (partial opera/select-game room-id params)
+      :custom (partial select-custom-game room-id params)
       :wretched (partial wretched/select-game room-id params)
       :walking-deck-v2 (partial walking-deck-v2/select-game room-id params)
       nil    (constantly nil)

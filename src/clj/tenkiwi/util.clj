@@ -66,6 +66,7 @@
   (let [cards    (read-spreadsheet-data url normalize-card)
         includes (->> (group-by :type cards)
                       :include
+                      (take 50)
                       (map :text))
         cards    (concat cards
                          (mapcat #(read-spreadsheet-data % normalize-card)

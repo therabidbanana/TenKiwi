@@ -73,9 +73,12 @@
                                    (or (empty? code) (= room-id code)
                                        (host-codes code)))
                                  (util/read-spreadsheet-data GAME-LIBRARY util/normalize-card))
+         valid-modes (into #{:ftq :debrief :wretched :opera}
+                           (map :type available-games))
          room (or (get-room world-atom room-id)
                   {:id room-id
                    :room-code room-id
+                   :valid-modes valid-modes
                    :host-id uid
                    :available-games available-games
                    :players []
@@ -112,26 +115,29 @@
       :wretched (partial wretched/start-game room-id params)
       nil)))
 
-
 (defn select-custom-game [room-id {:keys []
                                    :as   params
                                    :or   {}}
-                          {:keys [players] :as room}]
-  (let [new-game {:game-type     :ftq
-                  :configuration {:params (assoc params :game-type :ftq :game-url "")
+                          {:keys [valid-modes] :as room}]
+  (let [new-game {:game-type     :custom
+                  :configuration {:params (assoc params :game-type :ftq :game-url "" :custom-play? true)
                                   :inputs [{:type    :select
                                             :label   "Game Mode"
                                             :name    :game-type
                                             :options (mapv #(hash-map :value (:id %) :name (:title %))
-                                                           [{:id    :ftq
-                                                             :title "Descended from the Queen"}
-                                                            {:id    :debrief
-                                                             :title "Debrief"}
-                                                            {:id    :opera
-                                                             :title "Opera"}
-                                                            {:id    :wretched
-                                                             :title "Wretched and Alone"}
-                                                            ])}
+                                                           (filterv
+                                                            #(valid-modes (:id %))
+                                                            [{:id    :ftq
+                                                              :title "Descended from the Queen"}
+                                                             {:id    :debrief
+                                                              :title "Debrief"}
+                                                             {:id    :opera
+                                                              :title "Opera"}
+                                                             {:id    :wretched
+                                                              :title "Wretched and Alone"}
+                                                             {:id    :walking-deck-v2
+                                                              :title "Walking Deck"}
+                                                             ]))}
                                            {:type  :text
                                             :label "Tab Separated Values URL"
                                             :name  :game-url}

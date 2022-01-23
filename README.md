@@ -1,5 +1,7 @@
 # tenkiwi
 
+This is the server component for Tenkiwi. The client side is available at
+https://github.com/therabidbanana/tenkiwi-client
 
 ## Development
 

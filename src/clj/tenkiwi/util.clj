@@ -14,6 +14,25 @@
 (defn update-keys [m f & args]
   (reduce (fn [r [k v]] (assoc r (apply f k args) v)) {} m))
 
+(def google-sheet-match
+  #"https://docs.google.com/spreadsheets/d/e/(.+)/pub(?:html)?\??(gid=([^&]+)&.+)?")
+
+(defn- extract-google-tsv [url]
+  (if-let [match (re-matches google-sheet-match
+                             (clojure.string/trim url))]
+    (let [[_ id _ gid] match
+          gid (or gid "0")]
+      (str "https://docs.google.com/spreadsheets/d/e/" id "/pub?gid=" gid "&single=true&output=tsv"))
+    url))
+
+
+;; TODO: Make this a bit more error proof and check what happens in failures
+(defn pull-tsv [url]
+  (-> url
+      clojure.string/trim
+      extract-google-tsv
+      slurp))
+
 (defn read-spreadsheet-data
   ([url]
    (read-spreadsheet-data url second))
@@ -24,7 +43,7 @@
      (read-spreadsheet-data url parser row-filter)))
   ([url parser row-filter]
    (let [lines
-         (->> (slurp url)
+         (->> (pull-tsv url)
               (clojure.string/split-lines)
               (take 1000)
               (map #(clojure.string/split % #"\t")))

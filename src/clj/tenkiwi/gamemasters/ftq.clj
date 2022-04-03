@@ -1,6 +1,8 @@
 (ns tenkiwi.gamemasters.ftq
   "FTQ is a gamemaster supporting Descended by the Queen games"
-  (:require [tenkiwi.util :as util :refer [inspect]]))
+  (:require [tenkiwi.util :as util :refer [inspect]]
+            [tenkiwi.rules.player-order :as player-order]
+            ))
 
 (def valid-active-actions #{:pass :discard :done :x-card :end-game :next-queen :previous-queen :leave-game})
 (def valid-inactive-actions #{:x-card :undo :leave-game})
@@ -44,15 +46,6 @@
    :state :inactive
    :text  (str "It is " user-name "'s turn...")})
 
-(defn next-player [player-order current-player]
-  (let [curr-id    (:id current-player)
-        curr-index (.indexOf (mapv :id player-order) curr-id)
-        next-index (inc curr-index)
-        next-index (if (>= next-index (count player-order))
-                     0
-                     next-index)]
-    (nth player-order next-index)))
-
 (defn build-active-card [card active-player next-player]
   (let [next-state (or (:type card) :intro)
         pass       {:action :pass
@@ -86,42 +79,44 @@
                   {:keys [players]
                    :as game}]
   (let [decks        (util/gather-decks game-url)
-        first-player (first players)
-        next-player  (next-player players (:id first-player))
+        order        (player-order/initial-state {:players players})
+        first-player (player-order/active-player order)
+        next-player  (player-order/next-player order)
         card-count   (+ 21 (rand 10))
-        new-game     {:player-order     (into [] players)
-                      :game-type        :ftq
-                      :state            :intro
-                      :discard          []
-                      :deck             (into []
-                                              (concat (rest (:intro decks))
-                                                      (take card-count (shuffle (:prompt decks)))
-                                                      [(first (:end decks))]))
-                      :active-player    (first players)
-                      :queen-deck       (into [] (rest (:image decks)))
-                      :queen            (first (:image decks))
-                      :active-display   (build-active-card (first (:intro decks)) first-player next-player)
-                      :inactive-display (build-inactive-card first-player (:text (first (:intro decks))))}]
+        new-game     (merge
+                      order
+                      {:game-type        :ftq
+                       :state            :intro
+                       :discard          []
+                       :deck             (into []
+                                               (concat (rest (:intro decks))
+                                                       (take card-count (shuffle (:prompt decks)))
+                                                       [(first (:end decks))]))
+                       :active-player    (first players)
+                       :queen-deck       (into [] (rest (:image decks)))
+                       :queen            (first (:image decks))
+                       :active-display   (build-active-card (first (:intro decks)) first-player next-player)
+                       :inactive-display (build-inactive-card first-player (:text (first (:intro decks))))}
+                      )]
     new-game))
 
 (defn finish-card [game]
-  (let [{:keys [player-order
-                active-player
+  (let [{:keys [active-player
                 discard
                 deck
                 state]} game
+        next-game       (player-order/activate-next-player! game)
         active-card     (get-in game [:active-display :card])
-        next-up         (next-player player-order active-player)
+        next-up         (player-order/active-player next-game)
+        next-next       (player-order/next-player next-game)
         discard         (cons active-card discard)
         next-card       (first deck)
         deck            (into [] (rest deck))
-        next-state      (:type next-card)
-        next-next       (next-player player-order next-up)]
-    (assoc game
+        next-state      (:type next-card)]
+    (assoc next-game
            :deck deck
            :state next-state
            :discard discard
-           :active-player next-up
            :active-display (build-active-card next-card next-up next-next)
            :inactive-display (build-inactive-card next-up nil))))
 
@@ -144,13 +139,12 @@
            :queen-deck next-queen-deck)))
 
 (defn discard-card [game]
-  (let [{:keys [player-order
-                active-player
+  (let [{:keys [active-player
                 discard
                 deck
                 state]} game
         active-card     (get-in game [:active-display :card])
-        next-up         (next-player player-order active-player)
+        next-up         (player-order/next-player game)
         discard         (cons active-card discard)
         next-card       (first deck)
         deck            (rest deck)
@@ -168,12 +162,12 @@
 
 
 (defn pass-card [game]
-  (let [{:keys [player-order
-                active-player]} game
+  (let [{:keys [active-player]} game
         active-card     (inspect (get-in game [:active-display :card]))
-        next-up         (next-player player-order active-player)
-        next-next       (next-player player-order next-up)]
-    (assoc game
+        next-game       (player-order/activate-next-player! game)
+        next-up         (player-order/active-player next-game)
+        next-next       (player-order/next-player next-game)]
+    (assoc next-game
            :active-player next-up
            :inactive-display (build-inactive-card next-up nil)
            :active-display (build-active-card active-card next-up next-next))))
@@ -198,8 +192,7 @@
   game)
 
 (defn take-action [{:keys [uid room-id action]} {:keys [game]}]
-  (let [{:keys [player-order
-                active-player
+  (let [{:keys [active-player
                 active-display
                 state]
          :as   game}   game

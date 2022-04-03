@@ -3,7 +3,8 @@
   (:require
    [clojure.string :as string]
    [tenkiwi.tables.debrief :as tables]
-   [tenkiwi.util :as util :refer [inspect]]))
+   [tenkiwi.util :as util :refer [inspect]]
+   [tenkiwi.rules.player-order :as player-order]))
 
 (def valid-active-actions #{:rank-player :regen :pass :discard :undo :done :x-card :end-game :upvote-player :downvote-player :leave-game})
 (def valid-inactive-actions #{:rank-player :x-card :undo :leave-game :upvote-player :downvote-player})
@@ -12,24 +13,6 @@
   (if active?
     (valid-active-actions action)
     (valid-inactive-actions action)))
-
-(defn previous-player [player-order current-player]
-  (let [curr-id    (:id current-player)
-        curr-index (.indexOf (mapv :id player-order) curr-id)
-        prev-index (dec curr-index)
-        prev-index (if (> 0 prev-index)
-                     (dec (count player-order))
-                     prev-index)]
-    (nth player-order prev-index)))
-
-(defn next-player [player-order current-player]
-  (let [curr-id    (:id current-player)
-        curr-index (.indexOf (mapv :id player-order) curr-id)
-        next-index (inc curr-index)
-        next-index (if (>= next-index (count player-order))
-                     0
-                     next-index)]
-    (nth player-order next-index)))
 
 (def done-action
   {:action :done
@@ -83,11 +66,11 @@
                              (keys base-scores))]
     final-scores))
 
-(defn extract-vars [{:keys [active-player player-order company
+(defn extract-vars [{:keys [company
                             dossiers mission]
                      :as   game}]
-  (let [next-player   (:id (next-player player-order active-player))
-        prev-player   (:id (previous-player player-order active-player))
+  (let [next-player   (:id (player-order/next-player game))
+        prev-player   (:id (player-order/previous-player game))
         secondaries   (:secondary-objectives mission [])
         complications (:complications mission [])
         scores        (score-players game)
@@ -313,8 +296,9 @@
 (defn start-game [room-id {:keys [game-url]
                            :or   {}}
                   {:keys [players] :as room}]
-  (let [first-player        (first players)
-        next-player         (next-player players (:id first-player))
+  (let [order-state         (player-order/initial-state room)
+        first-player        (player-order/active-player order-state)
+        next-player         (player-order/next-player order-state)
         npcs                [{:user-name "NPC"
                               :id        :leader
                               :dead?     true
@@ -340,44 +324,44 @@
                               :agent-role     (pluck generators "leader-role")}}
 
         active-display (build-active-card (first intro-cards) first-player next-player)
-        new-game       {:player-order     (into [] players)
-                        :player-scores    (into {}
-                                                (map #(vector (:id %)
-                                                              (build-starting-scores % players)) all-players))
-                        :player-ranks     (zipmap
-                                           (map :id players)
-                                           (cycle [(zipmap (keys act-names)
-                                                           (cycle [{:best nil :worst nil}]))]))
-                        :all-players      all-players
-                        :game-type        :debrief
-                        :stage-names      {:intro            "Introduction"
-                                           :mission-briefing "Mission Briefing"
-                                           :dossier          "Character Intros"
-                                           :question         "{act-name}"
-                                           :act-start        "{act-name}"
-                                           :downvoting       "{act-name} (Voting)"
-                                           :upvoting         "{act-name} (Voting)"}
-                        :act-names        act-names
-                        :focus-names      focus-names
-                        :stage            :intro
-                        :stage-name       "Introduction"
-                        :stage-focus      ""
-                        :dossiers         dossiers
-                        :mission          mission-details
-                        :-discard          []
-                        :company          company
-                        :dossier-template dossier-template
-                        :-generators       generators
-                        :-deck             (into []
-                                                (concat (rest intro-cards)
-                                                        (map (partial dossier-card dossier-template generators) players)
-                                                        (:briefing-cards mission-details)
-                                                        (mapcat #(build-round % card-count decks)
-                                                                (keys act-names))
-                                                        [(:ending-card mission-details)]))
-                        :active-player    (first players)
-                        :active-display   active-display
-                        :inactive-display (build-inactive-version {:active-player (first players)} active-display)}]
+        new-game       (merge
+                        order-state
+                        {:player-scores    (into {}
+                                                 (map #(vector (:id %)
+                                                               (build-starting-scores % players)) all-players))
+                         :player-ranks     (zipmap
+                                            (map :id players)
+                                            (cycle [(zipmap (keys act-names)
+                                                            (cycle [{:best nil :worst nil}]))]))
+                         :all-players      all-players
+                         :game-type        :debrief
+                         :stage-names      {:intro            "Introduction"
+                                            :mission-briefing "Mission Briefing"
+                                            :dossier          "Character Intros"
+                                            :question         "{act-name}"
+                                            :act-start        "{act-name}"
+                                            :downvoting       "{act-name} (Voting)"
+                                            :upvoting         "{act-name} (Voting)"}
+                         :act-names        act-names
+                         :focus-names      focus-names
+                         :stage            :intro
+                         :stage-name       "Introduction"
+                         :stage-focus      ""
+                         :dossiers         dossiers
+                         :mission          mission-details
+                         :-discard          []
+                         :company          company
+                         :dossier-template dossier-template
+                         :-generators       generators
+                         :-deck             (into []
+                                                  (concat (rest intro-cards)
+                                                          (map (partial dossier-card dossier-template generators) players)
+                                                          (:briefing-cards mission-details)
+                                                          (mapcat #(build-round % card-count decks)
+                                                                  (keys act-names))
+                                                          [(:ending-card mission-details)]))
+                         :active-display   active-display
+                         :inactive-display (build-inactive-version {:active-player first-player} active-display)})]
     new-game))
 
 (defn extract-dossier [{:keys [inputs]}]
@@ -405,30 +389,30 @@
      :stage-focus next-stage-focus}))
 
 (defn finish-card [game]
-  (let [{:keys [player-order
-                active-player
-                dossiers
+  (let [{:keys [dossiers
                 -discard
                 -deck
                 stage]}  game
+        active-player    (player-order/active-player game)
+        next-state       (-> game
+                             (player-order/activate-next-player!))
         active-card      (get-in game [:active-display :card])
         dossiers         (if (#{:player-dossier} (:id active-card))
                           (assoc dossiers (:id active-player)
                                  (extract-dossier active-card))
                           dossiers)
-        next-up          (next-player player-order active-player)
+        next-up          (player-order/active-player next-state)
         discard          (cons active-card -discard)
         next-card        (first -deck)
         deck             (into [] (rest -deck))
         stage-info       (get-stage-info game next-card)
-        next-next        (next-player player-order next-up)
+        next-next        (player-order/next-player next-state)
 
-        next-game          (assoc game
+        next-game          (assoc next-state
                                   :-deck deck
                                   :dossiers dossiers
                                   :-discard discard
-                                  :-last-state game
-                                  :active-player next-up)
+                                  :-last-state game)
         new-active-display (build-active-card next-game next-card next-up next-next)]
     (-> next-game
         (merge stage-info)
@@ -437,13 +421,12 @@
          :inactive-display (build-inactive-version next-game new-active-display)))))
 
 (defn discard-card [game]
-  (let [{:keys [player-order
-                active-player
-                -discard
+  (let [{:keys [-discard
                 -deck
                 stage]} game
         active-card     (get-in game [:active-display :card])
-        next-up         (next-player player-order active-player)
+        active-player   (player-order/active-player game)
+        next-up         (player-order/next-player game)
         discard         (cons active-card -discard)
         next-card       (first -deck)
         deck            (rest -deck)
@@ -461,12 +444,12 @@
 
 
 (defn pass-card [game]
-  (let [{:keys [player-order
-                active-player]} game
+  (let [next-state              (player-order/activate-next-player! game)
         active-card             (get-in game [:active-display :card])
-        next-up                 (next-player player-order active-player)
-        next-next               (next-player player-order next-up)
-        next-game               (assoc game :active-player next-up :-last-state game)
+        next-up                 (player-order/active-player next-state)
+        next-next               (player-order/next-player next-state)
+        next-game               (assoc next-state
+                                       :-last-state game)
         new-active-display      (build-active-card next-game active-card next-up next-next)]
     (assoc next-game
            :inactive-display (build-inactive-version next-game new-active-display)
@@ -548,10 +531,11 @@
   game)
 
 (defn regen-card [params
-                  {:keys [-generators dossier-template active-player player-order stage]
+                  {:keys [-generators dossier-template stage]
                    :as   game}]
-  (let [next-up      (next-player player-order active-player)
-        next-dossier (build-active-card game
+  (let [next-up       (player-order/next-player game)
+        active-player (player-order/active-player game)
+        next-dossier  (build-active-card game
                                         (dossier-card dossier-template -generators active-player params)
                                         active-player
                                         next-up)]
@@ -563,9 +547,8 @@
       game)))
 
 (defn if-active-> [uid action do-next-state]
-  (fn [{:keys [active-player]
-        :as game}]
-    (let [active-player? (= (:id active-player) uid)]
+  (fn [{:as game}]
+    (let [active-player? (player-order/is-active? game {:id uid})]
       (if (valid-action? active-player? action)
         (do-next-state game)
         game))))

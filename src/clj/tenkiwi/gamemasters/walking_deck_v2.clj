@@ -310,11 +310,11 @@
                 6
                 60)]
     (cond
-      (< 5 player-count) (* 5 ticks)
-      (< 3 player-count) (* 6 ticks)
-      (< 1 player-count) (* 8 ticks)
+      (< 6 player-count) (* 4 ticks)
+      (< 4 player-count) (* 5 ticks)
+      (< 1 player-count) (* 6 ticks)
       ;; This shouldn't be possible unless a person is playing alone
-      :else (* 8 ticks))
+      :else (* 6 ticks))
     ))
 
 ;; (defn prepare-deck
@@ -387,7 +387,7 @@
                                                      :label   "Act Length"
                                                      :name    :act-length
                                                      :options (mapv #(hash-map :value % :name %)
-                                                                    [9 10 11 12 13])}
+                                                                    [11 14 19])}
                                                     {:type    :select
                                                      :label   "Extra Players"
                                                      :name    :extra-players

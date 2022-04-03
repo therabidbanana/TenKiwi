@@ -37,32 +37,6 @@
   {:action  :end-game
    :text    "End the Game"})
 
-(defn normalize-twospace [text]
-  (clojure.string/replace text #"\s\s" "\n\n"))
-
-(defn build-normalized-card [type]
-  (fn [id map]
-    (-> (assoc map :id id :state type)
-        (update :text normalize-twospace))))
-
-(def intro-card (build-normalized-card :intro))
-(def question-card (build-normalized-card :question))
-(def end-card (build-normalized-card :end))
-(def image-card (build-normalized-card :image))
-
-(defn normalize-card [index {:keys [type] :as card}]
-  (case type
-    "intro" (intro-card index card)
-    "question" (question-card index card)
-    "image" (image-card index card)
-    "end" (end-card index card)
-    (question-card index card)))
-
-(defn gather-decks [url]
-  (let [cards (util/read-spreadsheet-data url normalize-card)]
-    (group-by :state cards)))
-
-
 ;; TODO: XSS danger?
 (defn waiting-for
   [{:keys [user-name]}]
@@ -80,7 +54,7 @@
     (nth player-order next-index)))
 
 (defn build-active-card [card active-player next-player]
-  (let [next-state (or (:state card) :intro)
+  (let [next-state (or (:type card) :intro)
         pass       {:action :pass
                     :text   (str "Pass card to " (:user-name next-player))}]
     {:card              card
@@ -88,11 +62,11 @@
      :extra-actions     (case next-state
                           :end      [leave-game-action]
                           :intro    [next-queen-action previous-queen-action leave-game-action]
-                          :question [leave-game-action])
+                          :prompt [leave-game-action])
      :actions           (case next-state
                           :end      [pass end-game-action]
                           :intro    [done-action pass]
-                          :question [done-action pass])}))
+                          :prompt [done-action pass])}))
 
 (defn build-inactive-card [active-player extra-text]
   (let [waiting (waiting-for active-player)
@@ -111,7 +85,7 @@
                    :or   {}}
                   {:keys [players]
                    :as game}]
-  (let [decks        (gather-decks game-url)
+  (let [decks        (util/gather-decks game-url)
         first-player (first players)
         next-player  (next-player players (:id first-player))
         card-count   (+ 21 (rand 10))
@@ -121,7 +95,7 @@
                       :discard          []
                       :deck             (into []
                                               (concat (rest (:intro decks))
-                                                      (take card-count (shuffle (:question decks)))
+                                                      (take card-count (shuffle (:prompt decks)))
                                                       [(first (:end decks))]))
                       :active-player    (first players)
                       :queen-deck       (into [] (rest (:image decks)))
@@ -141,7 +115,7 @@
         discard         (cons active-card discard)
         next-card       (first deck)
         deck            (into [] (rest deck))
-        next-state      (:state next-card)
+        next-state      (:type next-card)
         next-next       (next-player player-order next-up)]
     (assoc game
            :deck deck
@@ -180,7 +154,7 @@
         discard         (cons active-card discard)
         next-card       (first deck)
         deck            (rest deck)
-        next-state      (:state next-card)]
+        next-state      (:type next-card)]
     (if next-card
       (-> game
          (assoc-in [:inactive-display :x-card-active?] false)

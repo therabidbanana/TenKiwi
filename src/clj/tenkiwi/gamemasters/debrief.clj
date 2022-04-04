@@ -4,7 +4,9 @@
    [clojure.string :as string]
    [tenkiwi.tables.debrief :as tables]
    [tenkiwi.util :as util :refer [inspect]]
-   [tenkiwi.rules.player-order :as player-order]))
+   [tenkiwi.rules.player-order :as player-order]
+   [tenkiwi.rules.prompt-deck :as prompt-deck]
+   ))
 
 (def valid-active-actions #{:rank-player :regen :pass :discard :undo :done :x-card :end-game :upvote-player :downvote-player :leave-game})
 (def valid-inactive-actions #{:rank-player :x-card :undo :leave-game :upvote-player :downvote-player})
@@ -293,39 +295,92 @@
         (take count)
         (map :text))))
 
+(defn build-draw-deck [{intro-cards :intro
+                        questions   :question
+                        missions    :mission
+                        :as         decks}
+                       {:keys [mission-details
+                               players
+                               card-count]}]
+  (let [generators       (->> decks :generator (group-by :act))
+        act-names        (-> decks :act-name (one-per-act :text))
+        dossier-template (->> decks :dossier first)]
+    (into []
+          (concat (rest intro-cards)
+                  (map (partial dossier-card dossier-template generators)
+                       players)
+                  (:briefing-cards mission-details)
+                  (mapcat #(build-round % card-count decks)
+                          (keys act-names))
+                  [(:ending-card mission-details)]))))
+
+(defn prepare-mission [{missions :mission
+                        :as decks}]
+  (let [mission-briefing (->> decks :mission-briefing (group-by :act))
+        mission (first (shuffle missions))]
+    (build-mission-details mission-briefing mission)))
+
+(defn get-stage-info [{:keys [company
+                              act-names
+                              stage-names
+                              focus-names]
+                       :as   game}]
+  (let [next-card       (prompt-deck/active-card game)
+        next-stage      (get next-card :type :intro)
+        next-act        (clojure.string/replace (str (get next-card :act "0"))
+                                                #"[^\d]"
+                                                "")
+        next-stage-name (-> (get stage-names next-stage "Introduction")
+                            (clojure.string/replace #"\{act-name\}" (get act-names next-act)))
+
+        next-stage-focus (cond (#{:question :act-start} next-stage)
+                               (replace-vars game (get focus-names next-act (str "{value-" next-act "}")))
+                               :else "")]
+    (assoc game
+           :stage       next-stage
+           :stage-name  next-stage-name
+           :stage-focus next-stage-focus)))
+
+(defn render-game-display [game]
+  (let [next-state         (get-stage-info game)
+        active-card        (prompt-deck/active-card next-state)
+        active-player      (player-order/active-player next-state)
+        next-player        (player-order/next-player next-state)
+        new-active-display (build-active-card active-card active-player next-player)]
+    (assoc next-state
+           :active-display  new-active-display
+           :inactive-display (build-inactive-version next-state new-active-display))))
+
 (defn start-game [room-id {:keys [game-url]
                            :or   {}}
                   {:keys [players] :as room}]
-  (let [order-state         (player-order/initial-state room)
-        first-player        (player-order/active-player order-state)
-        next-player         (player-order/next-player order-state)
-        npcs                [{:user-name "NPC"
-                              :id        :leader
-                              :dead?     true
-                              :npc?      true}]
-        {intro-cards :intro
-         questions   :question
-         missions    :mission
-         :as         decks} (util/gather-decks game-url)
-        act-names           (-> decks :act-name (one-per-act :text))
-        focus-names         (-> decks :focus-name (one-per-act :text))
-        mission-briefing    (->> decks :mission-briefing (group-by :act))
-        generators          (->> decks :generator (group-by :act))
-        dossier-template    (->> decks :dossier first)
-        mission-details     (build-mission-details mission-briefing (first (shuffle missions)))
+  (let [decks            (util/gather-decks game-url)
+        mission-details  (prepare-mission decks)
+        initial-state    (-> {:game-type :debrief}
+                             (player-order/initial-state room)
+                             (prompt-deck/initial-state {:deck (build-draw-deck decks
+                                                                                {:mission-details mission-details
+                                                                                 :card-count 11
+                                                                                 :players players})}))
+        npcs             [{:user-name "NPC"
+                           :id        :leader
+                           :dead?     true
+                           :npc?      true}]
+        act-names        (-> decks :act-name (one-per-act :text))
+        focus-names      (-> decks :focus-name (one-per-act :text))
+        generators       (->> decks :generator (group-by :act))
+        dossier-template (->> decks :dossier first)
 
         all-players (concat (into [] players)
-                               npcs)
-        card-count  11
+                            npcs)
         company     {:name   (pluck generators "company")
                      :values (pluck generators "value" 3)}
         dossiers    {:leader {:agent-name     (tables/random-name)
                               :agent-codename (pluck generators "leader-codename")
                               :agent-role     (pluck generators "leader-role")}}
 
-        active-display (build-active-card (first intro-cards) first-player next-player)
         new-game       (merge
-                        order-state
+                        initial-state
                         {:player-scores    (into {}
                                                  (map #(vector (:id %)
                                                                (build-starting-scores % players)) all-players))
@@ -349,111 +404,46 @@
                          :stage-focus      ""
                          :dossiers         dossiers
                          :mission          mission-details
-                         :-discard          []
                          :company          company
                          :dossier-template dossier-template
-                         :-generators       generators
-                         :-deck             (into []
-                                                  (concat (rest intro-cards)
-                                                          (map (partial dossier-card dossier-template generators) players)
-                                                          (:briefing-cards mission-details)
-                                                          (mapcat #(build-round % card-count decks)
-                                                                  (keys act-names))
-                                                          [(:ending-card mission-details)]))
-                         :active-display   active-display
-                         :inactive-display (build-inactive-version {:active-player first-player} active-display)})]
-    new-game))
+                         :-generators      generators})]
+    (render-game-display new-game)))
 
 (defn extract-dossier [{:keys [inputs]}]
   (zipmap (map keyword (map :name inputs))
           (map :value inputs)))
 
-(defn get-stage-info [{:keys [company
-                              act-names
-                              stage-names
-                              focus-names]
-                       :as game}
-                      next-card]
-  (let [next-stage      (get next-card :type :intro)
-        next-act        (clojure.string/replace (str (get next-card :act "0"))
-                                                #"[^\d]"
-                                                "")
-        next-stage-name (-> (get stage-names next-stage "Introduction")
-                            (clojure.string/replace #"\{act-name\}" (get act-names next-act)))
-
-        next-stage-focus (cond (#{:question :act-start} next-stage)
-                               (replace-vars game (get focus-names next-act (str "{value-" next-act "}")))
-                               :else "")]
-    {:stage       next-stage
-     :stage-name  next-stage-name
-     :stage-focus next-stage-focus}))
-
 (defn finish-card [game]
-  (let [{:keys [dossiers
-                -discard
-                -deck
-                stage]}  game
+  (let [{:keys [dossiers]}  game
         active-player    (player-order/active-player game)
+        previous-card    (prompt-deck/active-card game)
         next-state       (-> game
-                             (player-order/activate-next-player!))
-        active-card      (get-in game [:active-display :card])
-        dossiers         (if (#{:player-dossier} (:id active-card))
+                             (player-order/activate-next-player!)
+                             (prompt-deck/draw-next-card!))
+        dossiers         (if (#{:player-dossier} (:id previous-card))
                           (assoc dossiers (:id active-player)
-                                 (extract-dossier active-card))
-                          dossiers)
-        next-up          (player-order/active-player next-state)
-        discard          (cons active-card -discard)
-        next-card        (first -deck)
-        deck             (into [] (rest -deck))
-        stage-info       (get-stage-info game next-card)
-        next-next        (player-order/next-player next-state)
-
-        next-game          (assoc next-state
-                                  :-deck deck
-                                  :dossiers dossiers
-                                  :-discard discard
-                                  :-last-state game)
-        new-active-display (build-active-card next-game next-card next-up next-next)]
-    (-> next-game
-        (merge stage-info)
-        (assoc
-         :active-display new-active-display
-         :inactive-display (build-inactive-version next-game new-active-display)))))
+                                 (extract-dossier previous-card))
+                          dossiers)]
+    (-> next-state
+        (assoc :dossiers dossiers
+               :-last-state game)
+        render-game-display)))
 
 (defn discard-card [game]
-  (let [{:keys [-discard
-                -deck
-                stage]} game
-        active-card     (get-in game [:active-display :card])
-        active-player   (player-order/active-player game)
-        next-up         (player-order/next-player game)
-        discard         (cons active-card -discard)
-        next-card       (first -deck)
-        deck            (rest -deck)
-        stage-info      (get-stage-info game next-card)
-
-        next-game          (-> game
-                            (assoc-in [:inactive-display :x-card-active?] false)
-                            (assoc :-deck deck
-                                   :-last-state game
-                                   :-discard discard))
-        new-active-display (build-active-card next-game next-card active-player next-up)]
-    (assoc (merge next-game stage-info)
-           :active-display new-active-display
-           :inactive-display (build-inactive-version next-game new-active-display))))
-
+  (let [next-game       (-> game
+                            prompt-deck/draw-next-card!
+                            (assoc :-last-state game))
+        next-card       (prompt-deck/active-card next-game)]
+    ;; Don't allow discard if deck empty
+    (if next-card
+      (render-game-display next-game)
+      game)))
 
 (defn pass-card [game]
-  (let [next-state              (player-order/activate-next-player! game)
-        active-card             (get-in game [:active-display :card])
-        next-up                 (player-order/active-player next-state)
-        next-next               (player-order/next-player next-state)
-        next-game               (assoc next-state
-                                       :-last-state game)
-        new-active-display      (build-active-card next-game active-card next-up next-next)]
-    (assoc next-game
-           :inactive-display (build-inactive-version next-game new-active-display)
-           :active-display new-active-display)))
+  (-> game
+      player-order/activate-next-player!
+      (assoc :-last-state game)
+      render-game-display))
 
 ;; TODO: How much stress does this add to duratom?
 (defn undo-card [game]

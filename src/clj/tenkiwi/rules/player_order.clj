@@ -19,14 +19,18 @@
                      next-index)]
     (nth player-order next-index)))
 
-(defn initial-state [{:keys [players]
+(defn initial-state [starting-state
+                     {:keys [players]
                       :as   options}]
   (let [order (into [] players)
         active-player (first players)
-        next-player (next-player-by-order order active-player)]
-    {:-player-order {:order         order
-                     :active-player active-player}
-     :active-player (first players)}))
+        next-player (next-player-by-order order active-player)
+        order-state {:order         order
+                     :active-player active-player}]
+    (merge
+     starting-state
+     {:-player-order order-state
+      :active-player active-player})))
 
 (defn next-player [{{:keys [active-player
                             order]}
@@ -41,6 +45,10 @@
 (defn active-player [{{:keys [active-player]}
                       :-player-order}]
   active-player)
+
+(defn player-order [{{:keys [order]}
+                      :-player-order}]
+  order)
 
 (defn is-active? [{{:keys [active-player]}
                    :-player-order}

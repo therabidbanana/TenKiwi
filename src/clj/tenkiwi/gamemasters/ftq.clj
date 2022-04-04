@@ -2,6 +2,8 @@
   "FTQ is a gamemaster supporting Descended by the Queen games"
   (:require [tenkiwi.util :as util :refer [inspect]]
             [tenkiwi.rules.player-order :as player-order]
+            [tenkiwi.rules.image-card :as image-card]
+            [tenkiwi.rules.prompt-deck :as prompt-deck]
             ))
 
 (def valid-active-actions #{:pass :discard :done :x-card :end-game :next-queen :previous-queen :leave-game})
@@ -73,104 +75,65 @@
      :available-actions valid-inactive-actions
      :extra-actions     [leave-game-action]}))
 
+(defn build-draw-deck [decks card-count]
+  (into []
+        (concat (rest (:intro decks))
+                (take card-count (shuffle (:prompt decks)))
+                [(first (shuffle (:end decks)))])))
+
+(defn render-game-display [next-game]
+  (let [next-up         (player-order/active-player next-game)
+        next-next       (player-order/next-player next-game)
+        next-card       (prompt-deck/active-card next-game)
+        next-state      (:type next-card)]
+    (assoc next-game
+           :state next-state
+           :active-display (build-active-card next-card next-up next-next)
+           :inactive-display (build-inactive-card next-up nil))))
+
 (defn start-game [room-id
                   {:keys [game-url]
                    :or   {}}
                   {:keys [players]
-                   :as game}]
-  (let [decks        (util/gather-decks game-url)
-        order        (player-order/initial-state {:players players})
-        first-player (player-order/active-player order)
-        next-player  (player-order/next-player order)
-        card-count   (+ 21 (rand 10))
-        new-game     (merge
-                      order
-                      {:game-type        :ftq
-                       :state            :intro
-                       :discard          []
-                       :deck             (into []
-                                               (concat (rest (:intro decks))
-                                                       (take card-count (shuffle (:prompt decks)))
-                                                       [(first (:end decks))]))
-                       :active-player    (first players)
-                       :queen-deck       (into [] (rest (:image decks)))
-                       :queen            (first (:image decks))
-                       :active-display   (build-active-card (first (:intro decks)) first-player next-player)
-                       :inactive-display (build-inactive-card first-player (:text (first (:intro decks))))}
-                      )]
-    new-game))
+                   :as   game}]
+  (let [decks         (util/gather-decks game-url)
+        card-count    (+ 21 (rand 10))
+        initial-state (-> {}
+                          (prompt-deck/initial-state {:deck (build-draw-deck decks card-count)})
+                          (player-order/initial-state {:players players})
+                          (image-card/initial-state {:images    (:image decks)
+                                                     :image-key :queen}))
+        first-player  (player-order/active-player initial-state)
+        next-player   (player-order/next-player initial-state)
+        new-game      (merge {:game-type :ftq}
+                             initial-state)]
+    (render-game-display new-game)))
 
 (defn finish-card [game]
-  (let [{:keys [active-player
-                discard
-                deck
-                state]} game
-        next-game       (player-order/activate-next-player! game)
-        active-card     (get-in game [:active-display :card])
-        next-up         (player-order/active-player next-game)
-        next-next       (player-order/next-player next-game)
-        discard         (cons active-card discard)
-        next-card       (first deck)
-        deck            (into [] (rest deck))
-        next-state      (:type next-card)]
-    (assoc next-game
-           :deck deck
-           :state next-state
-           :discard discard
-           :active-display (build-active-card next-card next-up next-next)
-           :inactive-display (build-inactive-card next-up nil))))
+  (-> game
+      player-order/activate-next-player!
+      prompt-deck/draw-next-card!
+      render-game-display))
 
 (defn previous-queen [game]
-  (let [{:keys [queen-deck
-                queen]} game
-        new-queen      (last queen-deck)
-        new-queen-deck (into [queen] (pop queen-deck))]
-    (assoc game
-           :queen new-queen
-           :queen-deck new-queen-deck)))
+  (image-card/previous-image! game))
 
 (defn next-queen [game]
-  (let [{:keys [queen-deck
-                queen]} game
-        next-queen      (first queen-deck)
-        next-queen-deck (conj (into [] (rest queen-deck)) queen)]
-    (assoc game
-           :queen next-queen
-           :queen-deck next-queen-deck)))
+  (image-card/next-image! game))
 
 (defn discard-card [game]
-  (let [{:keys [active-player
-                discard
-                deck
-                state]} game
-        active-card     (get-in game [:active-display :card])
-        next-up         (player-order/next-player game)
-        discard         (cons active-card discard)
-        next-card       (first deck)
-        deck            (rest deck)
-        next-state      (:type next-card)]
+  (let [next-game       (-> game
+                            prompt-deck/draw-next-card!)
+        next-card       (prompt-deck/active-card next-game)]
+    ;; Don't allow discard if deck empty
     (if next-card
-      (-> game
-         (assoc-in [:inactive-display :x-card-active?] false)
-         (assoc :deck deck
-                :state next-state
-                :discard discard)
-         (assoc
-          :active-display (build-active-card next-card active-player next-up)))
-      ;; Don't allow discard if deck empty
+      (render-game-display next-game)
       game)))
 
-
 (defn pass-card [game]
-  (let [{:keys [active-player]} game
-        active-card     (inspect (get-in game [:active-display :card]))
-        next-game       (player-order/activate-next-player! game)
-        next-up         (player-order/active-player next-game)
-        next-next       (player-order/next-player next-game)]
-    (assoc next-game
-           :active-player next-up
-           :inactive-display (build-inactive-card next-up nil)
-           :active-display (build-active-card active-card next-up next-next))))
+  (-> game
+      player-order/activate-next-player!
+      render-game-display))
 
 (defn push-uniq [coll item]
   (if (some #(= % item) coll)

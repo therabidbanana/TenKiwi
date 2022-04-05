@@ -3,7 +3,7 @@
   (:require
    [clojure.string :as string]
    [tenkiwi.tables.debrief :as tables]
-   [tenkiwi.util :as util :refer [inspect]]
+   [tenkiwi.util :as util :refer [inspect push-uniq]]
    [tenkiwi.rules.player-order :as player-order]
    [tenkiwi.rules.prompt-deck :as prompt-deck]
    ))
@@ -452,11 +452,6 @@
     (assoc -last-state
            :player-scores
            (get-in game [:player-scores]))))
-
-(defn push-uniq [coll item]
-  (if (some #(= % item) coll)
-    coll
-    (into [item] coll)))
 
 (defn rank-player
   [voter-id

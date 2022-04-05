@@ -108,3 +108,8 @@
 
 (defn roll [count sides]
   (map (fn [i] (inc (rand-int sides))) (range 0 count)))
+
+(defn push-uniq [coll item]
+  (if (some #(= % item) coll)
+    coll
+    (into [item] coll)))

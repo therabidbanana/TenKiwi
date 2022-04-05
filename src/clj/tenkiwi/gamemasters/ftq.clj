@@ -1,6 +1,6 @@
 (ns tenkiwi.gamemasters.ftq
   "FTQ is a gamemaster supporting Descended by the Queen games"
-  (:require [tenkiwi.util :as util :refer [inspect]]
+  (:require [tenkiwi.util :as util :refer [inspect push-uniq]]
             [tenkiwi.rules.player-order :as player-order]
             [tenkiwi.rules.image-card :as image-card]
             [tenkiwi.rules.prompt-deck :as prompt-deck]
@@ -134,11 +134,6 @@
   (-> game
       player-order/activate-next-player!
       render-game-display))
-
-(defn push-uniq [coll item]
-  (if (some #(= % item) coll)
-    coll
-    (into [item] coll)))
 
 (defn x-card [game]
   (let [{:keys []} game]

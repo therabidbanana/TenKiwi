@@ -4,6 +4,7 @@
             [tenkiwi.rules.player-order :as player-order]
             [tenkiwi.rules.image-card :as image-card]
             [tenkiwi.rules.prompt-deck :as prompt-deck]
+            [tenkiwi.rules.x-card :as x-card]
             ))
 
 (def valid-active-actions #{:pass :discard :done :x-card :end-game :next-queen :previous-queen :leave-game})
@@ -48,22 +49,26 @@
    :state :inactive
    :text  (str "It is " user-name "'s turn...")})
 
-(defn build-active-card [card active-player next-player]
+(defn build-active-card [card active-player next-player x-card?]
   (let [next-state (or (:type card) :intro)
         pass       {:action :pass
-                    :text   (str "Pass card to " (:user-name next-player))}]
+                    :text   (str "Pass card to " (:user-name next-player))}
+        next-actions (case next-state
+                       :end    [pass end-game-action]
+                       :intro  [done-action pass]
+                       :prompt [done-action pass])]
     {:card              card
+     :x-card-active?    x-card?
      :available-actions valid-active-actions
      :extra-actions     (case next-state
                           :end      [leave-game-action]
                           :intro    [next-queen-action previous-queen-action leave-game-action]
                           :prompt [leave-game-action])
-     :actions           (case next-state
-                          :end      [pass end-game-action]
-                          :intro    [done-action pass]
-                          :prompt [done-action pass])}))
+     :actions           (if x-card?
+                          (push-uniq next-actions discard-action)
+                          next-actions)}))
 
-(defn build-inactive-card [active-player extra-text]
+(defn build-inactive-card [active-player extra-text x-card?]
   (let [waiting (waiting-for active-player)
         waiting (if extra-text
                   (update waiting
@@ -72,6 +77,7 @@
                   waiting)]
 
     {:card              waiting
+     :x-card-active?    x-card?
      :available-actions valid-inactive-actions
      :extra-actions     [leave-game-action]}))
 
@@ -85,11 +91,12 @@
   (let [next-up         (player-order/active-player next-game)
         next-next       (player-order/next-player next-game)
         next-card       (prompt-deck/active-card next-game)
+        x-card?         (x-card/active? next-game)
         next-state      (:type next-card)]
     (assoc next-game
            :state next-state
-           :active-display (build-active-card next-card next-up next-next)
-           :inactive-display (build-inactive-card next-up nil))))
+           :active-display (build-active-card next-card next-up next-next x-card?)
+           :inactive-display (build-inactive-card next-up nil x-card?))))
 
 (defn start-game [room-id
                   {:keys [game-url]
@@ -101,6 +108,7 @@
         initial-state (-> {}
                           (prompt-deck/initial-state {:deck (build-draw-deck decks card-count)})
                           (player-order/initial-state {:players players})
+                          (x-card/initial-state {})
                           (image-card/initial-state {:images    (:image decks)
                                                      :image-key :queen}))
         first-player  (player-order/active-player initial-state)
@@ -112,17 +120,21 @@
 (defn finish-card [game]
   (-> game
       player-order/activate-next-player!
+      x-card/reset-x-card!
       prompt-deck/draw-next-card!
       render-game-display))
 
 (defn previous-queen [game]
-  (image-card/previous-image! game))
+  (-> (image-card/previous-image! game)
+      render-game-display))
 
 (defn next-queen [game]
-  (image-card/next-image! game))
+  (-> (image-card/next-image! game)
+      render-game-display))
 
 (defn discard-card [game]
   (let [next-game       (-> game
+                            x-card/reset-x-card!
                             prompt-deck/draw-next-card!)
         next-card       (prompt-deck/active-card next-game)]
     ;; Don't allow discard if deck empty
@@ -136,11 +148,8 @@
       render-game-display))
 
 (defn x-card [game]
-  (let [{:keys []} game]
-    (-> game
-        (assoc-in [:active-display :x-card-active?] true)
-        (update-in [:active-display :actions] push-uniq discard-action)
-        (assoc-in [:inactive-display :x-card-active?] true))))
+  (-> (x-card/activate-x-card! game)
+      render-game-display))
 
 (defn end-game [game]
   nil)

@@ -6,6 +6,7 @@
    [tenkiwi.util :as util :refer [inspect push-uniq]]
    [tenkiwi.rules.player-order :as player-order]
    [tenkiwi.rules.prompt-deck :as prompt-deck]
+   [tenkiwi.rules.x-card :as x-card]
    ))
 
 (def valid-active-actions #{:rank-player :regen :pass :discard :undo :done :x-card :end-game :upvote-player :downvote-player :leave-game})
@@ -170,7 +171,7 @@
 
 
 (defn build-active-card
-  ([game card active-player next-player]
+  ([game card active-player next-player x-card?]
    (let [{:keys [all-players
                  mission
                  -generators]} game
@@ -182,27 +183,31 @@
          can-finish?           (or (not (get-in card [:tags :everyone] false))
                                    (= (:starting-player card) active-player))
          pass                  {:action :pass
-                                :text   (str "Pass card to " (:user-name next-player))}]
+                                :text   (str "Pass card to " (:user-name next-player))}
+         next-actions          (case next-stage
+                                 :end        [pass end-game-action]
+                                 :upvoting   (mapv (partial player-button game {:rank :best
+                                                                                :act  act}) all-players)
+                                 :downvoting (mapv (partial player-button game {:rank :worst
+                                                                                :act  act}) all-players)
+                                 :dossier    [done-action]
+                                 (if can-finish?
+                                   [done-action pass]
+                                   [pass]))]
      {:card              (assoc (replace-vars game card)
                                 :starting-player starting-player)
       :extra-details     (map #(hash-map :title (:label %)
                                      :name (:name %)
                                      :items (take 3 (shuffle (mapv :text (get -generators (:name %) [])))))
                           story-details)
+      :x-card-active?    x-card?
       :extra-actions     [undo-action leave-game-action]
       :available-actions valid-active-actions
-      :actions           (case next-stage
-                           :end        [pass end-game-action]
-                           :upvoting   (mapv (partial player-button game {:rank :best
-                                                                          :act  act}) all-players)
-                           :downvoting (mapv (partial player-button game {:rank :worst
-                                                                          :act  act}) all-players)
-                           :dossier    [done-action]
-                           (if can-finish?
-                             [done-action pass]
-                             [pass]))}))
-  ([card active-player next-player]
-   (build-active-card {} card active-player next-player)))
+      :actions  (if x-card?
+                  (push-uniq next-actions discard-action)
+                  next-actions)}))
+  ([card active-player next-player x-card?]
+   (build-active-card {} card active-player next-player x-card?)))
 
 (defn build-inactive-card [active-player extra-text]
   (let [waiting (waiting-for active-player)
@@ -346,7 +351,8 @@
         active-card        (prompt-deck/active-card next-state)
         active-player      (player-order/active-player next-state)
         next-player        (player-order/next-player next-state)
-        new-active-display (build-active-card active-card active-player next-player)]
+        x-card?            (x-card/active? next-state)
+        new-active-display (build-active-card active-card active-player next-player x-card?)]
     (assoc next-state
            :active-display  new-active-display
            :inactive-display (build-inactive-version next-state new-active-display))))
@@ -358,6 +364,7 @@
         mission-details  (prepare-mission decks)
         initial-state    (-> {:game-type :debrief}
                              (player-order/initial-state room)
+                             (x-card/initial-state {})
                              (prompt-deck/initial-state {:deck (build-draw-deck decks
                                                                                 {:mission-details mission-details
                                                                                  :card-count 11
@@ -419,6 +426,7 @@
         previous-card    (prompt-deck/active-card game)
         next-state       (-> game
                              (player-order/activate-next-player!)
+                             x-card/reset-x-card!
                              (prompt-deck/draw-next-card!))
         dossiers         (if (#{:player-dossier} (:id previous-card))
                           (assoc dossiers (:id active-player)
@@ -432,6 +440,7 @@
 (defn discard-card [game]
   (let [next-game       (-> game
                             prompt-deck/draw-next-card!
+                            x-card/reset-x-card!
                             (assoc :-last-state game))
         next-card       (prompt-deck/active-card next-game)]
     ;; Don't allow discard if deck empty
@@ -502,11 +511,8 @@
       game)))
 
 (defn x-card [game]
-  (let [{:keys []} game]
-    (-> game
-        (assoc-in [:active-display :x-card-active?] true)
-        (update-in [:active-display :actions] push-uniq discard-action)
-        (assoc-in [:inactive-display :x-card-active?] true))))
+  (-> (x-card/activate-x-card! game)
+      render-game-display))
 
 (defn end-game [game]
   nil)

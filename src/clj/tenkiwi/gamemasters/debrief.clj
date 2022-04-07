@@ -7,6 +7,7 @@
    [tenkiwi.rules.player-order :as player-order]
    [tenkiwi.rules.prompt-deck :as prompt-deck]
    [tenkiwi.rules.x-card :as x-card]
+   [tenkiwi.rules.word-bank :as word-bank]
    ))
 
 (def valid-active-actions #{:rank-player :regen :pass :discard :undo :done :x-card :end-game :upvote-player :downvote-player :leave-game})
@@ -118,12 +119,6 @@
       (assoc str-or-card :text replaced)
       :else str-or-card)))
 
-(defn extract-generator-list [str]
-  (->> (clojure.string/split str #"\s\s")
-       (map #(clojure.string/split % #":\s+"))
-       (map #(hash-map :name (first %)
-                       :label (last %)))))
-
 ;; TODO: Use above thing
 (defn dossier-card
   ([dossier-template generators player]
@@ -175,7 +170,7 @@
    (let [{:keys [all-players
                  mission
                  -generators]} game
-         story-details         (extract-generator-list (:story-details mission ""))
+         story-details         (word-bank/->word-banks game)
          act                   (:act card)
          next-stage            (or (:type card) :intro)
          starting-player       (or (:starting-player card) active-player)
@@ -196,16 +191,13 @@
                                    [pass]))]
      {:card              (assoc (replace-vars game card)
                                 :starting-player starting-player)
-      :extra-details     (map #(hash-map :title (:label %)
-                                     :name (:name %)
-                                     :items (take 3 (shuffle (mapv :text (get -generators (:name %) [])))))
-                          story-details)
+      :extra-details     story-details
       :x-card-active?    x-card?
       :extra-actions     [undo-action leave-game-action]
       :available-actions valid-active-actions
-      :actions  (if x-card?
-                  (push-uniq next-actions discard-action)
-                  next-actions)}))
+      :actions           (if x-card?
+                           (push-uniq next-actions discard-action)
+                           next-actions)}))
   ([card active-player next-player x-card?]
    (build-active-card {} card active-player next-player x-card?)))
 
@@ -290,16 +282,6 @@
            round-end-qs
            [(get upvoting round) (get downvoting round)]))))
 
-(defn pluck
-  ([generators gen-name]
-   (first (pluck generators gen-name 1)))
-  ([generators gen-name count]
-   (->> [{:text "Foo"}]
-        (get generators gen-name)
-        shuffle
-        (take count)
-        (map :text))))
-
 (defn build-draw-deck [{intro-cards :intro
                         questions   :question
                         missions    :mission
@@ -352,7 +334,7 @@
         active-player      (player-order/active-player next-state)
         next-player        (player-order/next-player next-state)
         x-card?            (x-card/active? next-state)
-        new-active-display (build-active-card active-card active-player next-player x-card?)]
+        new-active-display (build-active-card next-state active-card active-player next-player x-card?)]
     (assoc next-state
            :active-display  new-active-display
            :inactive-display (build-inactive-version next-state new-active-display))))
@@ -361,10 +343,13 @@
                            :or   {}}
                   {:keys [players] :as room}]
   (let [decks            (util/gather-decks game-url)
+        generators       (->> decks :generator (group-by :act))
         mission-details  (prepare-mission decks)
         initial-state    (-> {:game-type :debrief}
                              (player-order/initial-state room)
                              (x-card/initial-state {})
+                             (word-bank/initial-state {:word-banks (:story-details mission-details)
+                                                       :generators generators})
                              (prompt-deck/initial-state {:deck (build-draw-deck decks
                                                                                 {:mission-details mission-details
                                                                                  :card-count 11
@@ -375,16 +360,16 @@
                            :npc?      true}]
         act-names        (-> decks :act-name (one-per-act :text))
         focus-names      (-> decks :focus-name (one-per-act :text))
-        generators       (->> decks :generator (group-by :act))
         dossier-template (->> decks :dossier first)
 
         all-players (concat (into [] players)
                             npcs)
-        company     {:name   (pluck generators "company")
-                     :values (pluck generators "value" 3)}
+
+        company     {:name   (word-bank/->pluck initial-state "company")
+                     :values (word-bank/->pluck initial-state "value" 3)}
         dossiers    {:leader {:agent-name     (tables/random-name)
-                              :agent-codename (pluck generators "leader-codename")
-                              :agent-role     (pluck generators "leader-role")}}
+                              :agent-codename (word-bank/->pluck initial-state "leader-codename")
+                              :agent-role     (word-bank/->pluck initial-state "leader-role")}}
 
         new-game       (merge
                         initial-state
@@ -524,12 +509,14 @@
 (defn regen-card [params
                   {:keys [-generators dossier-template stage]
                    :as   game}]
-  (let [next-up       (player-order/next-player game)
-        active-player (player-order/active-player game)
-        next-dossier  (build-active-card game
-                                        (dossier-card dossier-template -generators active-player params)
-                                        active-player
-                                        next-up)]
+  (let [next-up        (player-order/next-player game)
+        active-player  (player-order/active-player game)
+        x-card-active? (x-card/active? game)
+        next-dossier   (build-active-card game
+                                         (dossier-card dossier-template -generators active-player params)
+                                         active-player
+                                         next-up
+                                         x-card-active?)]
     (cond
       (#{:dossier} stage)
       (-> game

@@ -14,7 +14,7 @@
     (merge
      starting-state
      {STATE-KEY order-state
-      image-key    active-image})))
+      image-key active-image})))
 
 (defn previous-image! [{:as                                         game
                         {:keys [image-deck active-image image-key]} STATE-KEY}]
@@ -22,8 +22,8 @@
         new-image-deck (into [active-image] (pop image-deck))]
       (assoc game
              STATE-KEY {:image-deck   new-image-deck
-                           :image-key    image-key
-                           :active-image new-image}
+                        :image-key    image-key
+                        :active-image new-image}
              image-key new-image)))
 
 (defn next-image! [{:as                                         game
@@ -32,6 +32,6 @@
         new-image-deck (conj (into [] (rest image-deck)) active-image)]
     (assoc game
            STATE-KEY {:image-deck   new-image-deck
-                         :image-key    image-key
-                         :active-image new-image}
+                      :image-key    image-key
+                      :active-image new-image}
            image-key new-image)))

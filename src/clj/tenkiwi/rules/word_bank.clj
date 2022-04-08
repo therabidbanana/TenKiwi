@@ -10,14 +10,14 @@
                        :label (last %)))))
 
 (defn initial-state [starting-state
-                     {:keys [word-banks word-bank-key generators]
-                      :or   {word-bank-key :story-details}
+                     {:keys [word-banks word-bank-path generators]
+                      :or   {word-bank-path [:active-display :story-details]}
                       :as   options}]
-  (let [word-bank   (if (string? word-banks)
+  (let [word-banks  (if (string? word-banks)
                       (extract-generator-list word-banks)
                       word-banks)
-        extra-state {:word-banks      word-bank
-                     :word-bank-key   word-bank-key
+        extra-state {:word-banks      word-banks
+                     :word-bank-path  word-bank-path
                      :word-bank-count 3
                      :generators      generators}]
     (merge
@@ -27,16 +27,23 @@
 (defn- gather-word-banks [-generators story-details word-count]
   (map #(hash-map :title (:label %)
                  :name (:name %)
-                 :items (take 3 (shuffle (mapv :text (get -generators (:name %) [])))))
+                 :items (take word-count (shuffle (mapv :text (get -generators (:name %) [])))))
       story-details))
 
 (defn ->word-banks
   ([game]
    (let [word-banks (get-in game [$ :word-banks])
-         word-bank-count (get-in game [$ :word-banks])]
+         word-bank-count (get-in game [$ :word-bank-count])]
      (->word-banks game word-banks word-bank-count)))
   ([{{:keys [generators]} $} word-banks word-bank-count]
    (gather-word-banks generators word-banks word-bank-count)))
+
+(defn render-word-banks!
+  ([game]
+   (render-word-banks! game (get-in game [$ :word-bank-path])))
+  ([game path]
+   (let [rendered (->word-banks game)]
+     (assoc-in game path rendered))))
 
 (defn ->pluck
   ([{{:keys [generators]} $} gen-name]

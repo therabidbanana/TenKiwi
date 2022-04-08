@@ -173,10 +173,8 @@
          story-details         (word-bank/->word-banks game)
          act                   (:act card)
          next-stage            (or (:type card) :intro)
-         starting-player       (or (:starting-player card) active-player)
          ;; Don't allow done-action for #everyone cards until they are passed around
-         can-finish?           (or (not (get-in card [:tags :everyone] false))
-                                   (= (:starting-player card) active-player))
+         can-finish?           (prompt-deck/->everyone? game)
          pass                  {:action :pass
                                 :text   (str "Pass card to " (:user-name next-player))}
          next-actions          (case next-stage
@@ -189,8 +187,7 @@
                                  (if can-finish?
                                    [done-action pass]
                                    [pass]))]
-     {:card              (assoc (replace-vars game card)
-                                :starting-player starting-player)
+     {:card              (replace-vars game card)
       :extra-details     story-details
       :x-card-active?    x-card?
       :extra-actions     [undo-action leave-game-action]
@@ -349,8 +346,10 @@
                              (player-order/initial-state room)
                              (x-card/initial-state {})
                              (word-bank/initial-state {:word-banks (:story-details mission-details)
+                                                       :word-bank-path [:active-display :extra-details]
                                                        :generators generators})
-                             (prompt-deck/initial-state {:deck (build-draw-deck decks
+                             (prompt-deck/initial-state {:features {:everyone true}
+                                                         :deck (build-draw-deck decks
                                                                                 {:mission-details mission-details
                                                                                  :card-count 11
                                                                                  :players players})}))
@@ -412,7 +411,7 @@
         next-state       (-> game
                              (player-order/activate-next-player!)
                              x-card/reset-x-card!
-                             (prompt-deck/draw-next-card!))
+                             prompt-deck/draw-next-card!)
         dossiers         (if (#{:player-dossier} (:id previous-card))
                           (assoc dossiers (:id active-player)
                                  (extract-dossier previous-card))
@@ -435,6 +434,7 @@
 
 (defn pass-card [game]
   (-> game
+      prompt-deck/card-passed!
       player-order/activate-next-player!
       (assoc :-last-state game)
       render-game-display))

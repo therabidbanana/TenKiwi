@@ -8,6 +8,7 @@
    [tenkiwi.rules.prompt-deck :as prompt-deck]
    [tenkiwi.rules.x-card :as x-card]
    [tenkiwi.rules.word-bank :as word-bank]
+   [tenkiwi.rules.voteboard :as voteboard]
    ))
 
 (def valid-active-actions #{:rank-player :regen :pass :discard :undo :done :x-card :end-game :upvote-player :downvote-player :leave-game})
@@ -61,10 +62,8 @@
               :else
               6)))))
 
-(defn score-players [{:keys [dossiers player-ranks player-scores]}]
-  (let [sum-scores  #(apply + (vals %))
-        base-scores (zipmap (keys player-scores)
-                            (map sum-scores (vals player-scores)))
+(defn score-players [{:keys [dossiers player-ranks] :as game}]
+  (let [base-scores (voteboard/->total-scores game)
         final-scores (reduce #(update %1 %2 + (score-ranks %2 player-ranks))
                              base-scores
                              (keys base-scores))]
@@ -143,10 +142,15 @@
 
 ;; TODO: XSS danger?
 (defn waiting-for
-  [{:keys [user-name]}]
-  {:id    "waiting"
-   :type :inactive
-   :text  (str "It is " user-name "'s turn...")})
+  ([{:keys [user-name]}]
+   {:id    "waiting"
+    :type :inactive
+    :text  (str "It is " user-name "'s turn...")})
+  ([{:keys [user-name]}
+    extra-text]
+   {:id    "waiting"
+    :type :inactive
+    :text  (str extra-text "\n\n" "It is " user-name "'s turn...")}))
 
 (defn player-button [{:keys [dossiers]} params {:keys [id user-name]}]
   {:action  :rank-player
@@ -165,73 +169,6 @@
    :text    (str "Downvote " (get-in dossiers [id :agent-codename] user-name))})
 
 
-(defn build-active-card
-  ([game card active-player next-player x-card?]
-   (let [{:keys [all-players
-                 mission
-                 -generators]} game
-         story-details         (word-bank/->word-banks game)
-         act                   (:act card)
-         next-stage            (or (:type card) :intro)
-         ;; Don't allow done-action for #everyone cards until they are passed around
-         can-finish?           (prompt-deck/->everyone? game)
-         pass                  {:action :pass
-                                :text   (str "Pass card to " (:user-name next-player))}
-         next-actions          (case next-stage
-                                 :end        [pass end-game-action]
-                                 :upvoting   (mapv (partial player-button game {:rank :best
-                                                                                :act  act}) all-players)
-                                 :downvoting (mapv (partial player-button game {:rank :worst
-                                                                                :act  act}) all-players)
-                                 :dossier    [done-action]
-                                 (if can-finish?
-                                   [done-action pass]
-                                   [pass]))]
-     {:card              (replace-vars game card)
-      :extra-details     story-details
-      :x-card-active?    x-card?
-      :extra-actions     [undo-action leave-game-action]
-      :available-actions valid-active-actions
-      :actions           (if x-card?
-                           (push-uniq next-actions discard-action)
-                           next-actions)}))
-  ([card active-player next-player x-card?]
-   (build-active-card {} card active-player next-player x-card?)))
-
-(defn build-inactive-card [active-player extra-text]
-  (let [waiting (waiting-for active-player)
-        waiting (if extra-text
-                  (update waiting
-                          :text
-                          (partial str extra-text "\n\n"))
-                  waiting)]
-
-    {:card          waiting
-     :available-actions valid-inactive-actions
-     :extra-actions [undo-action leave-game-action]}))
-
-(defn build-inactive-version [{:keys [dossiers active-player] :as game}
-                              {{:keys [type]} :card
-                               :as            active-display}]
-  (let [disabled-actions [{:text      (:text (waiting-for active-player))
-                           :disabled? true}]
-        extra-actions    [(upvote-current-player-button dossiers active-player)
-                          (downvote-current-player-button dossiers active-player)]]
-    (cond
-      (#{:act-start :question :intro :mission-briefing} type)
-      (-> active-display
-          (assoc :available-actions valid-inactive-actions)
-          (assoc :actions disabled-actions)
-          (update :actions #(into % extra-actions)))
-      (#{:dossier} type)
-      (build-inactive-card active-player "Introductions are being made.")
-      :else
-      (-> active-display
-          (assoc :available-actions valid-inactive-actions)))))
-
-(defn- build-starting-scores [{:keys [npc? id]} players]
-  (let [ids (remove #(= id %) (map :id players))]
-    (zipmap ids (cycle [5]))))
 
 (defn build-mission-details [mission-briefing-cards
                              {:keys [text secondary-objectives complications story-details] :as card}]
@@ -304,7 +241,7 @@
         mission (first (shuffle missions))]
     (build-mission-details mission-briefing mission)))
 
-(defn get-stage-info [{:keys [company
+(defn render-stage-info [{:keys [company
                               act-names
                               stage-names
                               focus-names]
@@ -325,57 +262,125 @@
            :stage-name  next-stage-name
            :stage-focus next-stage-focus)))
 
+(defn render-active-display [{:as                      game
+                              {:as   display
+                               :keys [card
+                                      active-player
+                                      next-player
+                                      x-card-active?]} :display}]
+  (let [{:keys [all-players]} game
+        act                   (:act card)
+        next-stage            (or (:type card) :intro)
+        ;; Don't allow done-action for #everyone cards until they are passed around
+        can-finish?           (prompt-deck/->everyone? game)
+        pass                  {:action :pass
+                               :text   (str "Pass card to " (:user-name next-player))}
+        next-actions          (case next-stage
+                                :end        [pass end-game-action]
+                                :upvoting   (mapv (partial player-button game {:rank :best
+                                                                               :act  act}) all-players)
+                                :downvoting (mapv (partial player-button game {:rank :worst
+                                                                               :act  act}) all-players)
+                                :dossier    [done-action]
+                                (if can-finish?
+                                  [done-action pass]
+                                  [pass]))]
+    (assoc game
+           :active-display
+           (merge display
+                  {:card              (replace-vars game card)
+                   :extra-actions     [undo-action leave-game-action]
+                   :available-actions valid-active-actions
+                   :actions           (if x-card-active?
+                                        (push-uniq next-actions discard-action)
+                                        next-actions)}))))
+
+(defn render-inactive-display [{:keys                   [dossiers active-display]
+                                {:keys [active-player
+                                        card]}          :display
+                                :as                     game}]
+  (let [card-type        (:type card)
+        disabled-actions [{:text      (:text (waiting-for active-player))
+                           :disabled? true}]
+        extra-actions    [(upvote-current-player-button dossiers active-player)
+                          (downvote-current-player-button dossiers active-player)]]
+    (assoc game
+           :inactive-display
+           (cond
+             (#{:act-start :question :intro :mission-briefing} card-type)
+             (-> active-display
+                 (assoc :available-actions valid-inactive-actions)
+                 (assoc :actions disabled-actions)
+                 (update :actions #(into % extra-actions)))
+             (#{:dossier} card-type)
+             {:card              (waiting-for active-player "Introductions are being made.")
+              :available-actions valid-inactive-actions
+              :extra-actions     [undo-action leave-game-action]}
+             :else
+             (-> active-display
+                 (assoc :available-actions valid-inactive-actions))))))
+
+;; TODO: Remove when fully moved to new display system
+(defn render-backwards-compatibility [{:as state
+                                       {:keys [player-scores
+                                               active-player]} :display}]
+  (assoc state
+         :player-scores player-scores
+         :active-player active-player))
+
+(defn render-test [game]
+  (println (keys game))
+  (println (keys (:display game)))
+  game)
+
 (defn render-game-display [game]
-  (let [next-state         (get-stage-info game)
-        active-card        (prompt-deck/active-card next-state)
-        active-player      (player-order/active-player next-state)
-        next-player        (player-order/next-player next-state)
-        x-card?            (x-card/active? next-state)
-        new-active-display (build-active-card next-state active-card active-player next-player x-card?)]
-    (assoc next-state
-           :active-display  new-active-display
-           :inactive-display (build-inactive-version next-state new-active-display))))
+  (-> (render-stage-info game)
+      player-order/render-display
+      prompt-deck/render-display
+      x-card/render-display
+      word-bank/render-display
+      voteboard/render-display
+      render-backwards-compatibility
+      render-active-display
+      render-inactive-display))
 
 (defn start-game [room-id {:keys [game-url]
                            :or   {}}
                   {:keys [players] :as room}]
-  (let [decks            (util/gather-decks game-url)
-        generators       (->> decks :generator (group-by :act))
-        mission-details  (prepare-mission decks)
+  (let [decks           (util/gather-decks game-url)
+        generators      (->> decks :generator (group-by :act))
+        mission-details (prepare-mission decks)
+        npcs            [{:user-name "NPC"
+                          :id        :leader
+                          :npc?      true}]
+        all-players     (concat (into [] players)
+                            npcs)
+
         initial-state    (-> {:game-type :debrief}
                              (player-order/initial-state room)
                              (x-card/initial-state {})
-                             (word-bank/initial-state {:word-banks (:story-details mission-details)
-                                                       :word-bank-path [:active-display :extra-details]
-                                                       :generators generators})
+                             (voteboard/initial-state {:players all-players})
+                             (word-bank/initial-state {:word-banks     (:story-details mission-details)
+                                                       :word-bank-key  :extra-details
+                                                       :generators     generators})
                              (prompt-deck/initial-state {:features {:everyone true}
-                                                         :deck (build-draw-deck decks
-                                                                                {:mission-details mission-details
-                                                                                 :card-count 11
-                                                                                 :players players})}))
-        npcs             [{:user-name "NPC"
-                           :id        :leader
-                           :dead?     true
-                           :npc?      true}]
+                                                         :deck     (build-draw-deck decks
+                                                                                    {:mission-details mission-details
+                                                                                     :card-count      11
+                                                                                     :players         players})}))
         act-names        (-> decks :act-name (one-per-act :text))
         focus-names      (-> decks :focus-name (one-per-act :text))
         dossier-template (->> decks :dossier first)
 
-        all-players (concat (into [] players)
-                            npcs)
+        company  {:name   (word-bank/->pluck initial-state "company")
+                  :values (word-bank/->pluck initial-state "value" 3)}
+        dossiers {:leader {:agent-name     (tables/random-name)
+                           :agent-codename (word-bank/->pluck initial-state "leader-codename")
+                           :agent-role     (word-bank/->pluck initial-state "leader-role")}}
 
-        company     {:name   (word-bank/->pluck initial-state "company")
-                     :values (word-bank/->pluck initial-state "value" 3)}
-        dossiers    {:leader {:agent-name     (tables/random-name)
-                              :agent-codename (word-bank/->pluck initial-state "leader-codename")
-                              :agent-role     (word-bank/->pluck initial-state "leader-role")}}
-
-        new-game       (merge
+        new-game (merge
                         initial-state
-                        {:player-scores    (into {}
-                                                 (map #(vector (:id %)
-                                                               (build-starting-scores % players)) all-players))
-                         :player-ranks     (zipmap
+                        {:player-ranks     (zipmap
                                             (map :id players)
                                             (cycle [(zipmap (keys act-names)
                                                             (cycle [{:best nil :worst nil}]))]))
@@ -410,6 +415,7 @@
         previous-card    (prompt-deck/active-card game)
         next-state       (-> game
                              (player-order/activate-next-player!)
+                             word-bank/regen-word-banks!
                              x-card/reset-x-card!
                              prompt-deck/draw-next-card!)
         dossiers         (if (#{:player-dossier} (:id previous-card))
@@ -424,6 +430,7 @@
 (defn discard-card [game]
   (let [next-game       (-> game
                             prompt-deck/draw-next-card!
+                            word-bank/regen-word-banks!
                             x-card/reset-x-card!
                             (assoc :-last-state game))
         next-card       (prompt-deck/active-card next-game)]
@@ -435,17 +442,18 @@
 (defn pass-card [game]
   (-> game
       prompt-deck/card-passed!
+      word-bank/regen-word-banks!
       player-order/activate-next-player!
       (assoc :-last-state game)
       render-game-display))
 
 ;; TODO: How much stress does this add to duratom?
 (defn undo-card [game]
-  (let [{:keys [player-scores
-                -last-state]} game]
-    (assoc -last-state
-           :player-scores
-           (get-in game [:player-scores]))))
+  (let [{:keys [-last-state]} game
+        new-state (assoc-in -last-state
+                            [voteboard/$ :scores]
+                            (voteboard/->scores game))]
+    (render-game-display new-state)))
 
 (defn rank-player
   [voter-id
@@ -468,31 +476,29 @@
 (defn upvote-player
   [voter-id
    {:keys [player-id]}
-   {:keys [all-players player-scores dossiers] :as game}]
-  (let [current-score (get-in player-scores [player-id voter-id])
-        new-score (min (inc current-score) 10)
-        player-names (group-by :id all-players)
-        player-name (or (get-in dossiers [player-id :agent-codename])
+   {:keys [all-players dossiers] :as game}]
+  (let [current-score (voteboard/current-score game [player-id voter-id])
+        player-names  (group-by :id all-players)
+        player-name   (or (get-in dossiers [player-id :agent-codename])
                         (get-in player-names [player-id 0 :user-name] "Someone"))]
     (if current-score
-      (-> game
-          (assoc-in [:player-scores player-id voter-id] new-score)
-          (assoc-in [:broadcasts] [[:->toast/show! (str "👍  " player-name " got upvoted.")]]))
+      (-> (voteboard/upvote! game [player-id voter-id])
+          (assoc-in [:broadcasts] [[:->toast/show! (str "👍  " player-name " got upvoted.")]])
+          render-game-display)
       game)))
 
 (defn downvote-player
   [voter-id
    {:keys [player-id]}
-   {:keys [all-players player-scores dossiers] :as game}]
-  (let [current-score (get-in player-scores [player-id voter-id])
-        new-score (max (dec current-score) 0)
+   {:keys [all-players dossiers] :as game}]
+  (let [current-score (voteboard/current-score game [player-id voter-id])
         player-names (group-by :id all-players)
         player-name (or (get-in dossiers [player-id :agent-codename])
                         (get-in player-names [player-id 0 :user-name] "Someone"))]
     (if current-score
-      (-> game
-          (assoc-in [:player-scores player-id voter-id] new-score)
-          (assoc-in [:broadcasts] [[:->toast/show! (str "👎  " player-name " got downvoted.")]]))
+      (-> (voteboard/downvote! game [player-id voter-id])
+          (assoc-in [:broadcasts] [[:->toast/show! (str "👎  " player-name " got downvoted.")]])
+          render-game-display)
       game)))
 
 (defn x-card [game]
@@ -506,21 +512,17 @@
   ;; Nothing
   game)
 
+;;; FIXME: Reaches into prompt deck state. :(
 (defn regen-card [params
                   {:keys [-generators dossier-template stage]
                    :as   game}]
-  (let [next-up        (player-order/next-player game)
-        active-player  (player-order/active-player game)
-        x-card-active? (x-card/active? game)
-        next-dossier   (build-active-card game
-                                         (dossier-card dossier-template -generators active-player params)
-                                         active-player
-                                         next-up
-                                         x-card-active?)]
+  (let [active-player  (player-order/active-player game)
+        next-dossier   (dossier-card dossier-template -generators active-player params)]
     (cond
       (#{:dossier} stage)
       (-> game
-          (assoc :active-display next-dossier))
+          (assoc-in [prompt-deck/STATE-KEY :active-card] next-dossier)
+          render-game-display)
       :else
       game)))
 

@@ -13,8 +13,11 @@
                       :active-image active-image}]
     (merge
      starting-state
-     {STATE-KEY order-state
-      image-key active-image})))
+     {STATE-KEY order-state})))
+
+
+(defn ->active-image [game]
+  (get-in game [STATE-KEY :active-image]))
 
 (defn previous-image! [{:as                                         game
                         {:keys [image-deck active-image image-key]} STATE-KEY}]
@@ -23,8 +26,7 @@
       (assoc game
              STATE-KEY {:image-deck   new-image-deck
                         :image-key    image-key
-                        :active-image new-image}
-             image-key new-image)))
+                        :active-image new-image})))
 
 (defn next-image! [{:as                                         game
                     {:keys [image-deck active-image image-key]} STATE-KEY}]
@@ -33,5 +35,9 @@
     (assoc game
            STATE-KEY {:image-deck   new-image-deck
                       :image-key    image-key
-                      :active-image new-image}
-           image-key new-image)))
+                      :active-image new-image})))
+
+(defn render-display [state]
+  (let [image-key    (get-in state [STATE-KEY :image-key])
+        active-image (get-in state [STATE-KEY :active-image])]
+    (assoc-in state [:display image-key] active-image)))

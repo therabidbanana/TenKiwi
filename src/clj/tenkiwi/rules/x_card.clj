@@ -14,6 +14,11 @@
 (defn active? [game]
   (get-in game [STATE-KEY :x-card-active?]))
 
+(defn render-display [current-state]
+  (let [x-card? (active? current-state)]
+    (-> current-state
+        (update :display assoc :x-card-active? x-card?))))
+
 (defn activate-x-card! [game]
   (assoc-in game [STATE-KEY :x-card-active?] true))
 

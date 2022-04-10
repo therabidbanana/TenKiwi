@@ -1,5 +1,4 @@
-(ns tenkiwi.rules.player-order
-  )
+(ns tenkiwi.rules.player-order)
 
 (defn- previous-player-by-order [player-order current-player]
   (let [curr-id    (:id current-player)
@@ -29,8 +28,7 @@
                      :active-player active-player}]
     (merge
      starting-state
-     {:-player-order order-state
-      :active-player active-player})))
+     {:-player-order order-state})))
 
 (defn next-player [{{:keys [active-player
                             order]}
@@ -47,8 +45,15 @@
   active-player)
 
 (defn player-order [{{:keys [order]}
-                      :-player-order}]
+                     :-player-order}]
   order)
+
+(defn render-display [state]
+  (let [active-player (active-player state)
+        next-player   (next-player state)]
+    (-> state
+        (update :display assoc :active-player active-player)
+        (update :display assoc :next-player next-player))))
 
 (defn is-active? [{{:keys [active-player]}
                    :-player-order}
@@ -59,6 +64,5 @@
                               :as   game}]
   (let [next-up (next-player game)
         updated (-> game
-                    (assoc-in [:-player-order :active-player] next-up)
-                    (assoc-in [:active-player] next-up))]
+                    (assoc-in [:-player-order :active-player] next-up))]
     updated))

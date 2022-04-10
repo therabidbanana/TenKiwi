@@ -17,16 +17,17 @@
      starting-state
      {STATE-KEY order-state})))
 
-(defn active-card [{:as                           game
-                    {:keys [flags deck
-                            discard active-card]} STATE-KEY}]
-  (merge (get-in game [STATE-KEY :active-card])
-         flags))
+(defn active-card [{{:keys [flags
+                            active-card]} STATE-KEY
+                    :as                   game}]
+  (merge active-card flags))
 
-(defn flag-card! [{:as                           game
-                   {:keys [flags deck
-                           discard active-card]} STATE-KEY}
-                  new-flags]
+(defn render-display [state]
+  (let [active-card (active-card state)]
+    (-> state
+        (update :display assoc :card active-card))))
+
+(defn flag-card! [game new-flags]
   (update-in game [STATE-KEY :flags] merge new-flags))
 
 (defn card-passed! [game] (flag-card! game {:passed? true}))

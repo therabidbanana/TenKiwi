@@ -29,12 +29,14 @@
   (let [generator-list (->> (clojure.string/split (:inputs intro-card) #"\s\s")
                             (map #(clojure.string/split % #":"))
                             (into {}))
+
+        fields      (util/update-keys generator-list keyword)
         sheet-state {:name-key   name-key
-                     :fields     (util/update-keys generator-list keyword)
+                     :fields     fields
                      :intro-card intro-card
                      :sheets     (zipmap (map :id players)
                                          (map #(merge
-                                                (pluck-fields starting-state generator-list {})
+                                                (pluck-fields starting-state fields {})
                                                 (select-keys % [:id :user-name]))
                                               players))}]
     (assoc starting-state $ sheet-state)))

@@ -53,7 +53,7 @@
    (score-ranks player-id ranks [0 1 2]))
   ([player-id ranks stages]
    (apply +
-          (for [stage stages
+          (for [stage (map str stages)
                 rater (remove #{player-id} (keys ranks))]
             (cond
               (#{player-id} (get-in ranks [rater stage :best]))

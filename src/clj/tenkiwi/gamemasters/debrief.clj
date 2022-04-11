@@ -9,6 +9,7 @@
    [tenkiwi.rules.x-card :as x-card]
    [tenkiwi.rules.word-bank :as word-bank]
    [tenkiwi.rules.voteboard :as voteboard]
+   [tenkiwi.rules.character-sheets :as character-sheets]
    ))
 
 (def valid-active-actions #{:rank-player :regen :pass :discard :undo :done :x-card :end-game :upvote-player :downvote-player :leave-game})
@@ -62,7 +63,7 @@
               :else
               6)))))
 
-(defn score-players [{:keys [dossiers player-ranks] :as game}]
+(defn score-players [{:keys [player-ranks] :as game}]
   (let [base-scores (voteboard/->total-scores game)
         final-scores (reduce #(update %1 %2 + (score-ranks %2 player-ranks))
                              base-scores
@@ -74,20 +75,21 @@
                      :as   game}]
   (let [next-player   (:id (player-order/next-player game))
         prev-player   (:id (player-order/previous-player game))
+        player-names  (character-sheets/->player-names game)
         secondaries   (:secondary-objectives mission [])
         complications (:complications mission [])
         scores        (score-players game)
         values        (:values company)]
-    {:leader-name    (get-in game [:dossiers :leader :agent-codename] "")
-     :player-left    (get-in game [:dossiers prev-player :agent-codename] "")
-     :player-right   (get-in game [:dossiers next-player :agent-codename] "")
+    {:leader-name    (get-in player-names [:leader] "")
+     :player-left    (get-in player-names [prev-player] "")
+     :player-right   (get-in player-names [next-player] "")
      :scoreboard     (string/join "\n"
                                 (map #(str
                                        "* "
-                                       (:agent-codename (second %))
+                                       (player-names %)
                                        " - "
-                                       (scores (first %)))
-                                     dossiers))
+                                       (scores %))
+                                     (keys scores)))
      :value-0        (nth values 0 "unknown")
      :value-1        (nth values 1 "unknown")
      :value-2        (nth values 2 "unknown")
@@ -118,7 +120,7 @@
       (assoc str-or-card :text replaced)
       :else str-or-card)))
 
-;; TODO: Use above thing
+;; TODO: Use pluck
 (defn dossier-card
   ([dossier-template generators player]
    (dossier-card dossier-template generators player {}))
@@ -152,23 +154,24 @@
     :type :inactive
     :text  (str extra-text "\n\n" "It is " user-name "'s turn...")}))
 
-(defn player-button [{:keys [dossiers]} params {:keys [id user-name]}]
-  {:action  :rank-player
-   :params  (merge params {:id id})
-   :confirm true
-   :text    (str (get-in dossiers [id :agent-codename] user-name))})
+(defn player-button [game params {:keys [id user-name]}]
+  (let [player-names (character-sheets/->player-names game)]
+    {:action  :rank-player
+     :params  (merge params {:id id})
+     :confirm true
+     :text    (player-names id)}))
 
-(defn upvote-current-player-button [{:keys [dossiers]} {:keys [id user-name]}]
-  {:action  :upvote-player
-   :params  {:player-id id}
-   :text    (str "Upvote " (get-in dossiers [id :agent-codename] user-name))})
+(defn upvote-current-player-button [game {:keys [id user-name]}]
+  (let [player-names (character-sheets/->player-names game)]
+    {:action :upvote-player
+     :params {:player-id id}
+     :text   (str "Upvote " (player-names id))}))
 
-(defn downvote-current-player-button [{:keys [dossiers]} {:keys [id user-name]}]
-  {:action  :downvote-player
-   :params  {:player-id id}
-   :text    (str "Downvote " (get-in dossiers [id :agent-codename] user-name))})
-
-
+(defn downvote-current-player-button [game {:keys [id user-name]}]
+  (let [player-names (character-sheets/->player-names game)]
+    {:action :downvote-player
+     :params {:player-id id}
+     :text   (str "Downvote " (player-names id))}))
 
 (defn build-mission-details [mission-briefing-cards
                              {:keys [text secondary-objectives complications story-details] :as card}]
@@ -228,8 +231,7 @@
         dossier-template (->> decks :dossier first)]
     (into []
           (concat (rest intro-cards)
-                  (map (partial dossier-card dossier-template generators)
-                       players)
+                  (map (partial character-sheets/placeholder dossier-template) players)
                   (:briefing-cards mission-details)
                   (mapcat #(build-round % card-count decks)
                           (keys act-names))
@@ -242,10 +244,10 @@
     (build-mission-details mission-briefing mission)))
 
 (defn render-stage-info [{:keys [company
-                              act-names
-                              stage-names
-                              focus-names]
-                       :as   game}]
+                                 act-names
+                                 stage-names
+                                 focus-names]
+                          :as   game}]
   (let [next-card       (prompt-deck/active-card game)
         next-stage      (get next-card :type :intro)
         next-act        (clojure.string/replace (str (get next-card :act "0"))
@@ -322,9 +324,11 @@
 
 ;; TODO: Remove when fully moved to new display system
 (defn render-backwards-compatibility [{:as state
-                                       {:keys [player-scores
+                                       {:keys [sheets
+                                               player-scores
                                                active-player]} :display}]
   (assoc state
+         :dossiers      sheets
          :player-scores player-scores
          :active-player active-player))
 
@@ -340,6 +344,7 @@
       x-card/render-display
       word-bank/render-display
       voteboard/render-display
+      character-sheets/render-display
       render-backwards-compatibility
       render-active-display
       render-inactive-display))
@@ -347,88 +352,100 @@
 (defn start-game [room-id {:keys [game-url]
                            :or   {}}
                   {:keys [players] :as room}]
-  (let [decks           (util/gather-decks game-url)
-        generators      (->> decks :generator (group-by :act))
-        mission-details (prepare-mission decks)
-        npcs            [{:user-name "NPC"
-                          :id        :leader
-                          :npc?      true}]
-        all-players     (concat (into [] players)
-                            npcs)
-
-        initial-state    (-> {:game-type :debrief}
-                             (player-order/initial-state room)
-                             (x-card/initial-state {})
-                             (voteboard/initial-state {:players all-players})
-                             (word-bank/initial-state {:word-banks     (:story-details mission-details)
-                                                       :word-bank-key  :extra-details
-                                                       :generators     generators})
-                             (prompt-deck/initial-state {:features {:everyone true}
-                                                         :deck     (build-draw-deck decks
-                                                                                    {:mission-details mission-details
-                                                                                     :card-count      11
-                                                                                     :players         players})}))
-        act-names        (-> decks :act-name (one-per-act :text))
-        focus-names      (-> decks :focus-name (one-per-act :text))
+  (let [decks            (util/gather-decks game-url)
+        generators       (->> decks :generator (group-by :act))
+        mission-details  (prepare-mission decks)
+        npcs             [{:user-name "NPC"
+                           :id        :leader
+                           :npc?      true}]
+        all-players      (concat (into [] players)
+                                 npcs)
         dossier-template (->> decks :dossier first)
+
+        initial-state (-> {:game-type :debrief}
+                          (player-order/initial-state room)
+                          (x-card/initial-state {})
+                          (character-sheets/initial-state {:name-key   :agent-codename
+                                                           :intro-card dossier-template})
+                          (voteboard/initial-state {:players all-players})
+                          (word-bank/initial-state {:word-banks    (:story-details mission-details)
+                                                    :word-bank-key :extra-details
+                                                    :generators    generators})
+                          (character-sheets/initial-state {:name-key   :agent-codename
+                                                           :intro-card dossier-template
+                                                           :players    players})
+                          (prompt-deck/initial-state {:features {:everyone true}
+                                                      :deck     (build-draw-deck decks
+                                                                                 {:mission-details mission-details
+                                                                                  :card-count      11
+                                                                                  :players         players})}))
+        initial-state (character-sheets/set-sheet! initial-state
+                                                   {:id :leader}
+                                                   {:locked?        true
+                                                    :user-name      "NPC"
+                                                    :agent-name     (tables/random-name)
+                                                    :agent-codename (word-bank/->pluck initial-state "leader-codename")
+                                                    :agent-role     (word-bank/->pluck initial-state "leader-role")})
+
+        act-names     (-> decks :act-name (one-per-act :text))
+        focus-names   (-> decks :focus-name (one-per-act :text))
 
         company  {:name   (word-bank/->pluck initial-state "company")
                   :values (word-bank/->pluck initial-state "value" 3)}
-        dossiers {:leader {:agent-name     (tables/random-name)
-                           :agent-codename (word-bank/->pluck initial-state "leader-codename")
-                           :agent-role     (word-bank/->pluck initial-state "leader-role")}}
 
         new-game (merge
-                        initial-state
-                        {:player-ranks     (zipmap
-                                            (map :id players)
-                                            (cycle [(zipmap (keys act-names)
-                                                            (cycle [{:best nil :worst nil}]))]))
-                         :all-players      all-players
-                         :game-type        :debrief
-                         :stage-names      {:intro            "Introduction"
-                                            :mission-briefing "Mission Briefing"
-                                            :dossier          "Character Intros"
-                                            :question         "{act-name}"
-                                            :act-start        "{act-name}"
-                                            :downvoting       "{act-name} (Voting)"
-                                            :upvoting         "{act-name} (Voting)"}
-                         :act-names        act-names
-                         :focus-names      focus-names
-                         :stage            :intro
-                         :stage-name       "Introduction"
-                         :stage-focus      ""
-                         :dossiers         dossiers
-                         :mission          mission-details
-                         :company          company
-                         :dossier-template dossier-template
-                         :-generators      generators})]
+                  initial-state
+                  {:player-ranks     (zipmap
+                                      (map :id players)
+                                      (cycle [(zipmap (keys act-names)
+                                                      (cycle [{:best nil :worst nil}]))]))
+                   :all-players      all-players
+                   :game-type        :debrief
+                   :stage-names      {:intro            "Introduction"
+                                      :mission-briefing "Mission Briefing"
+                                      :dossier          "Character Intros"
+                                      :question         "{act-name}"
+                                      :act-start        "{act-name}"
+                                      :downvoting       "{act-name} (Voting)"
+                                      :upvoting         "{act-name} (Voting)"}
+                   :act-names        act-names
+                   :focus-names      focus-names
+                   :stage            :intro
+                   :stage-name       "Introduction"
+                   :stage-focus      ""
+                   ;; :dossiers         dossiers
+                   :mission          mission-details
+                   :company          company
+                   :dossier-template dossier-template
+                   :-generators      generators})]
     (render-game-display new-game)))
 
 (defn extract-dossier [{:keys [inputs]}]
   (zipmap (map keyword (map :name inputs))
           (map :value inputs)))
 
+(defn render-testing [state key]
+  (println key "=> "(get-in state key))
+  state)
+
 (defn finish-card [game]
-  (let [{:keys [dossiers]}  game
-        active-player    (player-order/active-player game)
+  (let [active-player    (player-order/active-player game)
         previous-card    (prompt-deck/active-card game)
         next-state       (-> game
-                             (player-order/activate-next-player!)
+                             ;; Order matters - lock before transition player
+                             character-sheets/maybe-lock-sheet!
+                             player-order/activate-next-player!
                              word-bank/regen-word-banks!
                              x-card/reset-x-card!
-                             prompt-deck/draw-next-card!)
-        dossiers         (if (#{:player-dossier} (:id previous-card))
-                          (assoc dossiers (:id active-player)
-                                 (extract-dossier previous-card))
-                          dossiers)]
+                             prompt-deck/draw-next-card!)]
     (-> next-state
-        (assoc :dossiers dossiers
-               :-last-state game)
+        (assoc :-last-state game)
         render-game-display)))
 
 (defn discard-card [game]
   (let [next-game       (-> game
+                            ;; Order matters - lock before next card
+                            character-sheets/maybe-lock-sheet!
                             prompt-deck/draw-next-card!
                             word-bank/regen-word-banks!
                             x-card/reset-x-card!
@@ -476,11 +493,10 @@
 (defn upvote-player
   [voter-id
    {:keys [player-id]}
-   {:keys [all-players dossiers] :as game}]
+   game]
   (let [current-score (voteboard/current-score game [player-id voter-id])
-        player-names  (group-by :id all-players)
-        player-name   (or (get-in dossiers [player-id :agent-codename])
-                        (get-in player-names [player-id 0 :user-name] "Someone"))]
+        player-name   (-> (character-sheets/->player-names game)
+                         (get player-id))]
     (if current-score
       (-> (voteboard/upvote! game [player-id voter-id])
           (assoc-in [:broadcasts] [[:->toast/show! (str "👍  " player-name " got upvoted.")]])
@@ -490,11 +506,10 @@
 (defn downvote-player
   [voter-id
    {:keys [player-id]}
-   {:keys [all-players dossiers] :as game}]
+   game]
   (let [current-score (voteboard/current-score game [player-id voter-id])
-        player-names (group-by :id all-players)
-        player-name (or (get-in dossiers [player-id :agent-codename])
-                        (get-in player-names [player-id 0 :user-name] "Someone"))]
+        player-name   (-> (character-sheets/->player-names game)
+                         (get player-id))]
     (if current-score
       (-> (voteboard/downvote! game [player-id voter-id])
           (assoc-in [:broadcasts] [[:->toast/show! (str "👎  " player-name " got downvoted.")]])
@@ -514,14 +529,13 @@
 
 ;;; FIXME: Reaches into prompt deck state. :(
 (defn regen-card [params
-                  {:keys [-generators dossier-template stage]
+                  {:keys [stage]
                    :as   game}]
-  (let [active-player  (player-order/active-player game)
-        next-dossier   (dossier-card dossier-template -generators active-player params)]
+  (let [active-player  (player-order/active-player game)]
     (cond
       (#{:dossier} stage)
       (-> game
-          (assoc-in [prompt-deck/STATE-KEY :active-card] next-dossier)
+          (character-sheets/regen! active-player params)
           render-game-display)
       :else
       game)))

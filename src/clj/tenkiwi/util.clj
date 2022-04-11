@@ -8,6 +8,16 @@
         (list 'print "\n")
         'result))
 
+(defn remove-values [m f & args]
+  (reduce (fn [r [k v]] (if (apply f v args)
+                          r
+                          (assoc r k v))) {} m))
+
+(defn keep-values [m f & args]
+  (reduce (fn [r [k v]] (if (apply f v args)
+                          (assoc r k v)
+                          r)) {} m))
+
 (defn update-values [m f & args]
   (reduce (fn [r [k v]] (assoc r k (apply f v args))) {} m))
 

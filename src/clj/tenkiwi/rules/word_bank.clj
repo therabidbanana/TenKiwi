@@ -53,9 +53,12 @@
     (assoc-in game [:display key] rendered)))
 
 (defn ->pluck
-  ([{{:keys [generators]} $} gen-name]
-   (first (->pluck generators gen-name 1)))
-  ([{{:keys [generators]} $} gen-name count]
+  ([game gen-name]
+   (first (->pluck game gen-name 1)))
+  ([{:as game
+     {:keys [generators]} $}
+    gen-name
+    count]
    (->> [{:text "Foo"}]
         (get generators gen-name)
         shuffle

@@ -120,29 +120,6 @@
       (assoc str-or-card :text replaced)
       :else str-or-card)))
 
-;; TODO: Use pluck
-(defn dossier-card
-  ([dossier-template generators player]
-   (dossier-card dossier-template generators player {}))
-  ([dossier-template generators player defaults]
-   (let [generator-list (->> (clojure.string/split (:inputs dossier-template) #"\s\s")
-                             (map #(clojure.string/split % #":"))
-                             (into {}))
-         pluck-value    (fn [keyname]
-                          (or (get defaults keyname)
-                              (-> generators
-                                  (get keyname [{:text "unknown"}])
-                                  shuffle
-                                  first
-                                  :text)))]
-     (merge dossier-template
-            {:id     :player-dossier
-             :inputs (mapv #(hash-map :name (first %)
-                                      :label (last %)
-                                      :value (pluck-value (first %)))
-                           generator-list)}))))
-
-;; TODO: XSS danger?
 (defn waiting-for
   ([{:keys [user-name]}]
    {:id    "waiting"
@@ -424,10 +401,6 @@
   (zipmap (map keyword (map :name inputs))
           (map :value inputs)))
 
-(defn render-testing [state key]
-  (println key "=> "(get-in state key))
-  state)
-
 (defn finish-card [game]
   (let [active-player    (player-order/active-player game)
         previous-card    (prompt-deck/active-card game)
@@ -527,7 +500,6 @@
   ;; Nothing
   game)
 
-;;; FIXME: Reaches into prompt deck state. :(
 (defn regen-card [params
                   {:keys [stage]
                    :as   game}]

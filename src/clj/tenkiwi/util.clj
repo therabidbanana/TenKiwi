@@ -8,6 +8,16 @@
         (list 'print "\n")
         'result))
 
+(defn remove-values [m f & args]
+  (reduce (fn [r [k v]] (if (apply f v args)
+                          r
+                          (assoc r k v))) {} m))
+
+(defn keep-values [m f & args]
+  (reduce (fn [r [k v]] (if (apply f v args)
+                          (assoc r k v)
+                          r)) {} m))
+
 (defn update-values [m f & args]
   (reduce (fn [r [k v]] (assoc r k (apply f v args))) {} m))
 
@@ -108,3 +118,8 @@
 
 (defn roll [count sides]
   (map (fn [i] (inc (rand-int sides))) (range 0 count)))
+
+(defn push-uniq [coll item]
+  (if (some #(= % item) coll)
+    coll
+    (into [item] coll)))

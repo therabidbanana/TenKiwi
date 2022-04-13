@@ -296,7 +296,7 @@
     (doseq [room (-> register :open-rooms deref keys)]
       ;; TODO - handle no-ops, cheaper ticks
       ;; - tick clock is expensive if triggering full rerender on mobile
-     #_(run-action system {:room-id room
+     (run-action system {:room-id room
                          :action  :tick-clock
                          :uid     :timekeeper}))))
 

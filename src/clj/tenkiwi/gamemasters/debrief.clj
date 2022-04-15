@@ -10,6 +10,7 @@
    [tenkiwi.rules.word-bank :as word-bank]
    [tenkiwi.rules.voteboard :as voteboard]
    [tenkiwi.rules.character-sheets :as character-sheets]
+   [tenkiwi.rules.undoable :as undoable]
    ))
 
 (def valid-active-actions #{:rank-player :regen :pass :discard :undo :done :x-card :end-game :upvote-player :downvote-player :leave-game})
@@ -345,6 +346,7 @@
                           (character-sheets/initial-state {:name-key   :agent-codename
                                                            :intro-card dossier-template})
                           (voteboard/initial-state {:players all-players})
+                          (undoable/initial-state {:skip-keys [:display :active-display :inactive-display]})
                           (word-bank/initial-state {:word-banks    (:story-details mission-details)
                                                     :word-bank-key :extra-details
                                                     :generators    generators})
@@ -410,10 +412,9 @@
                              player-order/activate-next-player!
                              word-bank/regen-word-banks!
                              x-card/reset-x-card!
-                             prompt-deck/draw-next-card!)]
-    (-> next-state
-        (assoc :-last-state game)
-        render-game-display)))
+                             prompt-deck/draw-next-card!
+                             (undoable/checkpoint! game))]
+    (render-game-display next-state)))
 
 (defn discard-card [game]
   (let [next-game       (-> game
@@ -422,7 +423,7 @@
                             prompt-deck/draw-next-card!
                             word-bank/regen-word-banks!
                             x-card/reset-x-card!
-                            (assoc :-last-state game))
+                            (undoable/checkpoint! game))
         next-card       (prompt-deck/active-card next-game)]
     ;; Don't allow discard if deck empty
     (if next-card
@@ -434,13 +435,13 @@
       prompt-deck/card-passed!
       word-bank/regen-word-banks!
       player-order/activate-next-player!
-      (assoc :-last-state game)
+      (undoable/checkpoint! game)
       render-game-display))
 
 ;; TODO: How much stress does this add to duratom?
 (defn undo-card [game]
   (let [{:keys [-last-state]} game
-        new-state (assoc-in -last-state
+        new-state (assoc-in (undoable/undo! game)
                             [voteboard/$ :scores]
                             (voteboard/->scores game))]
     (render-game-display new-state)))
@@ -491,6 +492,7 @@
 
 (defn x-card [game]
   (-> (x-card/activate-x-card! game)
+      (undoable/checkpoint! game)
       render-game-display))
 
 (defn end-game [game]

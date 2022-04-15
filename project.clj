@@ -25,6 +25,8 @@
                  [lambdaisland/garden-watcher "0.3.3"]
 
                  [duratom "0.5.3"]
+                 [juji/editscript "0.5.8"]
+
                  [org.clojure/java.jdbc "0.6.1"]
                  [org.postgresql/postgresql "9.4.1211"]
                  [com.taoensso/nippy "3.1.1"]

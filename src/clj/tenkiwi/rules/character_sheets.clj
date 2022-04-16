@@ -59,7 +59,9 @@
    (let [sheets      (get-in state [$ :sheets])
          name-key    (get-in state [$ :name-key])]
      (util/update-values sheets
-                         (fn [%] (get % name-key (get % fallback-key "Someone")))))))
+                         (fn [%] (if (:locked? %)
+                                   (get % name-key (get % fallback-key "Someone"))
+                                   (get % fallback-key "Someone")))))))
 
 (defn placeholder [intro-card player]
   (merge intro-card
@@ -85,21 +87,29 @@
   (let [active-player (player-order/active-player state)
         card         (prompt-deck/active-card state)]
 
-    (println (:dossier-placeholder? card))
-    (println active-player)
-    (println (get-in state [$ :sheets]))
     (if (:dossier-placeholder? card)
       (assoc-in state [$ :sheets (:id active-player) :locked?] true)
       state)))
 
 (defn render-display [state]
-  (let [sheets       (get-in state [$ :sheets])
-        fields       (get-in state [$ :fields])
-        current      (player-order/active-player state)
-        card         (prompt-deck/active-card state)]
+  (let [sheets        (get-in state [$ :sheets])
+        fields        (get-in state [$ :fields])
+        name-key      (get-in state [$ :name-key])
+        current       (player-order/active-player state)
+        current-sheet (if (get-in sheets [(:id current) :locked?])
+                        (get sheets (:id current) {})
+                        {})
+        card          (prompt-deck/active-card state)]
     (cond-> state
       true
       (assoc-in [:display :sheets] (util/keep-values sheets :locked?))
+      true
+      (assoc-in [:display :turn-marker]
+                (str (if (name-key current-sheet)
+                       (str (name-key current-sheet)
+                            " (" (:user-name current) ")")
+                       (:user-name current))
+                     "'s turn..."))
       (:dossier-placeholder? card)
       (update-in [:display :card]
                  merge

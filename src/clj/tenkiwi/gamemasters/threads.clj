@@ -47,14 +47,18 @@
   {:action  :undo
    :text    "Undo Last"})
 
-(defn extract-vars [{:keys []
+(defn extract-vars [{:keys [scene-number episode]
                      :as   game}]
   (let [next-player   (:id (player-order/next-player game))
         prev-player   (:id (player-order/previous-player game))
-        player-names  (character-sheets/->player-names game)]
+        player-names  (character-sheets/->player-names game)
+        complications (:complications episode)
+        outcomes      (str (:success episode) "\n\n" (:failure episode))]
     {:player-left    (get-in player-names [prev-player] "")
      :player-right   (get-in player-names [next-player] "")
-     }))
+     :outcomes       outcomes
+     :opening        (:text episode)
+     :complication   (nth complications scene-number (first complications))}))
 
 (defn replace-vars [game str-or-card]
   (let [text      (if (string? str-or-card)
@@ -62,9 +66,9 @@
                     (:text str-or-card))
         game-vars (extract-vars game)
         replaced  (string/replace (or text "")
-                                          #"\{([^\}]+)\}"
-                                          #(get game-vars (keyword (nth % 1))
-                                                (nth % 1)))]
+                                  #"\{([^\}]+)\}"
+                                  #(get game-vars (keyword (nth % 1))
+                                        (nth % 1)))]
     (cond
       (string? str-or-card)
       replaced
@@ -83,82 +87,105 @@
     :type :inactive
     :text  (str extra-text "\n\n" "It is " user-name "'s turn...")}))
 
-(defn build-mission-details [mission-briefing-cards
-                             {:keys [text secondary-objectives complications story-details] :as card}]
-  (let [briefing       (->> (string/split text #"\n\n")
-                      (map #(hash-map :text % :type :mission-briefing)))
-        mission-open   (get mission-briefing-cards "0")
-        mission-wrapup (get mission-briefing-cards "2")
-        mission-ending (-> mission-briefing-cards
-                           (get "end" [{:text "{scoreboard}"}])
-                           first)]
-    (-> card
-        (assoc :briefing-cards (concat mission-open briefing mission-wrapup))
-        (assoc :ending-card    (assoc mission-ending :type :end))
-        (update :secondary-objectives #(->> (string/split % #"\s\s") (map string/trim)))
-        (update :complications #(->> (string/split % #"\s\s") (map string/trim)))
-        (update :complications shuffle)
-        (update :secondary-objectives shuffle))))
 
-(defn one-per-act
-  ([act-collection]
-   (let [grouped (group-by :act act-collection)]
-     (zipmap (keys grouped)
-             (map first (vals grouped)))))
-  ([act-collection func]
-   (let [grouped (group-by :act act-collection)]
-     (zipmap (keys grouped)
-             (map #(-> % first func) (vals grouped))))))
+(defn one-per-num [act-collection]
+  (let [grouped (group-by :number act-collection)]
+    (zipmap (keys grouped)
+            (map first (vals grouped)))))
 
-(defn build-round [round card-count {:keys [question act-start upvoting downvoting]
-                                     :as   decks}]
-  (let [round          (if (string? round) round (str round))
-        questions      (group-by :act question)
-        act-starts     (one-per-act act-start)
-        upvoting       (one-per-act upvoting)
-        downvoting     (one-per-act downvoting)]
+(defn one-per-concept [act-collection]
+  (let [grouped (group-by :concept act-collection)]
+    (zipmap (keys grouped)
+            (map first (vals grouped)))))
+
+(defn build-round [{:keys [prompt concept]
+                    :as   decks}
+                   round scene-number]
+  (let [scene   (:scene round)
+        concept (-> (one-per-concept concept)
+                     (get scene))
+        prompts (-> (group-by :concept prompt)
+                    (get scene))
+        starters (shuffle (take 6 prompts))
+        enders   (shuffle (drop 6 prompts))]
     (into []
           (concat
-           [(get act-starts round)]
-           (take card-count (shuffle (questions round)))
-           [(get upvoting round) (get downvoting round)]))))
+           [(assoc concept
+                   :scene-number scene-number)]
+           (take 3 starters)
+           (take 3 (shuffle (concat (drop 3 starters) enders)))))))
+
+(defn rand-apply [do-to list x]
+  (let [new-val (into [] (update list (rand-int (count list)) do-to))]
+    new-val))
+
+(defn roll-threads [{:keys [shifts]}]
+  (let [max-inc (fn max-inc [current-score] (min (inc current-score) 6))
+        min-dec (fn min-dec [current-score] (max (dec current-score) 1))
+        shifter (if (> shifts 0)
+                  max-inc
+                  min-dec)
+        dice    (reduce (partial rand-apply shifter)
+                        (into [] (util/roll 9 6))
+                        (range 0 (Math/abs shifts)))
+
+        scenes (-> (mapv (partial reduce +)
+                         (partition-all 3 dice)))
+        total  (reduce + scenes)]
+    {:dice   dice
+     :total  total
+     :scenes scenes}))
 
 (defn build-draw-deck [{intro-cards :intro
+                        openings    :opening
+                        prompts     :prompt
+                        scenes      :concept
                         :as         decks}
-                       {:keys [players]}]
-  (let []
+                       {:keys [episode
+                               players
+                               threads]}]
+  (let [scenes     (one-per-concept scenes)
+        scenes     (mapv #(-> (get scenes %) (assoc :scene %))
+                       (map str (:scenes threads)))]
     (into []
           (concat intro-cards
+                  [{:type :opening :text "**Episode Focus**\n\n{opening}"}
+                   {:type :opening :text "Keep this episode's focus in mind as you answer the following prompts."}]
+                  (->> (map #(build-round decks %1 %2)
+                            scenes (range (count scenes)))
+                       (interpose [{:type :complication
+                                    :text "**Complication**\n\n{complication}"}])
+                       (apply concat))
+                  [{:type :ending :text "{outcomes}"}]
                   #_(mapcat #(build-round % card-count decks)
                           (keys act-names))
                   #_[(:ending-card mission-details)]))))
 
-(defn prepare-mission [{missions :mission
-                        :as decks}]
-  (let [mission-briefing (->> decks :mission-briefing (group-by :act))
-        mission (first (shuffle missions))]
-    (build-mission-details mission-briefing mission)))
+(defn prepare-episode [{openings :opening
+                        :as      decks}
+                       {:keys [threads]}]
+  (let [opening           (-> (one-per-concept openings)
+                              (get (str (:total threads))))
+        [success failure] (->> (string/split (:outcomes opening) #"\s\s")
+                               (map string/trim))]
+    (-> opening
+        (update :complications #(->> (string/split % #"\s\s") (map string/trim)))
+        (assoc :success success)
+        (assoc :failure failure))))
 
 (defn render-stage-info [{:keys [company
                                  act-names
-                                 stage-names
-                                 focus-names]
+                                 focus-names
+                                 scene-number]
                           :as   game}]
   (let [next-card       (prompt-deck/active-card game)
         next-stage      (get next-card :type :intro)
-        next-act        (clojure.string/replace (str (get next-card :act "0"))
-                                                #"[^\d]"
-                                                "")
-        next-stage-name (-> (get stage-names next-stage "Introduction")
-                            (clojure.string/replace #"\{act-name\}" (get act-names next-act)))
-
-        next-stage-focus (cond (#{:question :act-start} next-stage)
-                               (replace-vars game (get focus-names next-act (str "{value-" next-act "}")))
-                               :else "")]
-    (assoc game
-           :stage       next-stage
-           :stage-name  next-stage-name
-           :stage-focus next-stage-focus)))
+        next-scene-number (:scene-number next-card)]
+    (-> game
+        (update-in [:display :card] (partial replace-vars game))
+        (assoc
+            :scene-number (or next-scene-number scene-number 0)
+            :stage       next-stage))))
 
 (defn render-active-display [{:as                      game
                               {:as   display
@@ -179,8 +206,7 @@
                                 [done-action pass])]
     (assoc game
            :active-display
-           {:card              (replace-vars game card)
-            :extra-actions     [undo-action leave-game-action]
+           {:extra-actions     [undo-action leave-game-action]
             :available-actions valid-active-actions
             :actions           (if x-card-active?
                                  (push-uniq next-actions discard-action)
@@ -197,15 +223,6 @@
     (assoc game
            :inactive-display
            (cond
-             (#{:act-start :question :intro :mission-briefing} card-type)
-             (-> active-display
-                 (assoc :available-actions valid-inactive-actions)
-                 (assoc :actions disabled-actions)
-                 (update :actions #(into % extra-actions)))
-             (#{:dossier} card-type)
-             {:card              (waiting-for active-player "Introductions are being made.")
-              :available-actions valid-inactive-actions
-              :extra-actions     [undo-action leave-game-action]}
              :else
              (-> active-display
                  (assoc :available-actions valid-inactive-actions))))))
@@ -216,13 +233,15 @@
   game)
 
 (defn render-game-display [game]
-  (-> (render-stage-info game)
+  (println "hi")
+  (-> game
       player-order/render-display
       prompt-deck/render-display
       x-card/render-display
       word-bank/render-display
       character-sheets/render-display
       stress/render-scoreboard-display
+      render-stage-info
       render-active-display
       render-inactive-display))
 
@@ -253,11 +272,14 @@
                   {:keys [players] :as room}]
   (let [decks          (util/gather-decks game-url)
         generators     (->> decks :generator (group-by :concept))
-        ;; mission-details  (prepare-mission decks)
-        ;; TODO: Remove?
+        threads        (roll-threads {:shifts shifts})
+        episode        (prepare-episode decks {:threads threads})
+
         sheet-template {:text "Stuff happens." :inputs "Foo: bar"}
 
-        initial-state (-> {:game-type :threads}
+        initial-state (-> {:game-type :threads
+                           :epsiode   episode
+                           :threads   threads}
                           (player-order/initial-state room)
                           (x-card/initial-state {})
                           (character-sheets/initial-state {:name-key   :nickname
@@ -265,28 +287,23 @@
                                                            :players    players})
                           (stress/initial-state {:players players})
                           (undoable/initial-state {:skip-keys [:display :active-display :inactive-display]})
-                          (word-bank/initial-state {:word-banks    "ingredient: Ingredients"#_(:story-details mission-details)
+                          (word-bank/initial-state {:word-banks    "ingredient: Ingredients" #_ (:story-details mission-details)
                                                     :word-bank-key :extra-details
                                                     :generators    generators})
                           (prompt-deck/initial-state {:features {}
                                                       :deck     (build-draw-deck decks
-                                                                                 {:players         players})}))
+                                                                                 {:threads threads
+                                                                                  :episode episode
+                                                                                  :players players})}))
 
 
         new-game (merge
                   initial-state
-                  {:game-type        :threads
-                   :players          players
-                   :stage-names      {:intro            "Introduction"
-                                      :mission-briefing "Mission Briefing"
-                                      :dossier          "Character Intros"
-                                      :question         "{act-name}"
-                                      :act-start        "{act-name}"
-                                      :downvoting       "{act-name} (Voting)"
-                                      :upvoting         "{act-name} (Voting)"}
-                   :stage            :intro
-                   :stage-name       "Introduction"
-                   :stage-focus      ""})]
+                  {:game-type    :threads
+                   :episode      episode
+                   :players      players
+                   :scene-number 0
+                   :stage        :intro})]
     (render-game-display new-game)))
 
 (defn extract-dossier [{:keys [inputs]}]

@@ -6,6 +6,7 @@
             [tenkiwi.gamemasters.oracle :as oracle]
             [tenkiwi.gamemasters.opera :as opera]
             [tenkiwi.gamemasters.wretched :as wretched]
+            [tenkiwi.gamemasters.threads :as threads]
             [tenkiwi.instar :refer [transform]]
             [tenkiwi.room-atoms :as room-atoms]
             [tenkiwi.util :as util :refer [inspect]]
@@ -83,7 +84,7 @@
                                    (or (empty? code) (= lobby-id code)
                                        (host-codes code)))
                                  (util/read-spreadsheet-data GAME-LIBRARY util/normalize-card))
-         valid-modes (into #{:ftq :debrief :wretched :opera}
+         valid-modes (into #{:ftq :debrief :wretched :opera :threads}
                            (map :type available-games))
          room (or (get-room register lobby-id)
                   {:id (str uid "/" lobby-id)
@@ -124,6 +125,7 @@
     :else
     (case game-name
       :debrief (partial debrief/start-game room-id params)
+      :threads (partial threads/start-game room-id params)
       :oracle (partial oracle/start-game room-id params)
       :walking-deck-v2 (partial walking-deck-v2/start-game room-id params)
       :ftq (partial ftq/start-game room-id params)
@@ -149,6 +151,8 @@
                                                               :title "Debrief"}
                                                              {:id    :opera
                                                               :title "Opera"}
+                                                             {:id    :threads
+                                                              :title "Threads"}
                                                              {:id    :wretched
                                                               :title "Wretched and Alone"}
                                                              {:id    :walking-deck-v2
@@ -169,6 +173,7 @@
       :opera (partial opera/select-game room-id params)
       :custom (partial select-custom-game room-id params)
       :wretched (partial wretched/select-game room-id params)
+      :threads (partial threads/select-game room-id params)
       :walking-deck-v2 (partial walking-deck-v2/select-game room-id params)
       nil    (constantly nil)
       (constantly {:configuration {:params params}}))))
@@ -180,6 +185,7 @@
     (case game-name
       :debrief (partial debrief/take-action action)
       :oracle (partial oracle/take-action action)
+      :threads (partial threads/take-action action)
       :walking-deck-v2 (partial walking-deck-v2/take-action action)
       :ftq (partial ftq/take-action action)
       :opera (partial opera/take-action action)

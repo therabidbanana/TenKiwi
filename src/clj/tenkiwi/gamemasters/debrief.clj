@@ -208,7 +208,7 @@
         act-names        (-> decks :act-name (one-per-act :text))
         dossier-template (->> decks :dossier first)]
     (into []
-          (concat (rest intro-cards)
+          (concat intro-cards
                   (map (partial character-sheets/placeholder dossier-template) players)
                   (:briefing-cards mission-details)
                   (mapcat #(build-round % card-count decks)

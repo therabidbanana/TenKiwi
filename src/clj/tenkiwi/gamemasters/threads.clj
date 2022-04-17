@@ -166,10 +166,10 @@
                        {:keys [threads]}]
   (let [opening           (-> (one-per-concept openings)
                               (get (str (:total threads))))
-        [success failure] (->> (string/split (:outcomes opening) #"\s\s")
+        [success failure] (->> (string/split (:outcomes opening) #"\s\s+")
                                (map string/trim))]
     (-> opening
-        (update :complications #(->> (string/split % #"\s\s") (map string/trim)))
+        (update :complications #(->> (string/split % #"\s\s+") (map string/trim)))
         (assoc :success success)
         (assoc :failure failure))))
 

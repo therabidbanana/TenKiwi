@@ -106,7 +106,7 @@
 
 (defn build-draw-deck [decks card-count]
   (into []
-        (concat (rest (:intro decks))
+        (concat (:intro decks)
                 (take card-count (shuffle (:prompt decks)))
                 [(first (shuffle (:end decks)))])))
 

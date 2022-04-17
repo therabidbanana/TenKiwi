@@ -128,7 +128,7 @@
                        {:keys [players]}]
   (let []
     (into []
-          (concat (rest intro-cards)
+          (concat intro-cards
                   #_(mapcat #(build-round % card-count decks)
                           (keys act-names))
                   #_[(:ending-card mission-details)]))))

@@ -11,10 +11,11 @@
    [tenkiwi.rules.stress :as stress]
    [tenkiwi.rules.character-sheets :as character-sheets]
    [tenkiwi.rules.undoable :as undoable]
+   [tenkiwi.rules.clock-list :as clock-list]
    ))
 
-(def valid-active-actions #{:regen :pass :discard :undo :done :x-card :end-game :upstress-player :downstress-player :leave-game})
-(def valid-inactive-actions #{:x-card :undo :leave-game :upstress-player :downstress-player})
+(def valid-active-actions #{:regen :pass :discard :undo :done :x-card :end-game :upstress-player :downstress-player :increment-clock :decrement-clock :leave-game})
+(def valid-inactive-actions #{:x-card :undo :leave-game :upstress-player :downstress-player :increment-clock :decrement-clock})
 
 (defn valid-action? [active? action]
   (if active?
@@ -201,7 +202,7 @@
         pass                  {:action :pass
                                :text   (str "Pass card to " (:user-name next-player))}
         next-actions          (case next-stage
-                                :end        [pass end-game-action]
+                                :ending     [pass end-game-action]
                                 :dossier    [done-action]
                                 [done-action pass])]
     (assoc game
@@ -233,7 +234,6 @@
   game)
 
 (defn render-game-display [game]
-  (println "hi")
   (-> game
       player-order/render-display
       prompt-deck/render-display
@@ -241,6 +241,7 @@
       word-bank/render-display
       character-sheets/render-display
       stress/render-scoreboard-display
+      clock-list/render-scoreboard-display
       render-stage-info
       render-active-display
       render-inactive-display))
@@ -270,10 +271,10 @@
 (defn start-game [room-id {:keys [game-url shifts episode]
                            :or   {}}
                   {:keys [players] :as room}]
-  (let [decks          (util/gather-decks game-url)
-        generators     (->> decks :generator (group-by :concept))
-        threads        (roll-threads {:shifts shifts})
-        episode        (prepare-episode decks {:threads threads})
+  (let [decks      (util/gather-decks game-url)
+        generators (->> decks :generator (group-by :concept))
+        threads    (roll-threads {:shifts shifts})
+        episode    (prepare-episode decks {:threads threads})
 
         sheet-template {:text "Stuff happens." :inputs "Foo: bar"}
 
@@ -290,6 +291,15 @@
                           (word-bank/initial-state {:word-banks    "ingredient: Ingredients" #_ (:story-details mission-details)
                                                     :word-bank-key :extra-details
                                                     :generators    generators})
+                          (clock-list/initial-state {:allow-new? true
+                                                     :clocks     [{:title    "Progress Clock"
+                                                                   :subtitle (:success episode)
+                                                                   :max      8
+                                                                   :current  0}
+                                                                  {:title    "Danger Clock"
+                                                                   :subtitle (:failure episode)
+                                                                   :max      8
+                                                                   :current  0}]})
                           (prompt-deck/initial-state {:features {}
                                                       :deck     (build-draw-deck decks
                                                                                  {:threads threads
@@ -376,6 +386,18 @@
           render-game-display)
       game)))
 
+(defn increment-clock
+  [{:as params :keys [clock-id]}
+   game]
+  (-> (clock-list/increment-clock! game params)
+      render-game-display))
+
+(defn decrement-clock
+  [{:as params :keys [clock-id]}
+   game]
+  (-> (clock-list/decrement-clock! game params)
+      render-game-display))
+
 (defn x-card [game]
   (-> (x-card/activate-x-card! game)
       (undoable/checkpoint! game)
@@ -415,6 +437,8 @@
                         :pass              pass-card
                         :undo              undo-card
                         :regen             (partial regen-card params)
+                        :increment-clock   (partial increment-clock params)
+                        :decrement-clock   (partial decrement-clock params)
                         ;; TODO - work out upvote/downvote UI for players
                         :upstress-player   (partial upstress-player uid params)
                         :downstress-player (partial downstress-player uid params)

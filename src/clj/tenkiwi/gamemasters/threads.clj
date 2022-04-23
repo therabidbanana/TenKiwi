@@ -164,9 +164,9 @@
 
 (defn prepare-episode [{openings :opening
                         :as      decks}
-                       {:keys [threads]}]
+                       {:keys [threads episode]}]
   (let [opening           (-> (one-per-concept openings)
-                              (get (str (:total threads))))
+                              (get (or episode (str (:total threads)))))
         [success failure] (->> (string/split (:outcomes opening) #"\s\s+")
                                (map string/trim))]
     (-> opening
@@ -248,7 +248,8 @@
 
 (defn select-game [room-id {:keys [game-url shifts episode]
                             :as   params
-                            :or   {shifts 0}}
+                            :or   {shifts  0
+                                   episode :random}}
                    {:keys [players] :as room}]
   (let [{:keys [opening]} (util/gather-decks game-url)
         sheet-template    {:nickname "Nickname"}
@@ -264,7 +265,7 @@
                                                       :name    :episode
                                                       :options (concat [{:value :random :name "Random"}]
                                                                        (mapv #(hash-map
-                                                                               :value (:id %)
+                                                                               :value (:concept %)
                                                                                :name (-> (:text %) (clojure.string/split #"\s\s+") first))
                                                                              opening))}]}
                            :sheet-template sheet-template}]
@@ -275,8 +276,10 @@
                   {:keys [players] :as room}]
   (let [decks      (util/gather-decks game-url)
         generators (->> decks :generator (group-by :concept))
-        threads    (roll-threads {:shifts shifts})
-        episode    (prepare-episode decks {:threads threads})
+        ;; Hack shifts because I don't want to fix the lazy random
+        threads    (roll-threads {:shifts (* 2 shifts)})
+        episode    (prepare-episode decks {:threads threads
+                                           :episode (if (string? episode) episode)})
 
         sheet-template {:text "Stuff happens." :inputs "Foo: bar"}
 

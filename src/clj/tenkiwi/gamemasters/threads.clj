@@ -263,7 +263,9 @@
                                                       :label   "Pick an Episode"
                                                       :name    :episode
                                                       :options (concat [{:value :random :name "Random"}]
-                                                                       (mapv #(hash-map :value (:id %) :name (:text %))
+                                                                       (mapv #(hash-map
+                                                                               :value (:id %)
+                                                                               :name (-> (:text %) (clojure.string/split #"\s\s+") first))
                                                                              opening))}]}
                            :sheet-template sheet-template}]
     new-game))

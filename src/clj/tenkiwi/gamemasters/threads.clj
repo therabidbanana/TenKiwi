@@ -248,7 +248,7 @@
 
 (defn select-game [room-id {:keys [game-url shifts episode]
                             :as   params
-                            :or   {}}
+                            :or   {shifts 0}}
                    {:keys [players] :as room}]
   (let [{:keys [opening]} (util/gather-decks game-url)
         sheet-template    {:nickname "Nickname"}

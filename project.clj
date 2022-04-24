@@ -32,6 +32,7 @@
                  [com.taoensso/nippy "3.1.1"]
                  [amazonica "0.3.157"]
                  [clj-time "0.15.2"]
+                 [instaparse "1.4.11"]
 
                  [markdown-to-hiccup "0.6.2"]
                  [com.taoensso/sente "1.16.0"]

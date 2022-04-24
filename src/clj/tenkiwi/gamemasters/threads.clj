@@ -9,13 +9,15 @@
    [tenkiwi.rules.x-card :as x-card]
    [tenkiwi.rules.word-bank :as word-bank]
    [tenkiwi.rules.stress :as stress]
+   [tenkiwi.rules.momentum :as momentum]
    [tenkiwi.rules.character-sheets :as character-sheets]
    [tenkiwi.rules.undoable :as undoable]
    [tenkiwi.rules.clock-list :as clock-list]
+   [tenkiwi.rules.dice-bag :as dice-bag]
    ))
 
-(def valid-active-actions #{:regen :pass :discard :undo :done :x-card :end-game :upstress-player :downstress-player :increment-clock :decrement-clock :leave-game})
-(def valid-inactive-actions #{:x-card :undo :leave-game :upstress-player :downstress-player :increment-clock :decrement-clock})
+(def valid-active-actions #{:regen :pass :discard :undo :done :roll :x-card :end-game :score-player :downscore-player :upscore-player :upstress-player :downstress-player :increment-clock :decrement-clock :leave-game})
+(def valid-inactive-actions #{:x-card :undo :leave-game :roll :upscore-player :downscore-player  :upstress-player :downstress-player :increment-clock :decrement-clock})
 
 (defn valid-action? [active? action]
   (if active?
@@ -241,7 +243,9 @@
       word-bank/render-display
       character-sheets/render-display
       stress/render-scoreboard-display
+      momentum/render-scoreboard-display
       clock-list/render-scoreboard-display
+      dice-bag/render-dice-bag-display
       render-stage-info
       render-active-display
       render-inactive-display))
@@ -292,6 +296,7 @@
                                                            :intro-card sheet-template
                                                            :players    players})
                           (stress/initial-state {:players players})
+                          (momentum/initial-state {:players players})
                           (undoable/initial-state {:skip-keys [:display :active-display :inactive-display]})
                           (word-bank/initial-state {:word-banks    "ingredient: Ingredients" #_ (:story-details mission-details)
                                                     :word-bank-key :extra-details
@@ -299,12 +304,38 @@
                           (clock-list/initial-state {:allow-new? true
                                                      :clocks     [{:title    "Progress Clock"
                                                                    :subtitle (:success episode)
+                                                                   :colors   {0 :blue 1 :blue 2 :blue
+                                                                              3 :goldenrod 4 :goldenrod 5 :green
+                                                                              6 :green 7 :green 8 :green}
                                                                    :max      8
                                                                    :current  0}
                                                                   {:title    "Danger Clock"
                                                                    :subtitle (:failure episode)
+                                                                   :colors   {0 :yellow 1 :yellow 2 :goldenrod
+                                                                              3 :goldenrod 4 :goldenrod 5 :orange
+                                                                              6 :orange 7 :red 8 :red}
                                                                    :max      8
-                                                                   :current  0}]})
+                                                                   :current  0}
+                                                                  {:title    "Position Track"
+                                                                   :subtitle "**1-3** (3 danger) / **4-6** (2 danger) / **7-9** (1 danger)"
+                                                                   :colors   {1 :red 2 :red 3 :red
+                                                                              4 :goldenrod 5 :goldenrod 6 :goldenrod
+                                                                              7 :green 8 :green 9 :green}
+                                                                   :max      9
+                                                                   :min      1
+                                                                   :current  5}
+                                                                  ]})
+                          (dice-bag/initial-state {:shortcuts [{:formula "1d6"
+                                                                :text "1"}
+                                                               {:formula "2d6"
+                                                                :text "2"}
+                                                               {:formula "3d6"
+                                                                :text "3"}
+                                                               {:formula "4d6"
+                                                                :text "4"}]
+                                                   :input? false
+                                                   :charge? true
+                                                   :log []})
                           (prompt-deck/initial-state {:features {}
                                                       :deck     (build-draw-deck decks
                                                                                  {:threads threads
@@ -365,6 +396,30 @@
   (let [new-state (undoable/undo! game)]
     (render-game-display new-state)))
 
+(defn upscore-player
+  [voter-id
+   {:keys [player-id]}
+   game]
+  (let [current-score (momentum/current-score game [player-id])
+        player-name   (-> (character-sheets/->player-names game)
+                          (get player-id))]
+    (if current-score
+      (-> (momentum/upscore! game [player-id])
+          render-game-display)
+      game)))
+
+(defn downscore-player
+  [voter-id
+   {:keys [player-id]}
+   game]
+  (let [current-score (momentum/current-score game [player-id])
+        player-name   (-> (character-sheets/->player-names game)
+                          (get player-id))]
+    (if current-score
+      (-> (momentum/downscore! game [player-id])
+          render-game-display)
+      game)))
+
 (defn upstress-player
   [voter-id
    {:keys [player-id]}
@@ -401,6 +456,12 @@
   [{:as params :keys [clock-id]}
    game]
   (-> (clock-list/decrement-clock! game params)
+      render-game-display))
+
+(defn roll
+  [{:as params :keys [formula]}
+   game]
+  (-> (dice-bag/roll! game params)
       render-game-display))
 
 (defn x-card [game]
@@ -444,10 +505,15 @@
                         :regen             (partial regen-card params)
                         :increment-clock   (partial increment-clock params)
                         :decrement-clock   (partial decrement-clock params)
-                        ;; TODO - work out upvote/downvote UI for players
+                        :roll              (partial roll params)
                         :upstress-player   (partial upstress-player uid params)
                         :downstress-player (partial downstress-player uid params)
+                        :upscore-player    (partial upscore-player uid params)
+                        :downscore-player  (partial downscore-player uid params)
+
+                        ;; This is actual timekeeper clock. Ignore.
                         :tick-clock        tick-clock
+
                         ;; TODO allow players to leave game without ending
                          ;;; change action text
                         :leave-game        end-game

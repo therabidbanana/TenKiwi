@@ -35,13 +35,13 @@
                         {:keys [clock-id] :as params}]
   (let [clock         (get-in clocks [clock-id])
         current-score (:current clock)
-        score-max     (:max clock)
-        new-score (max (dec current-score) 0)]
+        score-min     (get clock :min 0)
+        new-score     (max (dec current-score) score-min)]
     (update-in game
                [$ :clocks clock-id]
                assoc :current new-score)))
 
-(defn- build-score-row [{:keys [title subtitle max current id]
+(defn- build-score-row [{:keys [title subtitle max current id colors color]
                          :as   clock}]
   {:id        id
    :label     title
@@ -49,6 +49,7 @@
    :score     current
    :max-score max
    :shape     :clock
+   :color     (get (or colors {}) current (or color :blue))
    :actions   [{:text   " - "
                 :action :decrement-clock
                 :params {:clock-id id}}

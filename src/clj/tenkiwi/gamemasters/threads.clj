@@ -165,14 +165,19 @@
                   #_[(:ending-card mission-details)]))))
 
 (defn prepare-episode [{openings :opening
+                        options :options
                         :as      decks}
                        {:keys [threads episode]}]
   (let [opening           (-> (one-per-concept openings)
                               (get (or episode (str (:total threads)))))
+        options          (-> (one-per-concept options)
+                              (util/update-keys keyword)
+                              (util/update-values :text))
         [success failure] (->> (string/split (:outcomes opening) #"\s\s+")
                                (map string/trim))]
     (-> opening
         (update :complications #(->> (string/split % #"\s\s+") (map string/trim)))
+        (assoc :options options)
         (assoc :success success)
         (assoc :failure failure))))
 
@@ -298,7 +303,7 @@
                           (stress/initial-state {:players players})
                           (momentum/initial-state {:players players})
                           (undoable/initial-state {:skip-keys [:display :active-display :inactive-display]})
-                          (word-bank/initial-state {:word-banks    "ingredient: Ingredients" #_ (:story-details mission-details)
+                          (word-bank/initial-state {:word-banks    (get-in episode [:options :word-banks])
                                                     :word-bank-key :extra-details
                                                     :generators    generators})
                           (clock-list/initial-state {:allow-new? true

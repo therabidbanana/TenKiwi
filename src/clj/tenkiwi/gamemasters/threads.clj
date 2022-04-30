@@ -157,6 +157,7 @@
                   (->> (map #(build-round decks %1 %2)
                             scenes (range (count scenes)))
                        (interpose [{:type :complication
+                                    :tags {:challenge true}
                                     :text "**Complication**\n\n{complication}"}])
                        (apply concat))
                   [{:type :ending :text "{outcomes}"}]

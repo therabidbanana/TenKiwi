@@ -335,11 +335,12 @@
                                                                               6 :orange    7 :red       8 :red}
                                                                    :max      8
                                                                    :current  0}
-                                                                  {:title    "Position Track"
-                                                                   :subtitle "**1-3** (3 danger) / **4-6** (2 danger) / **7-9** (1 danger)"
-                                                                   :colors   {1 :red       2 :red       3 :red
+                                                                  {:title    "Doom Track"
+                                                                   :name     :doom
+                                                                   :subtitle "**1-3** (1 danger) / **4-6** (2 danger) / **7-9** (9 danger)"
+                                                                   :colors   {7 :red       8 :red       9 :red
                                                                               4 :goldenrod 5 :goldenrod 6 :goldenrod
-                                                                              7 :green     8 :green     9 :green}
+                                                                              1 :green     2 :green     3 :green}
                                                                    :max      9
                                                                    :min      1
                                                                    :current  5}
@@ -379,6 +380,14 @@
 (defn finish-card [game]
   (let [active-player    (player-order/active-player game)
         previous-card    (prompt-deck/active-card game)
+        doom-val         (or (clock-list/->by-name game :doom) 5)
+        doom-colors      (cond
+                           (< 7 doom-val) [:red]
+                           (< 5 doom-val) [:yellow :red]
+                           (< 4 doom-val) [:yellow]
+                           (< 2 doom-val) [:yellow :green]
+                           :else [:green])
+
         next-state       (-> game
                              ;; Order matters - lock before transition player
                              character-sheets/maybe-lock-sheet!
@@ -386,7 +395,7 @@
                              word-bank/regen-word-banks!
                              x-card/reset-x-card!
                              prompt-deck/draw-next-card!
-                             (prompt-deck/fill-card! {:tags    [:green]
+                             (prompt-deck/fill-card! {:tags    doom-colors
                                                       :concept true})
                              (undoable/checkpoint! game))]
     (render-game-display next-state)))

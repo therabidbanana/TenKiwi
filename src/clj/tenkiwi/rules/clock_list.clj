@@ -19,6 +19,12 @@
                      :clocks     clocks}]
     (assoc starting-state $ extra-state)))
 
+(defn ->by-name [{{:keys [clocks]} $
+                  :as              game}
+                 name]
+  (let [clock (first (filter #(= name (:name %)) clocks))]
+    (:current clock)))
+
 (defn increment-clock! [{{:keys [clocks]} $
                          :as              game}
                         {:keys [clock-id] :as params}]

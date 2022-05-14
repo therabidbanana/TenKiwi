@@ -54,20 +54,27 @@
   (let [next-player   (:id (player-order/next-player game))
         prev-player   (:id (player-order/previous-player game))
         player-names  (character-sheets/->player-names game)
-        complications (:complications episode)]
-    {:player-left    (get-in player-names [prev-player] "")
-     :player-right   (get-in player-names [next-player] "")
-     :opening        (:text episode)
-     :complication   (nth complications scene-number (first complications))}))
+        complications (:complications episode)
+        setup         (:setup episode)]
+    (merge
+     setup
+     {:player-left    (get-in player-names [prev-player] "")
+      :player-right   (get-in player-names [next-player] "")
+      :opening        (:text episode)
+      :complication   (nth complications scene-number (first complications))})))
 
-(defn replace-vars [game str-or-card]
+(defn replace-vars [variables str-or-card]
   (let [text      (if (string? str-or-card)
                     str-or-card
                     (:text str-or-card))
-        game-vars (extract-vars game)
         replaced  (string/replace (or text "")
                                   #"\{([^\}]+)\}"
-                                  #(get game-vars (keyword (nth % 1))
+                                  #(get variables (keyword (nth % 1))
+                                        (nth % 1)))
+        ;; Recursives
+        replaced  (string/replace (or replaced "")
+                                  #"\{([^\}]+)\}"
+                                  #(get variables (keyword (nth % 1))
                                         (nth % 1)))]
     (cond
       (string? str-or-card)
@@ -75,6 +82,9 @@
       (map? str-or-card)
       (assoc str-or-card :text replaced)
       :else str-or-card)))
+
+(defn replace-text [game str-or-card]
+  (replace-vars (extract-vars game) str-or-card))
 
 (defn waiting-for
   ([{:keys [user-name]}]
@@ -162,23 +172,37 @@
                           (keys act-names))
                   #_[(:ending-card mission-details)]))))
 
-(defn prepare-episode [{episode :episode
-                        options :options
-                        :as      decks}
+(defn prepare-episode [{episode    :episode
+                        options    :options
+                        generators :generator
+                        :as        decks}
                        {:keys [concept]}]
-  (let [random          (:number (first (shuffle episode)))
-        opening           (-> (one-per-number episode)
+  (let [random  (:number (first (shuffle episode)))
+        gen     (partial util/pluck-text (group-by :concept generators))
+        opening (-> (one-per-number episode)
                               (get (or concept random)))
-        options          {} #_(-> (one-per-concept options)
-                              (util/update-keys keyword)
-                              (util/update-values :text))
+
+        ;; TODO - crawl and find vars / add param?
+        episode-setup (case (get opening :concept "haunting")
+                        "haunting"
+                        {:haunting-location (gen "haunting-location")
+                         :haunting-reporter (gen "haunting-reporter")
+                         :haunting-sign     (gen "haunting-sign")}
+                        ;;else
+                        {})
+
+        options {} #_ (-> (one-per-concept options)
+                                  (util/update-keys keyword)
+                                  (util/update-values :text))
         ]
     (-> opening
+        (update :text (partial replace-vars episode-setup))
         (update :complications #(->> (string/split % #"\s\s+") (map string/trim)))
         (update :challenges #(->> (string/split % #"\s\s+") (map string/trim)))
         (update :clues #(->> (string/split % #"\s\s+") (map string/trim)))
         (update :hazards #(->> (string/split % #"\s\s+") (map string/trim)))
         (update :opportunities #(->> (string/split % #"\s\s+") (map string/trim)))
+        (assoc :setup episode-setup)
         (assoc :options options))))
 
 (defn render-stage-info [{:keys [company
@@ -190,7 +214,7 @@
         next-stage      (get next-card :type :intro)
         next-scene-number (:scene-number next-card)]
     (-> game
-        (update-in [:display :card] (partial replace-vars game))
+        (update-in [:display :card] (partial replace-text game))
         (assoc
             :scene-number (or next-scene-number scene-number 0)
             :stage       next-stage))))

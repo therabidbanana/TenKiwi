@@ -52,6 +52,7 @@
         key      (get-in game [$ :word-bank-key] :story-details)]
     (assoc-in game [:display key] rendered)))
 
+;; TODO - use util/pluck-text here?
 (defn ->pluck
   ([game gen-name]
    (first (->pluck game gen-name 1)))

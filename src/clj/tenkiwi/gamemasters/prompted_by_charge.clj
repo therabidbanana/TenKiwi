@@ -164,7 +164,7 @@
     (into []
           (concat intro-cards
                   [{:type :opening :text "{opening}"}]
-                  (->> (map #(build-act decks episode 4 %)
+                  (->> (map #(build-act decks episode 3 %)
                             (range act-count))
                        (apply concat))
                   [{:type :ending :text "This case has come to a close. Have any loose ends been left off?"}]

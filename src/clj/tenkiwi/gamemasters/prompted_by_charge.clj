@@ -126,30 +126,38 @@
                   :else
                   [:complication :complication :clue :hazard :hazard :opportunity]
                   )
-        ;; Make this dynamic
-        scenes  ["interrogation" "exploration" "research" "confrontation"]
-        concept (rand-nth scenes)
+        ;; Make this more dynamic
+        scenes  (cond
+                  (= act-number 0)
+                  [:interrogation :exploration :research :confrontation]
+                  (= act-number 1)
+                  [:research :interrogation :exploration :confrontation]
+                  :else
+                  [:research :exploration :confrontation :confrontation])
         fillers (repeat {:type       :prompt
-                         :concept    concept
+                         ;; :concept    concept
                          :filler?    true
                          :text       "filler"
                          :act-number act-number})]
     (into []
           (mapcat
-           (fn [scene-num]
+           (fn [scene-num scene-type]
              (map #(assoc % :scene-number scene-num)
                   (concat
                    [(assoc (first fillers)
                            :text "scene open"
-                           :required-tags [(keyword concept)]
+                           :required-tags [scene-type]
                            :concept (:concept episode)
                            :type :scene)]
-                   (take 2 fillers)
+                   (map #(assoc % :concept (name scene-type))
+                        (take 2 fillers))
                    [(assoc (first fillers)
+                           :concept (name scene-type)
                            :text "scene close"
                            :type (rand-nth types))]
                    )))
-           (range scene-count)))))
+           (range scene-count)
+           (take scene-count scenes)))))
 
 (defn build-draw-deck [{intro-cards :intro
                         prompts     :prompt

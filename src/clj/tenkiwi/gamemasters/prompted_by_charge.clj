@@ -51,17 +51,21 @@
 
 (defn extract-vars [{:keys [scene-number episode]
                      :as   game}]
-  (let [next-player   (:id (player-order/next-player game))
-        prev-player   (:id (player-order/previous-player game))
-        player-names  (character-sheets/->player-names game)
-        complications (:complications episode)
-        setup         (:setup episode)]
+  (let [next-player                     (:id (player-order/next-player game))
+        prev-player                     (:id (player-order/previous-player game))
+        player-names                    (character-sheets/->player-names game)
+        {:keys [complications clues
+                opportunities hazards]} episode
+        setup                           (:setup episode)]
     (merge
      setup
-     {:player-left    (get-in player-names [prev-player] "")
-      :player-right   (get-in player-names [next-player] "")
-      :opening        (:text episode)
-      :complication   (nth complications scene-number (first complications))})))
+     {:clue         (nth clues scene-number (rand-nth clues))
+      :hazard       (nth hazards scene-number (rand-nth hazards))
+      :opportunity  (nth opportunities scene-number (rand-nth opportunities))
+      :player-left  (get-in player-names [prev-player] "")
+      :player-right (get-in player-names [next-player] "")
+      :opening      (:text episode)
+      :complication (nth complications scene-number (first complications))})))
 
 (defn replace-vars [variables str-or-card]
   (let [text      (if (string? str-or-card)

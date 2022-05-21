@@ -205,9 +205,9 @@
                         ;;else
                         {})
 
-        options {} #_ (-> (one-per-concept options)
-                                  (util/update-keys keyword)
-                                  (util/update-values :text))
+        options (-> (one-per-concept options)
+                    (util/update-keys keyword)
+                    (util/update-values :text))
         ]
     (-> opening
         (update :text (partial replace-vars episode-setup))

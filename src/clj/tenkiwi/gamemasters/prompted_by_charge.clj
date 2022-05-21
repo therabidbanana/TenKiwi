@@ -176,9 +176,11 @@
     (into []
           (concat intro-cards
                   [{:type :opening :text "{opening}"}]
-                  (->> (map #(build-act decks episode 3 %)
-                            (range act-count))
-                       (apply concat))
+                  (build-act decks episode 4 0)
+                  [{:type :act-change :text "**Act 2**\n\nDanger is accelerating. Add 1 to the doom track."}]
+                  (build-act decks episode 4 1)
+                  [{:type :act-change :text "**Act 3**\n\nIt's time for things to work toward a close. Do you have a theory? Make a roll!"}]
+                  (build-act decks episode 4 2)
                   [{:type :ending :text "This case has come to a close. Have any loose ends been left off?"}]
                   #_(mapcat #(build-round % card-count decks)
                           (keys act-names))

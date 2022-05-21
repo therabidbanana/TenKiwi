@@ -335,7 +335,16 @@
                                                     :word-bank-key :extra-details
                                                     :generators    generators})
                           (clock-list/initial-state {:allow-new? true
-                                                     :clocks     [{:title    "Progress Clock"
+                                                     :clocks     [{:title    "Doom Track"
+                                                                   :name     :doom
+                                                                   :subtitle "**1-3** (1 danger) / **4-6** (2 danger) / **7-9** (3 danger)"
+                                                                   :colors   {7 :red       8 :red       9 :red
+                                                                              4 :goldenrod 5 :goldenrod 6 :goldenrod
+                                                                              1 :green     2 :green     3 :green}
+                                                                   :max      9
+                                                                   :min      1
+                                                                   :current  5}
+                                                                  {:title    "Progress Clock"
                                                                    :subtitle (:success episode)
                                                                    :colors   {0 :blue      1 :blue      2 :blue
                                                                               3 :goldenrod 4 :goldenrod 5 :green
@@ -349,15 +358,7 @@
                                                                               6 :orange    7 :red       8 :red}
                                                                    :max      8
                                                                    :current  0}
-                                                                  {:title    "Doom Track"
-                                                                   :name     :doom
-                                                                   :subtitle "**1-3** (1 danger) / **4-6** (2 danger) / **7-9** (9 danger)"
-                                                                   :colors   {7 :red       8 :red       9 :red
-                                                                              4 :goldenrod 5 :goldenrod 6 :goldenrod
-                                                                              1 :green     2 :green     3 :green}
-                                                                   :max      9
-                                                                   :min      1
-                                                                   :current  5}
+
                                                                   ]})
                           (dice-bag/initial-state {:shortcuts [{:formula "1d6"
                                                                 :text    "1"}

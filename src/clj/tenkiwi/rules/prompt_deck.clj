@@ -59,6 +59,11 @@
       [next-card prompt-decks]
       )))
 
+(defn- safe-inc [val]
+  (if-not (number? val)
+    1
+    (inc val)))
+
 (defn -draw-filler [filler-card fillers subset]
   (let [matcher (fn filler-match? [b]
                   (and
@@ -70,14 +75,20 @@
         prompts               (get fillers deck-type [])
         [matches non-matches] ((juxt filter remove)
                                matcher
-                               (shuffle prompts))
-        next-card             (merge filler-card (first matches))]
-    ;; TODO: what if we allow repeats?
-    (cond
-      (empty? prompts)
-      [filler-card fillers]
-      :else
-      [next-card (assoc fillers deck-type (concat (rest matches) non-matches))])))
+                               ;; sorting after shuffle allows us to
+                               ;; semi-randomize cards, reordering so less drawn
+                               ;; cards always in front, but all cards with same
+                               ;; number are shuffled (because sort-by is a
+                               ;; stable sort)
+                               (sort-by #(:draws % 0) (shuffle prompts)))
+        next-card             (merge filler-card (first matches))
+        ;; This increments a "draw" counter on the card matched
+        fillers               (update fillers deck-type (partial map (fn [prompt]
+                                                                       (if (= (first matches) prompt)
+                                                                         (update prompt :draws safe-inc)
+                                                                         prompt))))]
+    ;; Note this will return even if no matching prompt (giving an unfilled card)
+    [next-card fillers]))
 
 (defn -replace-filler [filler-card fillers subset]
   (cond
@@ -92,7 +103,7 @@
                   matcher]
   (let [replace-filler?               (:replace-filler? features)
         [new-active-card new-fillers] (-replace-filler active-card fillers matcher)
-        ;; Put the filler back if replace-filler?
+        ;; Leave fillers unaltered if "replace-filler?" option used
         new-fillers                   (if replace-filler? fillers new-fillers)]
     (-> game
        (assoc-in [STATE-KEY :active-card] new-active-card)

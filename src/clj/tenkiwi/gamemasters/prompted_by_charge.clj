@@ -371,8 +371,7 @@
                                                    :input?    false
                                                    :charge?   true
                                                    :log       []})
-                          (prompt-deck/initial-state {:features {:fillable?       true
-                                                                 :replace-filler? true}
+                          (prompt-deck/initial-state {:features {:fillable?       true}
                                                       :fillers  (select-keys decks [:prompt :scene :challenge :hazard :clue :complication :opportunity])
                                                       :deck     (build-draw-deck decks
                                                                                  {:episode episode

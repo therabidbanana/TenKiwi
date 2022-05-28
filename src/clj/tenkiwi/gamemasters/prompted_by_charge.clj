@@ -343,7 +343,7 @@
                                                                               1 :green     2 :green     3 :green}
                                                                    :max      9
                                                                    :min      1
-                                                                   :current  5}
+                                                                   :current  2}
                                                                   {:title    "Progress Clock"
                                                                    :subtitle (:success episode)
                                                                    :colors   {0 :blue      1 :blue      2 :blue

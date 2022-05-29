@@ -9,12 +9,14 @@
 (def $ :-dice-bag)
 
 (defn initial-state [starting-state
-                     {:keys [shortcuts input? log limit charge?]
-                      :or   {input? true shortcuts []
-                             log [] limit 10
-                             charge? false}
+                     {:keys [shortcuts input? log limit charge? breathless?]
+                      :or   {input?      true shortcuts []
+                             log         []   limit     10
+                             charge?     false
+                             breathless? false}
                       :as   options}]
-  (let [extra-state {:charge?   charge?
+  (let [extra-state {:features  {:charge?     charge?
+                                 :breathless? breathless?}
                      ;;TODO: Support?
                      :input?    input?
                      :shortcuts shortcuts
@@ -31,23 +33,35 @@
       (> max-val 3) "Success, but with a consequence"
       :else "Consequence!")))
 
-(defn- build-log [charge?
+(defn- breathless-interpret [roll]
+  (let [results (frequencies roll)
+        max-val (apply max roll)]
+    (cond
+      (> max-val 4) "Success!"
+      (> max-val 2) "Success at a cost"
+      :else "Failure!")))
+
+(defn- build-log [{:keys [charge? breathless?]}
                   {:as   roll
                    :keys [::dice/text ::dice/roll ::dice/result]}]
-  {:label   (if charge?
+  {:label   (cond
+              charge?
              (charge-interpret roll)
+             breathless?
+             (breathless-interpret roll)
+             :else
              text)
    :text   (str text " => " roll)
    :roll   roll
    :result result})
 
-(defn roll! [{{:keys [log charge? limit]} $
+(defn roll! [{{:keys [log features limit]} $
               :as                         game}
              {:keys [formula] :as params}]
   ;; Note: Currently only single roll support
   (let [result  (->> (dice/parse-and-roll formula)
                            first
-                           (build-log charge?))
+                           (build-log features))
         new-log (if limit
                         (take limit (cons result log))
                         (cons result log))]

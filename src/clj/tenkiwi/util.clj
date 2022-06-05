@@ -76,7 +76,15 @@
         tags
         (if (empty? tag-line)
           {}
-          (reduce #(assoc %1 (clojure.string/replace %2 "#" "") true)
+          (reduce (fn [taglist tag]
+                    (let [tag (clojure.string/replace tag "#" "")]
+                      (cond
+                       (clojure.string/includes? tag ":")
+                       (assoc taglist
+                              (first (clojure.string/split tag #":"))
+                              (last (clojure.string/split tag #":")))
+                       :else
+                       (assoc taglist tag true))))
                   {}
                   (clojure.string/split tag-line #"(,|\s+)")))
         ]

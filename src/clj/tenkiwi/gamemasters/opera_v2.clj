@@ -124,9 +124,9 @@
                   (= act-number 0)
                   [:complication :clue :clue :clue :clue :hazard :hazard :opportunity :opportunity]
                   (= act-number 1)
-                  [:complication :complication :clue :clue :clue :hazard :hazard :opportunity]
+                  [:complication :complication :clue :clue :hazard :hazard :opportunity]
                   :else
-                  [:complication :complication :clue :hazard :hazard :opportunity]
+                  [:complication :complication :hazard :hazard]
                   )
         ;; Make this more dynamic
         scenes  (cond
@@ -176,11 +176,14 @@
         act-count (count (one-per-number scenes))]
     (into []
           (concat intro-cards
-                  [{:type :opening :text "{opening}"}]
+                  [{:type :opening :text "{opening}"}
+                   {:type :act-change
+                    :text "**Act 1**\n\nInitial investigations - think about where you might start with the info you have."}]
                   (build-act decks episode 4 0)
-                  [{:type :act-change :text "**Act 2**\n\nDanger is accelerating. Add 1 to the doom track."}]
+                  [{:type :act-change :tags {:double-increment-clock "doom"}
+                    :text "**Act 2**\n\nDanger is accelerating."}]
                   (build-act decks episode 4 1)
-                  [{:type :act-change :text "**Act 3**\n\nIt's time for things to work toward a close. Do you have a theory? Make a roll!"}]
+                  [{:type :act-change :text "**Act 3**\n\nIt's time to act. Make a theory about what might be happening and how to contain it, the make a containment roll!"}]
                   (build-act decks episode 4 2)
                   [{:type :ending :text "This case has come to a close. Have any loose ends been left off?"}]
                   #_(mapcat #(build-round % card-count decks)
@@ -198,11 +201,11 @@
                               (get (or concept random)))
 
         ;; TODO - crawl and find vars / add param?
-        episode-setup (case (get opening :concept "haunting")
-                        "haunting"
-                        {:haunting-location (gen "haunting-location")
-                         :haunting-reporter (gen "haunting-reporter")
-                         :haunting-sign     (gen "haunting-sign")}
+        episode-setup (case (get opening :concept "magick")
+                        "magick"
+                        {:magick-location (gen "magick-location")
+                         :magick-victim (gen "magick-victim")
+                         :magick-sign     (gen "magick-sign")}
                         ;;else
                         {})
 

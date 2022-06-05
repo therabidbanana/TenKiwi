@@ -65,12 +65,17 @@
     (inc val)))
 
 (defn -draw-filler [filler-card fillers subset]
-  (let [matcher (fn filler-match? [b]
+  (let [fills   (select-keys filler-card (keys (dissoc subset :tags)))
+        fill-match (fn [possible]
+                     (every? (fn [[k v]]
+                               (or (= (get possible k) v)
+                                   (= (get possible k) "any")))
+                             fills))
+        matcher (fn filler-match? [possible]
                   (and
-                   (every? (:tags b) (:required-tags filler-card))
-                   (some (:tags b) (:tags subset))
-                   (= (select-keys filler-card (keys (dissoc subset :tags)))
-                      (select-keys b (keys (dissoc subset :tags))))))
+                   (every? (:tags possible) (:required-tags filler-card))
+                   (some (:tags possible) (:tags subset))
+                   (fill-match possible)))
         deck-type             (:type filler-card)
         prompts               (get fillers deck-type [])
         [matches non-matches] ((juxt filter remove)

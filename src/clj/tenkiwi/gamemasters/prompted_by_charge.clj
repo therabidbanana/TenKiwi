@@ -142,6 +142,7 @@
                          ;; :concept    concept
                          :filler?    true
                          :text       "filler"
+                         :number     act-number
                          :act-number act-number})]
     (into []
           (mapcat
@@ -410,6 +411,7 @@
                              x-card/reset-x-card!
                              prompt-deck/draw-next-card!
                              (prompt-deck/fill-card! {:tags    doom-colors
+                                                      :number  true
                                                       :concept true})
                              (undoable/checkpoint! game))]
     (render-game-display next-state)))

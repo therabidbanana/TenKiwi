@@ -140,26 +140,29 @@
                          ;; :concept    concept
                          :filler?    true
                          :text       "filler"
+                         :number     (str act-number)
                          :act-number act-number})]
-    (into []
-          (mapcat
-           (fn [scene-num scene-type]
-             (map #(assoc % :scene-number scene-num)
-                  (concat
-                   [(assoc (first fillers)
-                           :text "scene open"
-                           :required-tags [scene-type]
-                           :concept (:concept episode)
-                           :type :scene)]
-                   (map #(assoc % :concept (name scene-type))
-                        (take 2 fillers))
-                   [(assoc (first fillers)
-                           :concept (name scene-type)
-                           :text "scene close"
-                           :type (rand-nth types))]
-                   )))
-           (range scene-count)
-           (take scene-count scenes)))))
+    (->> (map
+          (fn [scene-num scene-type]
+            (map #(assoc % :scene-number scene-num)
+                 (concat
+                  [(assoc (first fillers)
+                          :text "scene open"
+                          :required-tags [scene-type]
+                          :concept (:concept episode)
+                          :type :scene)]
+                  (map #(assoc % :concept (name scene-type))
+                       (take 2 fillers))
+                  [(assoc (first fillers)
+                          :concept (name scene-type)
+                          :text "scene close"
+                          :type (rand-nth types))]
+                  )))
+          (range scene-count)
+          (take scene-count scenes))
+         (interpose [{:type :scene-change :text "Scene change - take a moment to write down any notes about this scene and any possible clues gathered."}])
+         (apply concat)
+         (into []))))
 
 (defn build-draw-deck [{intro-cards :intro
                         prompts     :prompt

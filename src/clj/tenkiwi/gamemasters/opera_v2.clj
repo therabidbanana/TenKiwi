@@ -414,7 +414,9 @@
                              x-card/reset-x-card!
                              prompt-deck/draw-next-card!
                              (prompt-deck/fill-card! {:tags    doom-colors
+                                                      :number  true
                                                       :concept true})
+                             (clock-list/update-by-tags! (:tags previous-card))
                              (undoable/checkpoint! game))]
     (render-game-display next-state)))
 

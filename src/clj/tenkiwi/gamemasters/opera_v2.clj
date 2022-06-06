@@ -160,7 +160,8 @@
                   )))
           (range scene-count)
           (take scene-count scenes))
-         (interpose [{:type :scene-change :text "Scene change - take a moment to write down any notes about this scene and any possible clues gathered."}])
+         (interpose [{:type :scene-change
+                      :text "**Scene change**\n\nTake a moment to write down any notes about this scene and any possible clues gathered."}])
          (apply concat)
          (into []))))
 
@@ -176,16 +177,17 @@
         act-count (count (one-per-number scenes))]
     (into []
           (concat intro-cards
+                  ;; TODO: extract texts
                   [{:type :opening :text "{opening}"}
                    {:type :act-change
                     :text "**Act 1**\n\nInitial investigations - think about where you might start with the info you have."}]
                   (build-act decks episode 4 0)
-                  [{:type :act-change :tags {:double-increment-clock "doom"}
-                    :text "**Act 2**\n\nDanger is accelerating."}]
+                  [{:type :act-change :tags {:increment-clock "doom"}
+                    :text "**Act 2**\n\nDanger is accelerating. If you encountered a loose end, one come back to bite you now - roll to resolve it. Otherwise, you can stop to catch your breath at the cost of 1 additional doom."}]
                   (build-act decks episode 4 1)
                   [{:type :act-change :text "**Act 3**\n\nIt's time to act. Make a theory about what might be happening and how to contain it, the make a containment roll!"}]
                   (build-act decks episode 4 2)
-                  [{:type :ending :text "This case has come to a close. Have any loose ends been left off?"}]
+                  [{:type :ending :text "**Epilogue**\n\nThis case has come to a close. Have any loose ends been left off? How do the survivors deal with the aftermath?"}]
                   #_(mapcat #(build-round % card-count decks)
                           (keys act-names))
                   #_[(:ending-card mission-details)]))))
@@ -198,13 +200,13 @@
   (let [random  (:number (first (shuffle episode)))
         gen     (partial util/pluck-text (group-by :concept generators))
         opening (-> (one-per-number episode)
-                              (get (or concept random)))
+                    (get (or concept random)))
 
         ;; TODO - crawl and find vars / add param?
         episode-setup (case (get opening :concept "magick")
                         "magick"
                         {:magick-location (gen "magick-location")
-                         :magick-victim (gen "magick-victim")
+                         :magick-victim   (gen "magick-victim")
                          :magick-sign     (gen "magick-sign")}
                         ;;else
                         {})

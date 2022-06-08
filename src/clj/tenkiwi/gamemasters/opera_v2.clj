@@ -161,7 +161,8 @@
           (range scene-count)
           (take scene-count scenes))
          (interpose [{:type :scene-change
-                      :text "**Scene change**\n\nTake a moment to write down any notes about this scene and any possible clues gathered."}])
+                      :filler? true
+                      :text "**Scene change**"}])
          (apply concat)
          (into []))))
 
@@ -180,17 +181,41 @@
                   ;; TODO: extract texts
                   [{:type :opening :text "{opening}"}
                    {:type :act-change
-                    :text "**Act 1**\n\nInitial investigations - think about where you might start with the info you have."}]
+                    :filler? true
+                    :number "0"
+                    :text "**Act 1**"}]
                   (build-act decks episode 4 0)
-                  [{:type :act-change :tags {:increment-clock "doom"}
-                    :text "**Act 2**\n\nDanger is accelerating. If you encountered a loose end, one come back to bite you now - roll to resolve it. Otherwise, you can stop to catch your breath at the cost of 1 additional doom."}]
+                  [{:type :act-change
+                    :tags {:increment-clock "doom"}
+                    :filler? true
+                    :number "1"
+                    :text "**Act 2**"}]
                   (build-act decks episode 4 1)
-                  [{:type :act-change :text "**Act 3**\n\nIt's time to act. Make a theory about what might be happening and how to contain it, the make a containment roll!"}]
+                  [{:type :act-change
+                    :filler? true
+                    :number "2"
+                    :text "**Act 3**"}]
                   (build-act decks episode 4 2)
-                  [{:type :ending :text "**Epilogue**\n\nThis case has come to a close. Have any loose ends been left off? How do the survivors deal with the aftermath?"}]
+                  [{:type :ending
+                    :filler? true
+                    :text "**Epilogue**"}]
                   #_(mapcat #(build-round % card-count decks)
                           (keys act-names))
                   #_[(:ending-card mission-details)]))))
+
+(defn extract-setup [{generators :generator
+                      :as decks}
+                     setup-string]
+  (let [gen     (partial util/pluck-text (group-by :concept generators))
+        config   (->> (string/split setup-string #"\s\s+")
+                      (map string/trim)
+                      (remove clojure.string/blank?)
+                      (map #(clojure.string/split % #":\s+"))
+                      (reduce #(assoc %1 (first %2) (or (second %2) (first %2))) {}))]
+    ;; Generate from string
+    (-> config
+        (util/update-keys keyword)
+        (util/update-values gen))))
 
 (defn prepare-episode [{episode    :episode
                         options    :options
@@ -203,13 +228,7 @@
                     (get (or concept random)))
 
         ;; TODO - crawl and find vars / add param?
-        episode-setup (case (get opening :concept "magick")
-                        "magick"
-                        {:magick-location (gen "magick-location")
-                         :magick-victim   (gen "magick-victim")
-                         :magick-sign     (gen "magick-sign")}
-                        ;;else
-                        {})
+        episode-setup (extract-setup decks (:setup opening ""))
 
         options (-> (one-per-concept options)
                     (util/update-keys keyword)
@@ -338,32 +357,16 @@
                           (word-bank/initial-state {:word-banks    (get-in episode [:options :word-banks])
                                                     :word-bank-key :extra-details
                                                     :generators    generators})
-                          (clock-list/initial-state {:allow-new? true
-                                                     :clocks     [{:title    "Doom Track"
+                          (clock-list/initial-state {:allow-new? false
+                                                     :clocks     [{:title    (get-in episode [:options :doom-track-name] "Doom Track")
                                                                    :name     :doom
-                                                                   :subtitle "**1-3** (1 danger) / **4-6** (2 danger) / **7-9** (3 danger)"
+                                                                   ;; :subtitle "**1-3** (1 danger) / **4-6** (2 danger) / **7-9** (3 danger)"
                                                                    :colors   {7 :red       8 :red       9 :red
                                                                               4 :goldenrod 5 :goldenrod 6 :goldenrod
                                                                               1 :green     2 :green     3 :green}
                                                                    :max      9
                                                                    :min      1
-                                                                   :current  2}
-                                                                  {:title    "Progress Clock"
-                                                                   :subtitle (:success episode)
-                                                                   :colors   {0 :blue      1 :blue      2 :blue
-                                                                              3 :goldenrod 4 :goldenrod 5 :green
-                                                                              6 :green     7 :green     8 :green}
-                                                                   :max      8
-                                                                   :current  0}
-                                                                  {:title    "Danger Clock"
-                                                                   :subtitle (:failure episode)
-                                                                   :colors   {0 :yellow    1 :yellow    2 :goldenrod
-                                                                              3 :goldenrod 4 :goldenrod 5 :orange
-                                                                              6 :orange    7 :red       8 :red}
-                                                                   :max      8
-                                                                   :current  0}
-
-                                                                  ]})
+                                                                   :current  2}]})
                           (dice-bag/initial-state {:shortcuts   [{:formula "1d4"
                                                                   :text    "d4"}
                                                                  {:formula "1d6"
@@ -381,7 +384,8 @@
                                                    :breathless? true
                                                    :log         []})
                           (prompt-deck/initial-state {:features {:fillable? true}
-                                                      :fillers  (select-keys decks [:prompt :scene :challenge :hazard :clue :complication :opportunity])
+                                                      :fillers  (select-keys decks [:prompt :scene :act-change :scene-change :ending
+                                                                                    :challenge :hazard :clue :complication :opportunity])
                                                       :deck     (build-draw-deck decks
                                                                                  {:episode episode
                                                                                   :players players})}))

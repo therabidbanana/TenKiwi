@@ -135,7 +135,6 @@
 
 ;; TODO: Fix build act to match planned algo
 ;; - need to mix enough clues into acts 1, 2 (does act 3 get any - would just help position)
-;; - placeholders for other prompts
 (defn build-act [{:keys [prompt]
                   :as   decks}
                  episode

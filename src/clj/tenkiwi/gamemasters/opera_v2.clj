@@ -111,6 +111,28 @@
     (zipmap (keys grouped)
             (map first (vals grouped)))))
 
+(defn scene-endings-by-act [act-number episode]
+  (let [setting-key (keyword (str "act-" act-number "-scene-endings"))
+        any-setting :any-scene-endings
+        setting (or (get-in episode [:options setting-key])
+                    (get-in episode [:options :any-scene-endings])
+                    "complication")]
+    (println setting)
+    (->> (clojure.string/split setting #",")
+         (map keyword)
+         shuffle)))
+
+(defn scene-openings-by-act [act-number episode]
+  (let [setting-key (keyword (str "act-" act-number "-scene-openings"))
+        any-setting :any-scene-openings
+        setting (or (get-in episode [:options setting-key])
+                    (get-in episode [:options :any-scene-endings])
+                    "exploration,research,confrontation,confrontation")]
+    (println setting)
+    (->> (clojure.string/split setting #",")
+         (map keyword)
+         shuffle)))
+
 ;; TODO: Fix build act to match planned algo
 ;; - need to mix enough clues into acts 1, 2 (does act 3 get any - would just help position)
 ;; - placeholders for other prompts
@@ -120,22 +142,10 @@
                  scene-count
                  act-number]
   (let [;; Maybe add challenge && loose end
-        types   (cond
-                  (= act-number 0)
-                  [:complication :clue :clue :clue :clue :hazard :hazard :opportunity :opportunity]
-                  (= act-number 1)
-                  [:complication :complication :clue :clue :hazard :hazard :opportunity]
-                  :else
-                  [:complication :complication :hazard :hazard]
-                  )
+
+        types   (scene-endings-by-act act-number episode)
         ;; Make this more dynamic
-        scenes  (cond
-                  (= act-number 0)
-                  [:interrogation :exploration :research :confrontation]
-                  (= act-number 1)
-                  [:research :interrogation :exploration :confrontation]
-                  :else
-                  [:research :exploration :confrontation :confrontation])
+        scenes  (scene-openings-by-act act-number episode)
         fillers (repeat {:type       :prompt
                          ;; :concept    concept
                          :filler?    true

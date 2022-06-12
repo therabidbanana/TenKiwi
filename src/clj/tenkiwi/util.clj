@@ -142,6 +142,7 @@
           (remove tag-filter)
           shuffle
           (map :text)
+          (distinct)
           (take n)))))
 
 (defn roll [count sides]

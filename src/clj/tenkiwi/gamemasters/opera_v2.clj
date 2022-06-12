@@ -53,18 +53,18 @@
   (let [next-player                     (:id (player-order/next-player game))
         prev-player                     (:id (player-order/previous-player game))
         player-names                    (character-sheets/->player-names game)
-        {:keys [complications clues
-                opportunities hazards]} episode
-        setup                           (:setup episode)]
-    (merge
-     setup
-     {:clue         (nth clues scene-number (rand-nth clues))
-      :hazard       (nth hazards scene-number (rand-nth hazards))
-      :opportunity  (nth opportunities scene-number (rand-nth opportunities))
-      :player-left  (get-in player-names [prev-player] "")
-      :player-right (get-in player-names [next-player] "")
-      :opening      (:text episode)
-      :complication (nth complications scene-number (first complications))})))
+        ;; TODO: include setup values instead
+        setup                           (:setup episode)
+        pluck-nth                       (fn [x]
+                                          (if (string? x)
+                                            x
+                                            (nth x scene-number (rand-nth x))))]
+    (-> setup
+        (merge {:player-left  (get-in player-names [prev-player] "")
+                :player-right (get-in player-names [next-player] "")
+                :opening      (:text episode)})
+        ;; Take random val from coll
+        (util/update-values pluck-nth))))
 
 (defn replace-vars [variables str-or-card]
   (let [text      (if (string? str-or-card)
@@ -117,7 +117,6 @@
         setting (or (get-in episode [:options setting-key])
                     (get-in episode [:options :any-scene-endings])
                     "complication")]
-    (println setting)
     (->> (clojure.string/split setting #",")
          (map keyword)
          shuffle)))
@@ -128,7 +127,6 @@
         setting (or (get-in episode [:options setting-key])
                     (get-in episode [:options :any-scene-endings])
                     "exploration,research,confrontation,confrontation")]
-    (println setting)
     (->> (clojure.string/split setting #",")
          (map keyword)
          shuffle)))
@@ -212,6 +210,7 @@
                           (keys act-names))
                   #_[(:ending-card mission-details)]))))
 
+
 (defn extract-setup [{generators :generator
                       :as decks}
                      setup-string]
@@ -245,11 +244,11 @@
         ]
     (-> opening
         (update :text (partial replace-vars episode-setup))
-        (update :complications #(->> (string/split % #"\s\s+") (map string/trim)))
-        (update :challenges #(->> (string/split % #"\s\s+") (map string/trim)))
-        (update :clues #(->> (string/split % #"\s\s+") (map string/trim)))
-        (update :hazards #(->> (string/split % #"\s\s+") (map string/trim)))
-        (update :opportunities #(->> (string/split % #"\s\s+") (map string/trim)))
+        ;; (update :complications #(->> (string/split % #"\s\s+") (map string/trim)))
+        ;; (update :challenges #(->> (string/split % #"\s\s+") (map string/trim)))
+        ;; (update :clues #(->> (string/split % #"\s\s+") (map string/trim)))
+        ;; (update :hazards #(->> (string/split % #"\s\s+") (map string/trim)))
+        ;; (update :opportunities #(->> (string/split % #"\s\s+") (map string/trim)))
         (assoc :setup episode-setup)
         (assoc :options options))))
 

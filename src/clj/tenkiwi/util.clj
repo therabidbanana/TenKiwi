@@ -117,12 +117,32 @@
 
 (defn pluck-text
   ([generators keyname]
-   (first (pluck-text generators keyname 1)))
+   (let [[_ num key] (re-matches #"(\d+)\|(.+)" (or keyname ""))]
+     (cond
+      num
+      (pluck-text generators key (Integer/parseInt num))
+      :else
+      (first (pluck-text generators keyname 1))
+      )))
   ([generators keyname n]
-   (->> (get generators keyname [{:text "unknown"}])
-        shuffle
-        (map :text)
-        (take n))))
+   (let [[_ key tags] (re-matches #"(.+)\#(.+)" keyname)
+         tag-list (if tags
+                    (->> (clojure.string/split tags #",")
+                         (map keyword)))]
+     (cond
+       tag-list
+       (pluck-text generators key n tag-list)
+       :else
+       (pluck-text generators keyname n #{}))))
+  ([generators keyname n tags]
+   (let [tag-filter (if (empty? tags)
+                  #(empty? %)
+                  #(not-any? (:tags % {}) tags))]
+     (->> (get generators keyname [{:text "unknown"}])
+          (remove tag-filter)
+          shuffle
+          (map :text)
+          (take n)))))
 
 (defn roll [count sides]
   (map (fn [i] (inc (rand-int sides))) (range 0 count)))

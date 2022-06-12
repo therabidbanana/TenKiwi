@@ -156,7 +156,7 @@
                                                              {:id    :opera
                                                               :title "Opera"}
                                                              {:id    :opera-v2
-                                                              :title "Breathless Investigation"}
+                                                              :title "Breathless Adventures"}
                                                              {:id    :prompted-by-charge
                                                               :title "Prompted by Charge"}
                                                              {:id    :threads

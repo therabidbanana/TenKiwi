@@ -1,3 +1,8 @@
+---
+layout: default
+---
+
+
 ## Tenkiwi
 
 A platform for zero-prep roleplaying games.

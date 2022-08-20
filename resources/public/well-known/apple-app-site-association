@@ -1,9 +1,13 @@
 {
   "applinks": {
-    "apps": [],
     "details": [{
-      "appID": "3PZEM7YXDE.com.davidhaslem.tenkiwi",
-      "paths": ["*"]
+      "appIDs": ["3PZEM7YXDE.com.davidhaslem.tenkiwi"],
+        "components": [
+            {"/": "/share/*", "comment": "Suport share codes"},
+            {"/": "/unlock/*", "comment": "Suport share codes"},
+            {"/": "/join/*", "comment": "Suport room joins"},
+            {"/": "/*", "comment": "Support others"}
+        ]
     }]
   }
 }

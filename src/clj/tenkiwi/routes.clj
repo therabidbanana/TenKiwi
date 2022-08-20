@@ -24,6 +24,7 @@
     (routes
      (GET "/" _ (index-fn))
      (GET "/unlock/:code" _ (index-fn))
+     (GET "/share/:code" _ (index-fn))
      (GET "/join/:code" _ (index-fn))
      (GET "/cards.html" _
           (-> "public/cards.html"

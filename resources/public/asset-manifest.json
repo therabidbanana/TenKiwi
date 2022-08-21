@@ -1,8 +1,8 @@
 {
   "files": {
-    "app.js": "/static/js/app.e2c4f5aa.chunk.js",
+    "app.js": "/static/js/app.b999f0fd.chunk.js",
     "runtime~app.js": "/static/js/runtime~app.137bd897.js",
-    "static/js/2.077a5fcc.chunk.js": "/static/js/2.077a5fcc.chunk.js",
+    "static/js/2.134b4918.chunk.js": "/static/js/2.134b4918.chunk.js",
     "fonts/AntDesign.ttf": "/./fonts/AntDesign.ttf",
     "fonts/Entypo.ttf": "/./fonts/Entypo.ttf",
     "fonts/Feather.ttf": "/./fonts/Feather.ttf",
@@ -20,11 +20,13 @@
     "favicon.ico": "/favicon.ico",
     "index.html": "/index.html",
     "manifest.json": "/manifest.json",
-    "serve.json": "/serve.json"
+    "serve.json": "/serve.json",
+    "static/media/app.png": "/static/media/app.239ebf2b.png",
+    "static/media/loading.png": "/static/media/loading.66caf301.png"
   },
   "entrypoints": [
     "static/js/runtime~app.137bd897.js",
-    "static/js/2.077a5fcc.chunk.js",
-    "static/js/app.e2c4f5aa.chunk.js"
+    "static/js/2.134b4918.chunk.js",
+    "static/js/app.b999f0fd.chunk.js"
   ]
 }

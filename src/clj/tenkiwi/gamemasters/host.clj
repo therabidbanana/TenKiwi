@@ -82,6 +82,10 @@
   ([register uid lobby-id user-info]
    (let [world-atom (:world register)
          host-codes (into #{} (:unlock-codes user-info))
+         sheets      (filterv #(re-find #"^http" %) host-codes)
+         host-codes  (if (empty? sheets)
+                       host-codes
+                       (into host-codes #{"custom"}))
          available-games (filter (fn [{:keys [code]}]
                                    (or (empty? code) (= lobby-id code)
                                        (host-codes code)))
@@ -93,6 +97,7 @@
                    :room-code lobby-id
                    :atom-id  (str uid "/" lobby-id)
                    :valid-modes valid-modes
+                   :sheets sheets
                    :host-id uid
                    :available-games available-games
                    :players []
@@ -140,7 +145,7 @@
 (defn select-custom-game [room-id {:keys []
                                    :as   params
                                    :or   {}}
-                          {:keys [valid-modes] :as room}]
+                          {:keys [valid-modes sheets] :as room}]
   (let [new-game {:game-type     :custom
                   :configuration {:params (assoc params :game-type :ftq :game-url "" :custom-play? true)
                                   :inputs [{:type    :select
@@ -169,7 +174,13 @@
                                            {:type  :text
                                             :label "Tab Separated Values URL"
                                             :name  :game-url}
-                                           ]}
+                                           ;; TODO: custom games should just show up
+                                           #_{:type :select
+                                            :label "Personal Games List"
+                                            :name :game-url
+                                            :options (into [{:value "" :name "None"}]
+                                                           (mapv #(hash-map :value % :name %)
+                                                            sheets))}]}
                   :game-url      ""}]
     new-game))
 

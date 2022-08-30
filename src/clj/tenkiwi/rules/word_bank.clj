@@ -12,7 +12,7 @@
 (defn- gather-word-banks [-generators story-details word-count]
   (map #(hash-map :title (:label %)
                   :name (:name %)
-                  :items (take word-count (shuffle (mapv :text (get -generators (:name %) [])))))
+                  :items (take (:count % word-count) (shuffle (mapv :text (get -generators (:name %) [])))))
        story-details))
 
 (defn initial-state [starting-state

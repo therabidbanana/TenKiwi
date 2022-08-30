@@ -25,6 +25,9 @@
         active-player (first players)
         next-player (next-player-by-order order active-player)
         order-state {:order         order
+                     ;; For turns with multiple phases, first player changes per
+                     ;; turn
+                     :first-player  active-player
                      :active-player active-player}]
     (merge
      starting-state
@@ -64,5 +67,31 @@
                               :as   game}]
   (let [next-up (next-player game)
         updated (-> game
+                    (assoc-in [:-player-order :active-player] next-up))]
+    updated))
+
+;; Phased turns restart each phase with the first player, then advance
+;; first-player when there is a a new turn.
+(defn next-first-player [{{:keys [first-player
+                                  order]}
+                          :-player-order}]
+  (next-player-by-order order first-player))
+
+(defn first-player [{{:keys [first-player]}
+                     :-player-order}]
+  first-player)
+
+(defn activate-next-phase! [{:keys [-player-order]
+                              :as   game}]
+  (let [next-up (first-player game)
+        updated (-> game
+                    (assoc-in [:-player-order :active-player] next-up))]
+    updated))
+
+(defn activate-next-turn! [{:keys [-player-order]
+                             :as   game}]
+  (let [next-up (next-first-player game)
+        updated (-> game
+                    (assoc-in [:-player-order :first-player] next-up)
                     (assoc-in [:-player-order :active-player] next-up))]
     updated))

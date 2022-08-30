@@ -5,6 +5,7 @@
             [tenkiwi.gamemasters.walking-deck-v2 :as walking-deck-v2]
             [tenkiwi.gamemasters.oracle :as oracle]
             [tenkiwi.gamemasters.opera :as opera]
+            [tenkiwi.gamemasters.push :as push]
             [tenkiwi.gamemasters.wretched :as wretched]
             [tenkiwi.gamemasters.threads :as threads]
             [tenkiwi.gamemasters.opera-v2 :as opera-v2]
@@ -82,7 +83,7 @@
   ([register uid lobby-id user-info]
    (let [world-atom (:world register)
          host-codes (into #{} (:unlock-codes user-info))
-         sheets      (filterv #(re-find #"^http" %) host-codes)
+         sheets      (filterv #(re-find #"^http" %) (remove nil? host-codes))
          host-codes  (if (empty? sheets)
                        host-codes
                        (into host-codes #{"custom"}))
@@ -90,7 +91,7 @@
                                    (or (empty? code) (= lobby-id code)
                                        (host-codes code)))
                                  (util/read-spreadsheet-data GAME-LIBRARY util/normalize-card))
-         valid-modes (into #{:ftq :debrief :wretched :opera :opera-v2 :threads :prompted-by-charge}
+         valid-modes (into #{:ftq :debrief :wretched :opera :push :opera-v2 :threads :prompted-by-charge}
                            (map :type available-games))
          room (or (get-room register lobby-id)
                   {:id (str uid "/" lobby-id)
@@ -138,6 +139,7 @@
       :walking-deck-v2 (partial walking-deck-v2/start-game room-id params)
       :ftq (partial ftq/start-game room-id params)
       :opera-v2 (partial opera-v2/start-game room-id params)
+      :push (partial push/start-game room-id params)
       :opera (partial opera/start-game room-id params)
       :wretched (partial wretched/start-game room-id params)
       nil)))
@@ -162,6 +164,8 @@
                                                               :title "Opera"}
                                                              {:id    :opera-v2
                                                               :title "Breathless Adventures"}
+                                                             {:id    :push
+                                                              :title "Push"}
                                                              {:id    :prompted-by-charge
                                                               :title "Prompted by Charge"}
                                                              {:id    :threads
@@ -212,6 +216,7 @@
       :ftq (partial ftq/take-action action)
       :opera (partial opera/take-action action)
       :opera-v2 (partial opera-v2/take-action action)
+      :push (partial push/take-action action)
       :wretched (partial wretched/take-action action)
       nil)))
 

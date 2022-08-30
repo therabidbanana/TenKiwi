@@ -115,22 +115,6 @@
      (zipmap (keys grouped)
              (map #(-> % first func) (vals grouped))))))
 
-(defn build-round [round card-count {:keys [question act-start]
-                                     :as   decks}]
-  (let [round          (if (string? round) round (str round))
-        questions      (group-by :act question)
-        act-starts     (one-per-act act-start)
-        round-start-qs (get questions (str "^" round) [])
-        round-end-qs   (get questions (str round "$") [])
-        remainder      (- card-count (+ (count round-start-qs)
-                                        (count round-end-qs)))]
-    (into []
-          (concat
-           [(get act-starts round)]
-           round-start-qs
-           (take remainder (shuffle (questions round)))
-           round-end-qs))))
-
 (defn build-draw-deck [{intro-cards :intro
                         missions    :mission
                         :as         decks}

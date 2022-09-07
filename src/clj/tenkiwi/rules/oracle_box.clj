@@ -74,13 +74,16 @@
            :result (:number random-sample "")})))
 
 (defn consult! [game
-             {:keys [id reroll?]
+             {:keys [id reroll? replace-vars]
               :as   params}]
   (let [{:keys [push? last
                 limit log table]
          :as   oracle} (get-in game [$ id] {})
 
         result  (draw-from oracle reroll?)
+        result  (if replace-vars
+                  (replace-vars game result)
+                  result)
         log     (if reroll?
                   (rest log)
                   log)

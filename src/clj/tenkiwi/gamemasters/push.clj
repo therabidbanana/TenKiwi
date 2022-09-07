@@ -13,8 +13,8 @@
    [tenkiwi.rules.undoable :as undoable]
    ))
 
-(def valid-active-actions #{:regen :consult :pass :discard :undo :done :x-card :end-game :leave-game})
-(def valid-inactive-actions #{:x-card :consult :undo :leave-game})
+(def valid-active-actions #{:next-phase :regen :consult :pass :discard :undo :done :x-card :change-stage :end-game :leave-game})
+(def valid-inactive-actions #{:next-phase :x-card :consult :undo :change-stage :leave-game})
 
 (defn valid-action? [active? action]
   (if active?
@@ -45,6 +45,15 @@
   {:action :done
    :text   "Finish Turn"})
 
+(def next-stage-action
+  {:action :change-stage
+   :params {:stage :game}
+   :text   "Begin Game"})
+
+(def next-phase-action
+  {:action :next-phase
+   :text   "Next Phase"})
+
 (def regen-action
   {:action :regen
    :params {}
@@ -67,12 +76,13 @@
   {:action  :undo
    :text    "Undo Last"})
 
-(defn extract-vars [{:keys []
+(defn extract-vars [{:keys [matrix]
                      :as   game}]
   (let [next-player  (:id (player-order/next-player game))
         prev-player  (:id (player-order/previous-player game))
         player-names (character-sheets/->player-names game)]
     {:previous-player (get-in player-names [prev-player] "")
+     :matrix          (or matrix "")
      :next-player     (get-in player-names [next-player] "")}))
 
 (defn replace-vars [game str-or-card]
@@ -80,13 +90,12 @@
                     str-or-card
                     (:text str-or-card))
         game-vars (extract-vars game)
-        game-vars (if (string? str-or-card)
-                    game-vars
-                    (merge game-vars (select-keys str-or-card [:matrix])))
         replaced  (string/replace (or text "")
                                   #"\{([^\}]+)\}"
                                   #(get game-vars (keyword (nth % 1))
-                                        (str "-" (nth % 1))))]
+                                        (or
+                                         (word-bank/->pluck game (nth % 1))
+                                         (str "-" (nth % 1)))))]
     (cond
       (string? str-or-card)
       replaced
@@ -124,9 +133,7 @@
         description (->> decks :scene-description first)
         actions (->> decks :scene-actions first)]
     (into []
-          (concat intro-cards
-                  [(:mission mission-details)]
-                  (mapcat
+          (concat (mapcat
                    (fn [matrix]
                      [(assoc opening :matrix matrix)
                       (assoc description :matrix matrix)
@@ -138,7 +145,7 @@
                           :as   game}]
   (let [next-card       (prompt-deck/active-card game)]
     (-> game
-        (assoc-in [:episode] (get-in game [:mission-details :mission])))))
+        (assoc-in [:episode] (get-in game [:mission-details])))))
 
 (defn render-active-display [{:as                      game
                               {:as   display
@@ -148,17 +155,16 @@
                                       x-card-active?]} :display}]
   (let [{:keys []}   game
         act          (:act card)
-        next-stage   (or (:type card) :intro)
+        next-stage   (game-stages/->stage game)
         ;; Don't allow done-action for #everyone cards until they are passed around
         can-finish?  (prompt-deck/->everyone? game)
         pass         {:action :pass
                       :text   (str "Pass card to " (:user-name next-player))}
         next-actions (case next-stage
-                       :end     [pass end-game-action]
-                       :dossier [done-action]
+                       :intro     [next-stage-action]
                        (if can-finish?
-                         [done-action pass]
-                         [pass]))
+                         [next-phase-action pass]
+                         [next-phase-action pass]))
         updated-card (replace-vars game card)]
     (-> game
         ;; Revisit which way is appropriate for this game
@@ -185,19 +191,25 @@
         extra-actions    []]
     (assoc game
            :inactive-display
-           (cond
-             (#{:act-start :question :intro :mission-briefing} card-type)
-             (-> active-display
-                 (assoc :available-actions valid-inactive-actions)
-                 (assoc :actions disabled-actions)
-                 (update :actions #(into % extra-actions)))
-             (#{:dossier} card-type)
-             {:card              (waiting-for active-player "Introductions are being made.")
-              :available-actions valid-inactive-actions
-              :extra-actions     [undo-action leave-game-action]}
-             :else
-             (-> active-display
-                 (assoc :available-actions valid-inactive-actions))))))
+           (-> active-display
+               (assoc :available-actions valid-inactive-actions)))))
+
+(def $decks :-decks)
+
+(defn render-phase-prompt [{:keys  [$decks]
+                            decks $decks
+                            :as    game}]
+  (let [opening (->> decks :scene-opening first)
+        description (->> decks :scene-description first)
+        actions (->> decks :scene-actions first)
+        prompt  (case (game-stages/->phase game)
+                  :encounter opening
+                  :descriptions description
+                  :actions actions
+                  {:text ""})]
+    (-> game
+        (assoc-in [:display :card] prompt)
+        (assoc-in [:display :matrix] (:matrix game)))))
 
 (defn render-test [game]
   (println (keys game))
@@ -207,21 +219,25 @@
 (defn render-game-display [game]
   (-> (render-stage-info game)
       player-order/render-display
-      prompt-deck/render-display
+      ;; prompt-deck/render-display
+      render-phase-prompt
       x-card/render-display
       word-bank/render-display
       oracle-box/render-oracle-display
+      game-stages/render-display
       ;; render-test
       ;; character-sheets/render-display
       render-active-display
       render-inactive-display))
 
-(defn prepare-mission [{:keys [matrix mission agenda]}]
+(defn prepare-mission [{:keys [matrix mission agenda intro]
+                        :as   decks}]
   (let [matrix (mapv :text (shuffle matrix))
         mission (rand-nth mission)
-        agenda (:text (rand-nth agenda))]
+        agenda (rand-nth agenda)]
     {:mission mission
      :mission-text (:text mission)
+     :intro  intro
      :agenda agenda
      :agenda-text (:text agenda)
      :matrix  matrix}))
@@ -229,19 +245,19 @@
 (defn start-game [room-id {:keys [game-url]
                            :or   {}}
                   {:keys [players] :as room}]
-  (let [decks                 (util/gather-decks game-url)
-        generators            (->> decks :generator (group-by :concept))
-        mission-details       (prepare-mission decks)
+  (let [decks                  (util/gather-decks game-url)
+        generators             (->> decks :generator (group-by :concept))
+        mission-details        (prepare-mission decks)
         {action-roll "action"
          oracle-roll "oracle"
          :as         oracles}  (->> decks :oracle (group-by :concept))
         {action-desc "action"
          oracle-desc "oracle"} (-> (group-by :concept (:oracle-description decks))
-                                  (util/update-values first)
-                                  (util/update-values :text))
+                                   (util/update-values first)
+                                   (util/update-values :text))
 
 
-        initial-state (-> {:game-type :push
+        initial-state (-> {:game-type       :push
                            :mission-details mission-details}
                           (player-order/initial-state {:players players})
                           (x-card/initial-state {})
@@ -256,24 +272,20 @@
                                                      :description action-desc
                                                      :table       (group-by :number action-roll)})
                           (game-stages/initial-state {:initial-stage :intro
+                                                      :phases        {:encounter    {}
+                                                                      :descriptions {}
+                                                                      :actions      {}}
                                                       :stages        {:intro
                                                                       {:title  "Introduction"
                                                                        :screen :intro}
                                                                       :game
                                                                       {:title  "Game"
-                                                                       :screen :game}}})
+                                                                       :screen :game
+                                                                       :phases [:encounter :descriptions :actions]}}})
                           ;; (character-sheets/initial-state {:name-key   :agent-codename
                           ;;                                  :intro-card dossier-template})
                           (undoable/initial-state {:skip-keys [:display :active-display :inactive-display]})
-                          (word-bank/initial-state {:word-banks    [{:label "Description"
-                                                                     :name  "descriptions"
-                                                                     :count 1}
-                                                                    {:label "Challenge"
-                                                                     :name  "challenge"
-                                                                     :count 1}
-                                                                    {:label "Complication"
-                                                                     :name  "complication"
-                                                                     :count 1}]
+                          (word-bank/initial-state {:word-banks    []
                                                     :word-bank-key :extra-details
                                                     :generators    generators})
                           (prompt-deck/initial-state {:features {:everyone true}
@@ -283,7 +295,11 @@
 
         new-game (merge
                   initial-state
-                  {:game-type :push})]
+                  {:game-type     :push
+                   ;; TODO: better matrix handling for state
+                   :matrix        (first (:matrix mission-details))
+                   $decks         decks
+                   :ready-players {}})]
     (render-game-display new-game)))
 
 (defn extract-dossier [{:keys [inputs]}]
@@ -292,10 +308,7 @@
 
 (defn finish-card [game]
   (let [active-player    (player-order/active-player game)
-        previous-card    (prompt-deck/active-card game)
         next-state       (-> game
-                             ;; Order matters - lock before transition player
-                             character-sheets/maybe-lock-sheet!
                              player-order/activate-next-player!
                              word-bank/regen-word-banks!
                              x-card/reset-x-card!
@@ -303,10 +316,30 @@
                              (undoable/checkpoint! game))]
     (render-game-display next-state)))
 
+(defn draw-new-encounter [{current-matrix :matrix
+                           :as game}]
+  (let [matrix (get-in game [:mission-details :matrix])
+        next-matrix (if current-matrix
+                      (first (rest (drop-while #(not= % current-matrix) matrix)))
+                      (first matrix))]
+    (if next-matrix
+      (assoc game :matrix next-matrix)
+      game)))
+
+(defn next-phase [game]
+  (let [active-player    (player-order/active-player game)
+        next-state       (-> game
+                             player-order/activate-next-phase!
+                             game-stages/next-phase!
+                             word-bank/regen-word-banks!
+                             x-card/reset-x-card!)
+        next-state       (if (= :encounter (game-stages/->phase next-state))
+                           (draw-new-encounter next-state)
+                           next-state)]
+    (render-game-display (undoable/checkpoint! next-state game))))
+
 (defn discard-card [game]
   (let [next-game       (-> game
-                            ;; Order matters - lock before next card
-                            character-sheets/maybe-lock-sheet!
                             prompt-deck/draw-next-card!
                             word-bank/regen-word-banks!
                             x-card/reset-x-card!
@@ -324,6 +357,18 @@
       player-order/activate-next-player!
       (undoable/checkpoint! game)
       render-game-display))
+
+
+;; TODO: Fix how readiness is marked
+(defn change-stage [uid {:keys [stage]} {:keys [ready-players] :as game}]
+  (let [player-order  (player-order/player-order game)
+        ready-players (assoc ready-players uid true)]
+    (if (some #(nil? (ready-players %)) (map :id player-order))
+      (assoc-in game [:ready-players] ready-players)
+      (-> game
+          (game-stages/change-stage! stage)
+          (undoable/checkpoint! game)
+          render-game-display))))
 
 ;; TODO: How much stress does this add to duratom?
 (defn undo-card [game]
@@ -359,7 +404,7 @@
                {:keys [stage]
                 :as   game}]
   (-> game
-      (oracle-box/consult! params)
+      (oracle-box/consult! (assoc params :replace-vars replace-vars))
       render-game-display))
 
 (defn if-active-> [uid action do-next-state]
@@ -376,6 +421,9 @@
                         :discard         discard-card
                         :pass            pass-card
                         :undo            undo-card
+                        :next-phase      next-phase
+                        ;; :ready           (partial make-ready uid)
+                        :change-stage    (partial change-stage uid params)
                         :regen           (partial regen-card params)
                         :consult         (partial consult params)
                         :tick-clock      tick-clock

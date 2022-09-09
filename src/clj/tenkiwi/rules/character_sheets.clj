@@ -23,8 +23,9 @@
             (map pluck-value (keys fields)))))
 
 (defn initial-state [starting-state
-                     {:keys [name-key intro-card players]
-                      :or   {name-key :nickname}
+                     {:keys [name-key intro-card players lockable?]
+                      :or   {name-key :nickname
+                             lockable? true}
                       :as   options}]
   (let [generator-list (->> (clojure.string/split (:inputs intro-card) #"\s\s")
                             (map #(clojure.string/split % #":"))
@@ -33,6 +34,7 @@
         fields      (util/update-keys generator-list keyword)
         sheet-state {:name-key   name-key
                      :fields     fields
+                     :lockable?  lockable?
                      :intro-card intro-card
                      :sheets     (zipmap (map :id players)
                                          (map #(merge
@@ -57,11 +59,19 @@
    (->player-names state :user-name))
   ([state fallback-key]
    (let [sheets      (get-in state [$ :sheets])
-         name-key    (get-in state [$ :name-key])]
+         name-key    (get-in state [$ :name-key])
+         lockable?   (get-in state [$ :lockable?])]
      (util/update-values sheets
-                         (fn [%] (if (:locked? %)
+                         (fn [%] (if (or (not lockable?) (:locked? %))
                                    (get % name-key (get % fallback-key "Someone"))
                                    (get % fallback-key "Someone")))))))
+
+(defn ->intro-cards
+  [state]
+  (let [sheets      (get-in state [$ :sheets])
+        lockable?   (get-in state [$ :lockable?])]
+    (util/update-values sheets
+                        (partial ->intro-card state lockable?))))
 
 (defn placeholder [intro-card player]
   (merge intro-card
@@ -94,15 +104,21 @@
 (defn render-display [state]
   (let [sheets        (get-in state [$ :sheets])
         fields        (get-in state [$ :fields])
+        lockable?     (get-in state [$ :lockable?])
         name-key      (get-in state [$ :name-key])
         current       (player-order/active-player state)
         current-sheet (if (get-in sheets [(:id current) :locked?])
                         (get sheets (:id current) {})
                         {})
+        sheet-list    (if lockable?
+                        (util/keep-values sheets :locked?)
+                        sheets)
         card          (prompt-deck/active-card state)]
     (cond-> state
       true
-      (assoc-in [:display :sheets] (util/keep-values sheets :locked?))
+      (assoc-in [:display :sheets] sheet-list)
+      (not lockable?)
+      (assoc-in [:display :intro-cards] (->intro-cards state))
       true
       (assoc-in [:display :turn-marker]
                 (str (if (name-key current-sheet)

@@ -14,7 +14,7 @@
    ))
 
 (def valid-active-actions #{:next-phase :regen :consult :pass :discard :undo :done :x-card :change-stage :end-game :leave-game})
-(def valid-inactive-actions #{:next-phase :x-card :consult :undo :change-stage :leave-game})
+(def valid-inactive-actions #{:next-phase :regen :x-card :consult :undo :change-stage :leave-game})
 
 (defn valid-action? [active? action]
   (if active?
@@ -230,7 +230,7 @@
       oracle-box/render-oracle-display
       game-stages/render-display
       ;; render-test
-      ;; character-sheets/render-display
+      character-sheets/render-display
       render-active-display
       render-inactive-display))
 
@@ -259,6 +259,8 @@
          oracle-desc "oracle"} (-> (group-by :concept (:oracle-description decks))
                                    (util/update-values first)
                                    (util/update-values :text))
+        dossier-template       (->> decks :dossier first)
+
 
 
         initial-state (-> {:game-type       :push
@@ -292,8 +294,6 @@
                                                                       {:title  "Game"
                                                                        :screen :game
                                                                        :phases [:encounter :descriptions :actions]}}})
-                          ;; (character-sheets/initial-state {:name-key   :agent-codename
-                          ;;                                  :intro-card dossier-template})
                           (undoable/initial-state {:skip-keys [:display :active-display :inactive-display]})
                           (word-bank/initial-state {:word-banks      [{:title "Challenge"
                                                                        :name  "challenge"
@@ -318,6 +318,10 @@
                                                                        :group :character}]
                                                     :word-bank-count 2
                                                     :generators      generators})
+                          (character-sheets/initial-state {:name-key   :name
+                                                           :players    players
+                                                           :lockable?  false
+                                                           :intro-card dossier-template})
                           (prompt-deck/initial-state {:features {:everyone true}
                                                       :deck     (build-draw-deck decks
                                                                                  {:mission-details mission-details
@@ -421,17 +425,13 @@
   ;; Nothing
   game)
 
-(defn regen-card [params
+(defn regen-card [uid
+                  params
                   {:keys [stage]
                    :as   game}]
-  (let [active-player  (player-order/active-player game)]
-    (cond
-      (#{:dossier} stage)
-      (-> game
-          (character-sheets/regen! active-player params)
-          render-game-display)
-      :else
-      game)))
+  (-> game
+      (character-sheets/regen! {:id uid} params)
+      render-game-display))
 
 (defn consult [params
                {:keys [stage]
@@ -457,7 +457,7 @@
                         :next-phase      next-phase
                         ;; :ready           (partial make-ready uid)
                         :change-stage    (partial change-stage uid params)
-                        :regen           (partial regen-card params)
+                        :regen           (partial regen-card uid params)
                         :consult         (partial consult params)
                         :tick-clock      tick-clock
                         ;; TODO allow players to leave game without ending

@@ -51,6 +51,11 @@
                      :-player-order}]
   order)
 
+(defn player-by-id [{{:keys [order]}
+                     :-player-order}
+                    id]
+  (first (filter #(#{id} (:id %)) order)))
+
 (defn render-display [state]
   (let [active-player (active-player state)
         next-player   (next-player state)]

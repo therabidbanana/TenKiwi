@@ -7,26 +7,26 @@
   (->> (clojure.string/split str #"\s\s")
        (map #(clojure.string/split % #":\s+"))
        (map #(hash-map :name (first %)
-                       :label (last %)))))
+                       :title (last %)))))
 
 (defn- gather-word-banks [-generators story-details word-count]
-  (map #(hash-map :title (:label %)
-                  :name (:name %)
-                  :items (take (:count % word-count) (shuffle (mapv :text (get -generators (:name %) [])))))
+  (map #(assoc %
+               :items (take (:count % word-count) (shuffle (mapv :text (get -generators (:name %) [])))))
        story-details))
 
 (defn initial-state [starting-state
-                     {:keys [word-banks word-bank-key generators]
-                      :or   {word-bank-key :story-details}
+                     {:keys [word-banks word-bank-key generators word-bank-count]
+                      :or   {word-bank-key :story-details
+                             word-bank-count 3}
                       :as   options}]
   (let [word-banks  (if (string? word-banks)
                       (extract-generator-list word-banks)
                       word-banks)
         extra-state {:word-banks        word-banks
                      :word-bank-key     word-bank-key
-                     :word-bank-count   3
+                     :word-bank-count   word-bank-count
                      :generators        generators
-                     :current-word-bank (gather-word-banks generators word-banks 3)}]
+                     :current-word-bank (gather-word-banks generators word-banks word-bank-count)}]
     (merge
      starting-state
      {$ extra-state})))

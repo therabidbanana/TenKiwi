@@ -45,10 +45,10 @@
   {:action :done
    :text   "Finish Turn"})
 
-(def next-stage-action
+(defn next-stage-action [next-stage]
   {:action :change-stage
-   :params {:stage :game}
-   :text   "Begin Game"})
+   :params {:stage next-stage}
+   :text   "Continue"})
 
 (def next-phase-action
   {:action :next-phase
@@ -76,13 +76,14 @@
   {:action  :undo
    :text    "Undo Last"})
 
-(defn extract-vars [{:keys [matrix]
+(defn extract-vars [{:keys [matrix challenge]
                      :as   game}]
   (let [next-player  (:id (player-order/next-player game))
         prev-player  (:id (player-order/previous-player game))
         player-names (character-sheets/->player-names game)]
     {:previous-player (get-in player-names [prev-player] "")
      :matrix          (or matrix "")
+     :challenge       (or challenge "")
      :next-player     (get-in player-names [next-player] "")}))
 
 (defn replace-vars [game str-or-card]
@@ -161,7 +162,9 @@
         pass         {:action :pass
                       :text   (str "Pass card to " (:user-name next-player))}
         next-actions (case next-stage
-                       :intro     [next-stage-action]
+                       :intro     [(next-stage-action :character)]
+                       :character [(next-stage-action :mission)]
+                       :mission   [(next-stage-action :game)]
                        (if can-finish?
                          [next-phase-action pass]
                          [next-phase-action pass]))
@@ -209,6 +212,7 @@
                   {:text ""})]
     (-> game
         (assoc-in [:display :card] prompt)
+        (assoc-in [:display :challenge] (:challenge game))
         (assoc-in [:display :matrix] (:matrix game)))))
 
 (defn render-test [game]
@@ -278,6 +282,12 @@
                                                       :stages        {:intro
                                                                       {:title  "Introduction"
                                                                        :screen :intro}
+                                                                      :character
+                                                                      {:title  "Character"
+                                                                       :screen :character}
+                                                                      :mission
+                                                                      {:title  "Mission"
+                                                                       :screen :mission}
                                                                       :game
                                                                       {:title  "Game"
                                                                        :screen :game
@@ -285,9 +295,29 @@
                           ;; (character-sheets/initial-state {:name-key   :agent-codename
                           ;;                                  :intro-card dossier-template})
                           (undoable/initial-state {:skip-keys [:display :active-display :inactive-display]})
-                          (word-bank/initial-state {:word-banks    []
-                                                    :word-bank-key :extra-details
-                                                    :generators    generators})
+                          (word-bank/initial-state {:word-banks      [{:title "Challenge"
+                                                                       :name  "challenge"
+                                                                       :group :challenge}
+                                                                      {:title "Experience"
+                                                                       :name  "experience"
+                                                                       :group :character}
+                                                                      {:title "Upbringing"
+                                                                       :name  "upbringing"
+                                                                       :group :character}
+                                                                      {:title "Gift"
+                                                                       :name  "gift"
+                                                                       :group :character}
+                                                                      {:title "Mark"
+                                                                       :name  "mark"
+                                                                       :group :character}
+                                                                      {:title "Bond"
+                                                                       :name  "bond"
+                                                                       :group :character}
+                                                                      {:title "Charm"
+                                                                       :name  "charm"
+                                                                       :group :character}]
+                                                    :word-bank-count 2
+                                                    :generators      generators})
                           (prompt-deck/initial-state {:features {:everyone true}
                                                       :deck     (build-draw-deck decks
                                                                                  {:mission-details mission-details
@@ -323,7 +353,9 @@
                       (first (rest (drop-while #(not= % current-matrix) matrix)))
                       (first matrix))]
     (if next-matrix
-      (assoc game :matrix next-matrix)
+      (assoc game
+             :matrix next-matrix
+             :challenge (word-bank/->pluck game "challenge"))
       game)))
 
 (defn next-phase [game]
@@ -367,6 +399,7 @@
       (assoc-in game [:ready-players] ready-players)
       (-> game
           (game-stages/change-stage! stage)
+          (assoc :ready-players {})
           (undoable/checkpoint! game)
           render-game-display))))
 

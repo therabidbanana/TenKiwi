@@ -295,27 +295,7 @@
                                                                        :screen :game
                                                                        :phases [:encounter :descriptions :actions]}}})
                           (undoable/initial-state {:skip-keys [:display :active-display :inactive-display]})
-                          (word-bank/initial-state {:word-banks      [{:title "Challenge"
-                                                                       :name  "challenge"
-                                                                       :group :challenge}
-                                                                      {:title "Experience"
-                                                                       :name  "experience"
-                                                                       :group :character}
-                                                                      {:title "Upbringing"
-                                                                       :name  "upbringing"
-                                                                       :group :character}
-                                                                      {:title "Gift"
-                                                                       :name  "gift"
-                                                                       :group :character}
-                                                                      {:title "Mark"
-                                                                       :name  "mark"
-                                                                       :group :character}
-                                                                      {:title "Bond"
-                                                                       :name  "bond"
-                                                                       :group :character}
-                                                                      {:title "Charm"
-                                                                       :name  "charm"
-                                                                       :group :character}]
+                          (word-bank/initial-state {:word-banks      []
                                                     :word-bank-count 2
                                                     :generators      generators})
                           (character-sheets/initial-state {:name-key   :name
@@ -366,13 +346,11 @@
   (let [active-player    (player-order/active-player game)
         next-state       (-> game
                              player-order/activate-next-phase!
-                             game-stages/next-phase!
+                             (game-stages/next-phase! draw-new-encounter)
                              word-bank/regen-word-banks!
-                             x-card/reset-x-card!)
-        next-state       (if (= :encounter (game-stages/->phase next-state))
-                           (draw-new-encounter next-state)
-                           next-state)]
-    (render-game-display (undoable/checkpoint! next-state game))))
+                             x-card/reset-x-card!
+                             (undoable/checkpoint! game))]
+    (render-game-display next-state)))
 
 (defn discard-card [game]
   (let [next-game       (-> game
@@ -398,12 +376,14 @@
 ;; TODO: Fix how readiness is marked
 (defn change-stage [uid {:keys [stage]} {:keys [ready-players] :as game}]
   (let [player-order  (player-order/player-order game)
-        ready-players (assoc ready-players uid true)]
+        ready-players (assoc ready-players uid true)
+        turn-start    (if (#{:game} stage)
+                        draw-new-encounter
+                        #(assoc % :ready-players {}))]
     (if (some #(nil? (ready-players %)) (map :id player-order))
       (assoc-in game [:ready-players] ready-players)
       (-> game
-          (game-stages/change-stage! stage)
-          (assoc :ready-players {})
+          (game-stages/change-stage! stage turn-start)
           (undoable/checkpoint! game)
           render-game-display))))
 

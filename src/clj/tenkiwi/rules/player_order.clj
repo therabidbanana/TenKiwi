@@ -33,6 +33,13 @@
      starting-state
      {:-player-order order-state})))
 
+(defn everyone-done? [{{:keys [active-player
+                               first-player
+                               order]}
+                       :-player-order}]
+  (= (:id (next-player-by-order order active-player))
+     (:id first-player)))
+
 (defn next-player [{{:keys [active-player
                             order]}
                     :-player-order}]

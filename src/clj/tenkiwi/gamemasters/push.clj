@@ -166,8 +166,8 @@
                        :character [(next-stage-action :mission)]
                        :mission   [(next-stage-action :game)]
                        (if can-finish?
-                         [next-phase-action pass]
-                         [next-phase-action pass]))
+                         [done-action]
+                         [done-action]))
         updated-card (replace-vars game card)]
     (-> game
         ;; Revisit which way is appropriate for this game
@@ -322,19 +322,26 @@
 
 (defn finish-card [game]
   (let [active-player    (player-order/active-player game)
-        next-state       (-> game
-                             player-order/activate-next-player!
-                             word-bank/regen-word-banks!
-                             x-card/reset-x-card!
-                             prompt-deck/draw-next-card!
-                             (undoable/checkpoint! game))]
-    (render-game-display next-state)))
+        everyone?        (player-order/everyone-done? game)]
+    (cond
+      (or (#{:encounter} (game-stages/->phase game)) everyone?)
+      (next-phase game)
+      :else
+      (-> game
+          player-order/activate-next-player!
+          word-bank/regen-word-banks!
+          x-card/reset-x-card!
+          prompt-deck/draw-next-card!
+          (undoable/checkpoint! game)
+          render-game-display))))
 
 (defn draw-new-encounter [{current-matrix :matrix
                            :as game}]
   (let [matrix (get-in game [:mission-details :matrix])
         next-matrix (if current-matrix
-                      (first (rest (drop-while #(not= % current-matrix) matrix)))
+                      (first (rest (drop-while #(not= % current-matrix)
+                                               ;; Fix accidental duplicates
+                                               (distinct matrix))))
                       (first matrix))]
     (if next-matrix
       (assoc game
@@ -342,10 +349,14 @@
              :challenge (word-bank/->pluck game "challenge"))
       game)))
 
+
 (defn next-phase [game]
   (let [active-player    (player-order/active-player game)
+        advance-game     (if (#{:actions} (game-stages/->phase game))
+                           player-order/activate-next-turn!
+                           player-order/activate-next-phase!)
         next-state       (-> game
-                             player-order/activate-next-phase!
+                             (advance-game)
                              (game-stages/next-phase! draw-new-encounter)
                              word-bank/regen-word-banks!
                              x-card/reset-x-card!
@@ -353,11 +364,15 @@
     (render-game-display next-state)))
 
 (defn discard-card [game]
-  (let [next-game       (-> game
-                            prompt-deck/draw-next-card!
-                            word-bank/regen-word-banks!
-                            x-card/reset-x-card!
-                            (undoable/checkpoint! game))
+  (let [next-game       (cond-> game
+                          (#{:encounter} (game-stages/->phase game))
+                          draw-new-encounter
+                          :then
+                          word-bank/regen-word-banks!
+                          :and
+                          x-card/reset-x-card!
+                          :finally
+                          (undoable/checkpoint! game))
         next-card       (prompt-deck/active-card next-game)]
     ;; Don't allow discard if deck empty
     (if next-card

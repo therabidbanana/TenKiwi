@@ -320,21 +320,6 @@
   (zipmap (map keyword (map :name inputs))
           (map :value inputs)))
 
-(defn finish-card [game]
-  (let [active-player    (player-order/active-player game)
-        everyone?        (player-order/everyone-done? game)]
-    (cond
-      (or (#{:encounter} (game-stages/->phase game)) everyone?)
-      (next-phase game)
-      :else
-      (-> game
-          player-order/activate-next-player!
-          word-bank/regen-word-banks!
-          x-card/reset-x-card!
-          prompt-deck/draw-next-card!
-          (undoable/checkpoint! game)
-          render-game-display))))
-
 (defn- safe-inc [val]
   (if-not (number? val)
     1
@@ -370,6 +355,21 @@
                              x-card/reset-x-card!
                              (undoable/checkpoint! game))]
     (render-game-display next-state)))
+
+(defn finish-card [game]
+  (let [active-player    (player-order/active-player game)
+        everyone?        (player-order/everyone-done? game)]
+    (cond
+      (or (#{:encounter} (game-stages/->phase game)) everyone?)
+      (next-phase game)
+      :else
+      (-> game
+          player-order/activate-next-player!
+          word-bank/regen-word-banks!
+          x-card/reset-x-card!
+          prompt-deck/draw-next-card!
+          (undoable/checkpoint! game)
+          render-game-display))))
 
 (defn discard-card [game]
   (let [next-game       (cond-> game

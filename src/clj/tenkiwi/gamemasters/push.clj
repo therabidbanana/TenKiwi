@@ -335,6 +335,11 @@
           (undoable/checkpoint! game)
           render-game-display))))
 
+(defn- safe-inc [val]
+  (if-not (number? val)
+    1
+    (inc val)))
+
 (defn draw-new-encounter [{current-matrix :matrix
                            :as game}]
   (let [matrix (get-in game [:mission-details :matrix])
@@ -344,12 +349,15 @@
                                                (distinct matrix))))
                       (first matrix))]
     (if next-matrix
-      (assoc game
-             :matrix next-matrix
-             :challenge (word-bank/->pluck game "challenge"))
+      (-> game
+          (assoc :matrix next-matrix
+                 :challenge (word-bank/->pluck game "challenge"))
+          (update :scene-count safe-inc))
       game)))
 
-
+;; TODO - refactor phases to better handle turns
+;;  - should display turn count
+;;  - should hopefully reduce encoding of phase rules here?
 (defn next-phase [game]
   (let [active-player    (player-order/active-player game)
         advance-game     (if (#{:actions} (game-stages/->phase game))

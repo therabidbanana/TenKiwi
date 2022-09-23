@@ -241,6 +241,7 @@
         agenda (rand-nth agenda)]
     {:mission mission
      :mission-text (:text mission)
+     :word-banks (:inputs mission)
      :intro  intro
      :agenda agenda
      :agenda-text (:text agenda)
@@ -295,7 +296,7 @@
                                                                        :screen :game
                                                                        :phases [:encounter :descriptions :actions]}}})
                           (undoable/initial-state {:skip-keys [:display :active-display :inactive-display]})
-                          (word-bank/initial-state {:word-banks      []
+                          (word-bank/initial-state {:word-banks      (get mission-details :word-banks [])
                                                     :word-bank-count 2
                                                     :generators      generators})
                           (character-sheets/initial-state {:name-key   :name
@@ -315,6 +316,7 @@
                    $decks         decks
                    :ready-players {}})]
     (render-game-display new-game)))
+
 
 (defn extract-dossier [{:keys [inputs]}]
   (zipmap (map keyword (map :name inputs))
@@ -367,7 +369,7 @@
           player-order/activate-next-player!
           word-bank/regen-word-banks!
           x-card/reset-x-card!
-          prompt-deck/draw-next-card!
+          ;; prompt-deck/draw-next-card!
           (undoable/checkpoint! game)
           render-game-display))))
 

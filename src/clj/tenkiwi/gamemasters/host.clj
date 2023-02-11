@@ -9,6 +9,7 @@
             [tenkiwi.gamemasters.wretched :as wretched]
             [tenkiwi.gamemasters.threads :as threads]
             [tenkiwi.gamemasters.opera-v2 :as opera-v2]
+            [tenkiwi.gamemasters.hijinx :as hijinx]
             [tenkiwi.gamemasters.prompted-by-charge :as prompted-by-charge]
             [tenkiwi.instar :refer [transform]]
             [tenkiwi.room-atoms :as room-atoms]
@@ -91,7 +92,7 @@
                                    (or (empty? code) (= lobby-id code)
                                        (host-codes code)))
                                  (util/read-spreadsheet-data GAME-LIBRARY util/normalize-card))
-         valid-modes (into #{:ftq :debrief :wretched :opera :push :opera-v2 :threads :prompted-by-charge}
+         valid-modes (into #{:ftq :debrief :wretched :opera :push :opera-v2 :hijinx :threads :prompted-by-charge}
                            (map :type available-games))
          room (or (get-room register lobby-id)
                   {:id (str uid "/" lobby-id)
@@ -138,6 +139,7 @@
       :oracle (partial oracle/start-game room-id params)
       :walking-deck-v2 (partial walking-deck-v2/start-game room-id params)
       :ftq (partial ftq/start-game room-id params)
+      :hijinx (partial hijinx/start-game room-id params)
       :opera-v2 (partial opera-v2/start-game room-id params)
       :push (partial push/start-game room-id params)
       :opera (partial opera/start-game room-id params)
@@ -164,6 +166,8 @@
                                                               :title "Opera"}
                                                              {:id    :opera-v2
                                                               :title "Breathless Adventures"}
+                                                             {:id    :hijinx
+                                                              :title "Hints and Hijinx"}
                                                              {:id    :push
                                                               :title "Push"}
                                                              {:id    :prompted-by-charge
@@ -195,6 +199,7 @@
     (case game-name
       :opera (partial opera/select-game room-id params)
       :opera-v2 (partial opera-v2/select-game room-id params)
+      :hijinx (partial hijinx/select-game room-id params)
       :custom (partial select-custom-game room-id params)
       :wretched (partial wretched/select-game room-id params)
       :threads (partial threads/select-game room-id params)
@@ -216,6 +221,7 @@
       :ftq (partial ftq/take-action action)
       :opera (partial opera/take-action action)
       :opera-v2 (partial opera-v2/take-action action)
+      :hijinx (partial hijinx/take-action action)
       :push (partial push/take-action action)
       :wretched (partial wretched/take-action action)
       nil)))
